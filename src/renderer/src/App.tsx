@@ -1,181 +1,98 @@
 import { useState } from 'react'
+import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { BookOpen, Calculator, ClipboardList, Settings, Truck } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { cn } from '@/lib/utils'
+import { SettingsPage } from '@/pages/SettingsPage'
+import { ShiftsPage } from '@/pages/ShiftsPage'
 
-function App(): React.JSX.Element {
-  const [contractorName, setContractorName] = useState('')
-  const [vehicleNo, setVehicleNo] = useState('')
-  const [trailerNo, setTrailerNo] = useState('')
-  const [vehicleContractorId, setVehicleContractorId] = useState('')
-  const [driverName, setDriverName] = useState('')
-  const [shiftVehicleNo, setShiftVehicleNo] = useState('')
-  const [shiftDriverId, setShiftDriverId] = useState('')
-  const [crusherCubic, setCrusherCubic] = useState('')
-  const [clientCubic, setClientCubic] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [closeShiftId, setCloseShiftId] = useState('')
-  const [endDate, setEndDate] = useState('')
+export type AddLog = (message: string) => void
 
+const navigationItems = [
+  { to: '/', label: 'إضافة نقلة', icon: Truck },
+  { to: '/shifts', label: 'الورديات', icon: ClipboardList },
+  { to: '/ledger', label: 'سجل العهد والدفعات', icon: BookOpen },
+  { to: '/accounts', label: 'الحسابات', icon: Calculator },
+  { to: '/settings', label: 'بيانات أساسية', icon: Settings }
+]
+
+function PlaceholderPage(): React.JSX.Element {
+  return <div className="flex min-h-64 items-center justify-center text-2xl text-muted-foreground">قريبًا</div>
+}
+
+function AppLayout(): React.JSX.Element {
   const [log, setLog] = useState<string[]>([])
 
-  function addLog(msg: string): void {
-    setLog((prev) => [msg, ...prev])
-  }
-
-  async function handleCreateContractor(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
-    const result = await window.api.createContractor({ name: contractorName })
-    addLog(
-      result.ok
-        ? `✅ مقاول: ${result.data?.name} (id: ${result.data?.id})`
-        : `❌ مقاول: ${result.errors?.map((x) => x.message).join(', ')}`
-    )
-    if (result.ok) setContractorName('')
-  }
-
-  async function handleCreateVehicle(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
-    const result = await window.api.createVehicle({
-      vehicleNo: Number(vehicleNo),
-      trailerNo: trailerNo ? Number(trailerNo) : undefined,
-      contractorId: Number(vehicleContractorId)
-    })
-    addLog(
-      result.ok
-        ? `✅ عربية: ${result.data?.vehicleNo}`
-        : `❌ عربية: ${result.errors?.map((x) => x.message).join(', ')}`
-    )
-    if (result.ok) {
-      setVehicleNo('')
-      setTrailerNo('')
-      setVehicleContractorId('')
-    }
-  }
-
-  async function handleCreateDriver(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
-    const result = await window.api.createDriver({ name: driverName })
-    addLog(
-      result.ok
-        ? `✅ سائق: ${result.data?.name} (id: ${result.data?.id})`
-        : `❌ سائق: ${result.errors?.map((x) => x.message).join(', ')}`
-    )
-    if (result.ok) setDriverName('')
-  }
-
-  async function handleCreateShift(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
-    const result = await window.api.createShift({
-      vehicleNo: Number(shiftVehicleNo),
-      driverId: Number(shiftDriverId),
-      crusherCubicDefault: Number(crusherCubic),
-      clientCubicDefault: Number(clientCubic),
-      startDate
-    })
-    addLog(
-      result.ok
-        ? `✅ وردية اتفتحت: ${result.data?.id}`
-        : `❌ وردية: ${result.errors?.map((x) => x.message).join(', ')}`
-    )
-    if (result.ok) setCloseShiftId(result.data?.id ?? '')
-  }
-
-  async function handleCloseShift(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
-    const result = await window.api.closeShift({ shiftId: closeShiftId, endDate })
-    addLog(
-      result.ok
-        ? `✅ وردية اتقفلت: ${result.data?.id}`
-        : `❌ قفل الوردية: ${result.errors?.map((x) => x.message).join(', ')}`
-    )
+  function addLog(message: string): void {
+    setLog((previous) => [message, ...previous])
   }
 
   return (
-    <div style={{ padding: 24, display: 'flex', gap: 24 }}>
-      <div style={{ flex: 1 }}>
-        <h3>1) مقاول نقل</h3>
-        <form onSubmit={handleCreateContractor}>
-          <input
-            value={contractorName}
-            onChange={(e) => setContractorName(e.target.value)}
-            placeholder="اسم المقاول"
-          />
-          <button type="submit">إضافة</button>
-        </form>
+    <div className="app-shell" dir="rtl">
+      <aside className="app-sidebar">
+        <div className="border-b border-border px-5 py-6">
+          <p className="text-lg font-semibold text-foreground">Shift Tracker</p>
+          <p className="mt-1 text-sm text-muted-foreground">إدارة النقل والورديات</p>
+        </div>
+        <nav className="flex flex-col gap-1 p-3" aria-label="التنقل الرئيسي">
+          {navigationItems.map(({ to, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
+                  isActive && 'bg-accent text-accent-foreground'
+                )
+              }
+            >
+              <Icon className="h-4 w-4" />
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
 
-        <h3>2) عربية</h3>
-        <form onSubmit={handleCreateVehicle}>
-          <input
-            value={vehicleNo}
-            onChange={(e) => setVehicleNo(e.target.value)}
-            placeholder="رقم السيارة"
-          />
-          <input
-            value={trailerNo}
-            onChange={(e) => setTrailerNo(e.target.value)}
-            placeholder="رقم المقطورة (اختياري)"
-          />
-          <input
-            value={vehicleContractorId}
-            onChange={(e) => setVehicleContractorId(e.target.value)}
-            placeholder="id المقاول"
-          />
-          <button type="submit">إضافة</button>
-        </form>
-
-        <h3>3) سائق</h3>
-        <form onSubmit={handleCreateDriver}>
-          <input
-            value={driverName}
-            onChange={(e) => setDriverName(e.target.value)}
-            placeholder="اسم السائق"
-          />
-          <button type="submit">إضافة</button>
-        </form>
-
-        <h3>4) فتح وردية</h3>
-        <form onSubmit={handleCreateShift}>
-          <input
-            value={shiftVehicleNo}
-            onChange={(e) => setShiftVehicleNo(e.target.value)}
-            placeholder="رقم السيارة"
-          />
-          <input
-            value={shiftDriverId}
-            onChange={(e) => setShiftDriverId(e.target.value)}
-            placeholder="id السائق"
-          />
-          <input
-            value={crusherCubic}
-            onChange={(e) => setCrusherCubic(e.target.value)}
-            placeholder="تكعيب الكسارة"
-          />
-          <input
-            value={clientCubic}
-            onChange={(e) => setClientCubic(e.target.value)}
-            placeholder="تكعيب العميل"
-          />
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          <button type="submit">فتح وردية</button>
-        </form>
-
-        <h3>5) قفل وردية</h3>
-        <form onSubmit={handleCloseShift}>
-          <input
-            value={closeShiftId}
-            onChange={(e) => setCloseShiftId(e.target.value)}
-            placeholder="رقم الوردية (SH-xxxx)"
-          />
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          <button type="submit">قفل الوردية</button>
-        </form>
-      </div>
-
-      <div style={{ flex: 1 }}>
-        <h3>Log</h3>
-        {log.map((line, i) => (
-          <div key={i}>{line}</div>
-        ))}
-      </div>
+      <main className="app-main">
+        <div className="app-page">
+          <Outlet context={{ addLog }} />
+        </div>
+        <Card className="app-log-panel">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">السجل</CardTitle>
+          </CardHeader>
+          <CardContent className="max-h-64 overflow-y-auto pt-0">
+            {log.length === 0 ? (
+              <p className="text-sm text-muted-foreground">لا توجد عمليات بعد</p>
+            ) : (
+              <div className="space-y-2 text-sm">
+                {log.map((line, index) => (
+                  <div key={`${line}-${index}`}>{line}</div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
     </div>
+  )
+}
+
+function App(): React.JSX.Element {
+  return (
+    <HashRouter>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<PlaceholderPage />} />
+          <Route path="shifts" element={<ShiftsPage />} />
+          <Route path="ledger" element={<PlaceholderPage />} />
+          <Route path="accounts" element={<PlaceholderPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </HashRouter>
   )
 }
 

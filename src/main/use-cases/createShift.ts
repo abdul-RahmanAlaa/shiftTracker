@@ -1,4 +1,4 @@
-import { getNextShiftId, insertShift } from '../repository/shiftRepository'
+import { getNextShiftId, getOpenShiftByDriver, insertShift } from '../repository/shiftRepository'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
@@ -36,6 +36,19 @@ export function createShift(input: CreateShiftInput): UseCaseResult<{ id: string
   if (!input.startDate?.trim()) errors.push({ field: 'startDate', message: 'تاريخ البداية مطلوب' })
 
   if (errors.length > 0) return { ok: false, errors }
+
+  const existingOpenShift = getOpenShiftByDriver(input.driverId)
+  if (existingOpenShift) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: 'driverId',
+          message: `السائق ده عنده وردية مفتوحة بالفعل (${existingOpenShift.id})`
+        }
+      ]
+    }
+  }
 
   const id = getNextShiftId()
 

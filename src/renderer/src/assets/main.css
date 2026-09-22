@@ -1,10 +1,56 @@
+@import 'tailwindcss';
 @import './base.css';
 
+:root {
+  --background: #1b1b1f;
+  --foreground: rgba(255, 255, 245, 0.86);
+  --card: #222222;
+  --card-foreground: rgba(255, 255, 245, 0.86);
+  --popover: #222222;
+  --popover-foreground: rgba(255, 255, 245, 0.86);
+  --primary: #f8f8f8;
+  --primary-foreground: #1b1b1f;
+  --secondary: #32363f;
+  --secondary-foreground: rgba(255, 255, 245, 0.86);
+  --muted: #282828;
+  --muted-foreground: rgba(235, 235, 245, 0.6);
+  --accent: #32363f;
+  --accent-foreground: rgba(255, 255, 245, 0.86);
+  --destructive: #ef4444;
+  --border: rgba(235, 235, 245, 0.16);
+  --input: rgba(235, 235, 245, 0.16);
+  --ring: rgba(235, 235, 245, 0.4);
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
 body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
+  min-width: 100%;
+  overflow: auto;
   background-image: url('./wavy-lines.svg');
   background-size: cover;
   user-select: none;
@@ -27,11 +73,71 @@ code {
 }
 
 #root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.app-shell {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  margin-bottom: 80px;
+  min-height: 100vh;
+  width: 100%;
+}
+
+.app-sidebar {
+  flex: 0 0 240px;
+  min-height: 100vh;
+  border-left: 1px solid var(--border);
+  background: rgba(27, 27, 31, 0.92);
+}
+
+.app-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  align-content: start;
+  gap: 24px;
+  min-width: 0;
+  flex: 1;
+  padding: 32px;
+}
+
+.app-page {
+  min-width: 0;
+}
+
+.app-log-panel {
+  position: sticky;
+  top: 32px;
+}
+
+@media (max-width: 900px) {
+  .app-main {
+    grid-template-columns: 1fr;
+  }
+
+  .app-log-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    display: block;
+  }
+
+  .app-sidebar {
+    min-height: auto;
+    border-left: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .app-sidebar nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-main {
+    padding: 20px;
+  }
 }
 
 .logo {

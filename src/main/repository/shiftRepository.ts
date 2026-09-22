@@ -69,3 +69,10 @@ export function closeShiftInDb(shiftId: string, endDate: string): void {
   const db = getDb()
   db.prepare(`UPDATE Shift SET status = 'منتهية', end_date = ? WHERE id = ?`).run(endDate, shiftId)
 }
+
+export function getOpenShiftByDriver(driverId: number): { id: string } | undefined {
+  const db = getDb()
+  return db
+    .prepare(`SELECT id FROM Shift WHERE driver_id = ? AND status = 'مفتوحة'`)
+    .get(driverId) as { id: string } | undefined
+}
