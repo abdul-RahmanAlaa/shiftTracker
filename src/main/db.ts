@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS TransportContractor (
 
 CREATE TABLE IF NOT EXISTS Vehicle (
   vehicle_no    INTEGER PRIMARY KEY,
-  trailer_no    INTEGER,
+  trailer_no    INTEGER NOT NULL,
   contractor_id INTEGER NOT NULL REFERENCES TransportContractor(id)
 );
 

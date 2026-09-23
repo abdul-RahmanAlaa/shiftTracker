@@ -132,7 +132,7 @@ interface Api {
   }) => Promise<UseCaseResult<{ id: number; name: string }> | FailedUseCaseResult>
   createVehicle: (input: {
     vehicleNo: number
-    trailerNo?: number
+    trailerNo: number
     contractorId: number
   }) => Promise<UseCaseResult<{ vehicleNo: number }> | FailedUseCaseResult>
   createShift: (input: {
@@ -154,7 +154,7 @@ interface Api {
     UseCaseResult<{ id: number; name: string }[]> | FailedUseCaseResult
   >
   listVehicles: () => Promise<
-    | UseCaseResult<{ vehicleNo: number; trailerNo: number | null; contractorId: number }[]>
+    | UseCaseResult<{ vehicleNo: number; trailerNo: number; contractorId: number }[]>
     | FailedUseCaseResult
   >
   listOpenShifts: () => Promise<UseCaseResult<{ id: string }[]> | FailedUseCaseResult>

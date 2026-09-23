@@ -19,7 +19,7 @@ function isSqliteError(err: unknown): err is SqliteError {
 
 interface CreateVehicleInput {
   vehicleNo: number
-  trailerNo?: number
+  trailerNo: number
   contractorId: number
 }
 
@@ -28,11 +28,12 @@ export function createVehicle(input: CreateVehicleInput): UseCaseResult<{ vehicl
 
   if (!input.vehicleNo) errors.push({ field: 'vehicleNo', message: 'رقم السيارة مطلوب' })
   if (!input.contractorId) errors.push({ field: 'contractorId', message: 'مقاول النقل مطلوب' })
+  if (!input.trailerNo) errors.push({ field: 'trailerNo', message: 'رقم المقطورة مطلوب' })
 
   if (errors.length > 0) return { ok: false, errors }
 
   try {
-    insertVehicle(input.vehicleNo, input.trailerNo ?? null, input.contractorId)
+    insertVehicle(input.vehicleNo, input.trailerNo, input.contractorId)
     return { ok: true, data: { vehicleNo: input.vehicleNo } }
   } catch (err: unknown) {
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {

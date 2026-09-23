@@ -7,7 +7,7 @@ const api = {
   createClient: (input: { name: string }) => ipcRenderer.invoke('client:create', input),
   createCrusher: (input: { name: string }) => ipcRenderer.invoke('crusher:create', input),
   createContractor: (input: { name: string }) => ipcRenderer.invoke('contractor:create', input),
-  createVehicle: (input: { vehicleNo: number; trailerNo?: number; contractorId: number }) =>
+  createVehicle: (input: { vehicleNo: number; trailerNo: number; contractorId: number }) =>
     ipcRenderer.invoke('vehicle:create', input),
   createShift: (input: CreateShiftInput) => ipcRenderer.invoke('shift:create', input),
   closeShift: (input: { shiftId: string; endDate: string }) =>

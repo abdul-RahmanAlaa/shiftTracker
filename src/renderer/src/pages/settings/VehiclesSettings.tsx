@@ -12,7 +12,7 @@ import type { AddLog } from '@/App'
 
 const vehicleSchema = z.object({
   vehicleNo: z.number().int().positive('رقم السيارة مطلوب'),
-  trailerNo: z.number().int().positive('رقم المقطورة يجب أن يكون رقمًا موجبًا').optional(),
+  trailerNo: z.number().int().positive('رقم المقطورة يجب أن يكون رقمًا موجبًا'),
   contractorId: z.number().int().positive('المقاول مطلوب')
 })
 
@@ -33,17 +33,6 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
     }
   })
 
-  async function loadVehicles(): Promise<void> {
-    setLoading(true)
-    const [contractorsResult, vehiclesResult] = await Promise.all([
-      window.api.listContractors(),
-      window.api.listVehicles()
-    ])
-    if (contractorsResult.ok) setContractors(contractorsResult.data)
-    if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
-    setLoading(false)
-  }
-
   useEffect(() => {
     void Promise.all([window.api.listContractors(), window.api.listVehicles()]).then(
       ([contractorsResult, vehiclesResult]) => {
@@ -63,7 +52,14 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
     )
     if (result.ok) {
       vehicleForm.reset()
-      await loadVehicles()
+      setLoading(true)
+      const [contractorsResult, vehiclesResult] = await Promise.all([
+        window.api.listContractors(),
+        window.api.listVehicles()
+      ])
+      if (contractorsResult.ok) setContractors(contractorsResult.data)
+      if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
+      setLoading(false)
     } else {
       result.errors.forEach((error) => {
         if (error.field === 'vehicleNo' || error.field === 'trailerNo' || error.field === 'contractorId') {
@@ -106,11 +102,11 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
               name="trailerNo"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>رقم المقطورة (اختياري)</FormLabel>
+                  <FormLabel>رقم المقطورة</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
-                      placeholder="رقم المقطورة (اختياري)"
+                      placeholder="رقم المقطورة"
                       value={field.value ?? ''}
                       onChange={(event) =>
                         field.onChange(event.target.value === '' ? undefined : Number(event.target.value))
