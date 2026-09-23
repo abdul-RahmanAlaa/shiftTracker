@@ -4,16 +4,20 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import type { AddLog } from '@/App'
+import { ClientsSettings } from '@/pages/settings/ClientsSettings'
 import { ContractorsSettings } from '@/pages/settings/ContractorsSettings'
+import { CrushersSettings } from '@/pages/settings/CrushersSettings'
 import { DriversSettings } from '@/pages/settings/DriversSettings'
 import { VehiclesSettings } from '@/pages/settings/VehiclesSettings'
 
-type SettingsSection = 'vehicles' | 'drivers' | 'contractors'
+type SettingsSection = 'vehicles' | 'drivers' | 'contractors' | 'crushers' | 'clients'
 
 const settingsItems: { id: SettingsSection; label: string }[] = [
   { id: 'vehicles', label: 'العربيات' },
   { id: 'drivers', label: 'السائقون' },
-  { id: 'contractors', label: 'المقاولون' }
+  { id: 'contractors', label: 'المقاولون' },
+  { id: 'crushers', label: 'الكسارات' },
+  { id: 'clients', label: 'العملاء' }
 ]
 
 export function SettingsPage(): React.JSX.Element {
@@ -46,6 +50,8 @@ export function SettingsPage(): React.JSX.Element {
           {activeSection === 'vehicles' && <VehiclesSettings addLog={addLog} />}
           {activeSection === 'drivers' && <DriversSettings addLog={addLog} />}
           {activeSection === 'contractors' && <ContractorsSettings addLog={addLog} />}
+          {activeSection === 'crushers' && <CrushersSettings addLog={addLog} />}
+          {activeSection === 'clients' && <ClientsSettings addLog={addLog} />}
         </div>
       </div>
     </div>
