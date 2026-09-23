@@ -9,9 +9,17 @@ import {
   createCrusher,
   createContractor,
   listDrivers,
-  listContractors
+  listContractors,
+  updateDriver,
+  deleteDriver,
+  updateClient,
+  deleteClient,
+  updateCrusher,
+  deleteCrusher,
+  updateContractor,
+  deleteContractor
 } from './use-cases/simpleLookup'
-import { createVehicle } from './use-cases/createVehicle'
+import { createVehicle, updateVehicle, deleteVehicle } from './use-cases/createVehicle'
 import { createShift } from './use-cases/createShift'
 import { closeShift } from './use-cases/closeShift'
 import { listVehicles, listOpenShifts } from './use-cases/listData'
@@ -66,6 +74,7 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
   ipcMain.handle('driver:create', (_event, input) => createDriver(input))
   ipcMain.handle('client:create', (_event, input) => createClient(input))
   ipcMain.handle('crusher:create', (_event, input) => createCrusher(input))
@@ -73,10 +82,20 @@ app.whenReady().then(() => {
   ipcMain.handle('vehicle:create', (_event, input) => createVehicle(input))
   ipcMain.handle('shift:create', (_event, input) => createShift(input))
   ipcMain.handle('shift:close', (_event, input) => closeShift(input))
-  ipcMain.handle('driver:list', (_event) => listDrivers())
-  ipcMain.handle('contractor:list', (_event) => listContractors())
-  ipcMain.handle('vehicle:list', (_event) => listVehicles())
-  ipcMain.handle('shift:listOpen', (_event) => listOpenShifts())
+  ipcMain.handle('driver:list', () => listDrivers())
+  ipcMain.handle('contractor:list', () => listContractors())
+  ipcMain.handle('vehicle:list', () => listVehicles())
+  ipcMain.handle('shift:listOpen', () => listOpenShifts())
+  ipcMain.handle('driver:update', (_event, input) => updateDriver(input))
+  ipcMain.handle('driver:delete', (_event, input) => deleteDriver(input))
+  ipcMain.handle('client:update', (_event, input) => updateClient(input))
+  ipcMain.handle('client:delete', (_event, input) => deleteClient(input))
+  ipcMain.handle('crusher:update', (_event, input) => updateCrusher(input))
+  ipcMain.handle('crusher:delete', (_event, input) => deleteCrusher(input))
+  ipcMain.handle('contractor:update', (_event, input) => updateContractor(input))
+  ipcMain.handle('contractor:delete', (_event, input) => deleteContractor(input))
+  ipcMain.handle('vehicle:update', (_event, input) => updateVehicle(input))
+  ipcMain.handle('vehicle:delete', (_event, input) => deleteVehicle(input))
   createWindow()
 
   app.on('activate', function () {

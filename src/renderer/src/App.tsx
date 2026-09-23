@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { BookOpen, Calculator, ClipboardList, Settings, Truck } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -29,30 +30,31 @@ function AppLayout(): React.JSX.Element {
 
   return (
     <div className="app-shell" dir="rtl">
-      <aside className="app-sidebar">
-        <div className="border-b border-border px-5 py-6">
+      <header className="app-navbar">
+        <div className="app-navbar-brand">
           <p className="text-lg font-semibold text-foreground">Shift Tracker</p>
           <p className="mt-1 text-sm text-muted-foreground">إدارة النقل والورديات</p>
         </div>
-        <nav className="flex flex-col gap-1 p-3" aria-label="التنقل الرئيسي">
+        <nav className="app-navbar-nav" aria-label="التنقل الرئيسي">
           {navigationItems.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground',
-                  isActive && 'bg-accent text-accent-foreground'
-                )
-              }
-            >
-              <Icon className="h-4 w-4" />
-              <span>{label}</span>
-            </NavLink>
+            <Button key={to} asChild variant="ghost" className="w-auto justify-start gap-2">
+              <NavLink
+                to={to}
+                end={to === '/'}
+                className={({ isActive }) =>
+                  cn(
+                    'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground',
+                    isActive && 'bg-secondary text-secondary-foreground'
+                  )
+                }
+              >
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+              </NavLink>
+            </Button>
           ))}
         </nav>
-      </aside>
+      </header>
 
       <main className="app-main">
         <div className="app-page">

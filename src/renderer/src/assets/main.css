@@ -78,16 +78,31 @@ code {
 }
 
 .app-shell {
-  display: flex;
+  display: block;
   min-height: 100vh;
   width: 100%;
 }
 
-.app-sidebar {
-  flex: 0 0 240px;
-  min-height: 100vh;
-  border-left: 1px solid var(--border);
+.app-navbar {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  min-height: 76px;
+  padding: 12px 32px;
+  border-bottom: 1px solid var(--border);
   background: rgba(27, 27, 31, 0.92);
+}
+
+.app-navbar-brand {
+  flex: 0 0 auto;
+}
+
+.app-navbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
 }
 
 .app-main {
@@ -100,6 +115,18 @@ code {
   padding: 32px;
 }
 
+.settings-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.settings-menu {
+  position: sticky;
+  top: 32px;
+}
+
 .app-page {
   min-width: 0;
 }
@@ -110,6 +137,17 @@ code {
 }
 
 @media (max-width: 900px) {
+  .app-navbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px;
+  }
+
+  .app-navbar-nav {
+    overflow-x: auto;
+  }
+
   .app-main {
     grid-template-columns: 1fr;
   }
@@ -117,22 +155,25 @@ code {
   .app-log-panel {
     position: static;
   }
+
+  .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-menu {
+    position: static;
+  }
+
+  .settings-menu .space-y-1 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
 }
 
 @media (max-width: 640px) {
-  .app-shell {
-    display: block;
-  }
-
-  .app-sidebar {
-    min-height: auto;
-    border-left: 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .app-sidebar nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .app-navbar-nav {
+    justify-content: flex-start;
   }
 
   .app-main {

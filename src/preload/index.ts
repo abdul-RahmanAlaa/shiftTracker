@@ -15,7 +15,20 @@ const api = {
   listDrivers: () => ipcRenderer.invoke('driver:list'),
   listContractors: () => ipcRenderer.invoke('contractor:list'),
   listVehicles: () => ipcRenderer.invoke('vehicle:list'),
-  listOpenShifts: () => ipcRenderer.invoke('shift:listOpen')
+  listOpenShifts: () => ipcRenderer.invoke('shift:listOpen'),
+  updateDriver: (input: { id: number; name: string }) => ipcRenderer.invoke('driver:update', input),
+  deleteDriver: (input: { id: number }) => ipcRenderer.invoke('driver:delete', input),
+  updateClient: (input: { id: number; name: string }) => ipcRenderer.invoke('client:update', input),
+  deleteClient: (input: { id: number }) => ipcRenderer.invoke('client:delete', input),
+  updateCrusher: (input: { id: number; name: string }) =>
+    ipcRenderer.invoke('crusher:update', input),
+  deleteCrusher: (input: { id: number }) => ipcRenderer.invoke('crusher:delete', input),
+  updateContractor: (input: { id: number; name: string }) =>
+    ipcRenderer.invoke('contractor:update', input),
+  deleteContractor: (input: { id: number }) => ipcRenderer.invoke('contractor:delete', input),
+  updateVehicle: (input: { vehicleNo: number; trailerNo: number; contractorId: number }) =>
+    ipcRenderer.invoke('vehicle:update', input),
+  deleteVehicle: (input: { vehicleNo: number }) => ipcRenderer.invoke('vehicle:delete', input)
 }
 
 if (process.contextIsolated) {

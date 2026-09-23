@@ -1,4 +1,8 @@
-import { insertVehicle } from '../repository/vehicleRepository'
+import {
+  insertVehicle,
+  updateVehicle as updateVehicleInDb,
+  deleteVehicle as deleteVehicleInDb
+} from '../repository/vehicleRepository'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
@@ -36,6 +40,37 @@ export function createVehicle(input: CreateVehicleInput): UseCaseResult<{ vehicl
     }
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
       return { ok: false, errors: [{ field: 'contractorId', message: 'مقاول النقل ده مش موجود' }] }
+    }
+    throw err
+  }
+}
+
+export function updateVehicle(input: {
+  vehicleNo: number
+  trailerNo: number
+  contractorId: number
+}): UseCaseResult<{ vehicleNo: number }> {
+  try {
+    updateVehicleInDb(input.vehicleNo, input.trailerNo, input.contractorId)
+    return { ok: true, data: { vehicleNo: input.vehicleNo } }
+  } catch (err: unknown) {
+    if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+      return { ok: false, errors: [{ field: 'contractorId', message: 'مقاول النقل ده مش موجود' }] }
+    }
+    throw err
+  }
+}
+
+export function deleteVehicle(input: { vehicleNo: number }): UseCaseResult<{ vehicleNo: number }> {
+  try {
+    deleteVehicleInDb(input.vehicleNo)
+    return { ok: true, data: { vehicleNo: input.vehicleNo } }
+  } catch (err: unknown) {
+    if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+      return {
+        ok: false,
+        errors: [{ field: 'vehicleNo', message: 'العربية دي مستخدمة في ورديات، مينفعش تتمسح' }]
+      }
     }
     throw err
   }

@@ -51,6 +51,32 @@ interface Api {
     | FailedUseCaseResult
   >
   listOpenShifts: () => Promise<UseCaseResult<{ id: string }[]> | FailedUseCaseResult>
+  updateDriver: (input: {
+    id: number
+    name: string
+  }) => Promise<UseCaseResult<{ id: number; name: string }>>
+  deleteDriver: (input: { id: number }) => Promise<UseCaseResult<{ id: number }>>
+  updateClient: (input: {
+    id: number
+    name: string
+  }) => Promise<UseCaseResult<{ id: number; name: string }>>
+  deleteClient: (input: { id: number }) => Promise<UseCaseResult<{ id: number }>>
+  updateCrusher: (input: {
+    id: number
+    name: string
+  }) => Promise<UseCaseResult<{ id: number; name: string }>>
+  deleteCrusher: (input: { id: number }) => Promise<UseCaseResult<{ id: number }>>
+  updateContractor: (input: {
+    id: number
+    name: string
+  }) => Promise<UseCaseResult<{ id: number; name: string }>>
+  deleteContractor: (input: { id: number }) => Promise<UseCaseResult<{ id: number }>>
+  updateVehicle: (input: {
+    vehicleNo: number
+    trailerNo: number
+    contractorId: number
+  }) => Promise<UseCaseResult<{ vehicleNo: number }>>
+  deleteVehicle: (input: { vehicleNo: number }) => Promise<UseCaseResult<{ vehicleNo: number }>>
 }
 
 declare global {

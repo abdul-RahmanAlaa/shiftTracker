@@ -1,3 +1,4 @@
+import { backupDatabase } from '../backup'
 import { getShiftById, getShiftStats, closeShiftInDb } from '../repository/shiftRepository'
 
 type UseCaseResult<T> =
@@ -37,5 +38,6 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
   }
 
   closeShiftInDb(input.shiftId, input.endDate)
+  backupDatabase()
   return { ok: true, data: { id: input.shiftId } }
 }

@@ -14,3 +14,13 @@ export function listLookup(table: string): { id: number; name: string }[] {
     name: string
   }[]
 }
+
+export function updateLookup(table: string, id: number, name: string): void {
+  const db = getDb()
+  db.prepare(`UPDATE ${table} SET name = ? WHERE id = ?`).run(name, id)
+}
+
+export function deleteLookup(table: string, id: number): void {
+  const db = getDb()
+  db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id)
+}
