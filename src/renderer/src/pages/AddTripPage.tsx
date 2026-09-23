@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, ChevronsUpDown } from 'lucide-react'
@@ -14,10 +15,23 @@ import {
   CommandItem,
   CommandList
 } from '@/components/ui/command'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { AddLog } from '@/App'
 import { cn } from '@/lib/utils'
@@ -34,7 +48,7 @@ type OpenShift = {
   endDate: string | null
 }
 
-type ResourceState = {
+export type ResourceState = {
   drivers: NamedOption[]
   vehicles: { vehicleNo: number; trailerNo: number | null; contractorId: number }[]
   crushers: NamedOption[]
@@ -54,7 +68,7 @@ const createShiftSchema = z.object({
 
 type CreateShiftValues = z.infer<typeof createShiftSchema>
 
-const tripSchema = z
+export const tripSchema = z
   .object({
     tripDate: z.string().min(1, 'تاريخ النقلة مطلوب'),
     crusherCubic: z.number().nonnegative('تكعيب الكسارة مطلوب'),
@@ -76,22 +90,28 @@ const tripSchema = z
   })
   .superRefine((values, context) => {
     if (values.crusherReceiptStatus === 'قيمة' && !values.crusherReceiptNo) {
-      context.addIssue({ code: 'custom', path: ['crusherReceiptNo'], message: 'رقم إيصال الكسارة مطلوب' })
+      context.addIssue({
+        code: 'custom',
+        path: ['crusherReceiptNo'],
+        message: 'رقم إيصال الكسارة مطلوب'
+      })
     }
     if (values.recipientNameStatus === 'قيمة' && !values.recipientName?.trim()) {
       context.addIssue({ code: 'custom', path: ['recipientName'], message: 'اسم المستلم مطلوب' })
     }
   })
 
-type TripValues = z.infer<typeof tripSchema>
+export type TripValues = z.infer<typeof tripSchema>
 
-function NumberField({
+export function NumberField({
   control,
   name,
   label,
   required = false
 }: {
-  control: ReturnType<typeof useForm<CreateShiftValues>>['control'] | ReturnType<typeof useForm<TripValues>>['control']
+  control:
+    | ReturnType<typeof useForm<CreateShiftValues>>['control']
+    | ReturnType<typeof useForm<TripValues>>['control']
   name: string
   label: string
   required?: boolean
@@ -102,7 +122,10 @@ function NumberField({
       name={name as never}
       render={({ field }) => (
         <FormItem>
-          <FormLabel>{label}{required ? ' *' : ''}</FormLabel>
+          <FormLabel>
+            {label}
+            {required ? ' *' : ''}
+          </FormLabel>
           <FormControl>
             <Input
               type="number"
@@ -224,7 +247,10 @@ export function AddTripPage(): React.JSX.Element {
     addLog(message)
     if (!result.ok) {
       result.errors.forEach((error) => {
-        if (error.field in values) createShiftForm.setError(error.field as keyof CreateShiftValues, { message: error.message })
+        if (error.field in values)
+          createShiftForm.setError(error.field as keyof CreateShiftValues, {
+            message: error.message
+          })
       })
       return
     }
@@ -257,7 +283,8 @@ export function AddTripPage(): React.JSX.Element {
       })
     } else {
       result.errors.forEach((error) => {
-        if (error.field in values) tripForm.setError(error.field as keyof TripValues, { message: error.message })
+        if (error.field in values)
+          tripForm.setError(error.field as keyof TripValues, { message: error.message })
       })
     }
   }
@@ -270,16 +297,24 @@ export function AddTripPage(): React.JSX.Element {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>الخطوة 1: اختيار السائق</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>الخطوة 1: اختيار السائق</CardTitle>
+        </CardHeader>
         <CardContent>
           <Select
             value={selectedDriverId ? String(selectedDriverId) : ''}
             onValueChange={(value) => void selectDriver(Number(value))}
             disabled={resourceLoading}
           >
-            <SelectTrigger><SelectValue placeholder={resourceLoading ? 'جاري التحميل...' : 'اختار السائق'} /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue placeholder={resourceLoading ? 'جاري التحميل...' : 'اختار السائق'} />
+            </SelectTrigger>
             <SelectContent>
-              {resources.drivers.map((driver) => <SelectItem key={driver.id} value={String(driver.id)}>{driver.name}</SelectItem>)}
+              {resources.drivers.map((driver) => (
+                <SelectItem key={driver.id} value={String(driver.id)}>
+                  {driver.name}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </CardContent>
@@ -287,23 +322,44 @@ export function AddTripPage(): React.JSX.Element {
 
       {selectedDriverId && (
         <Card>
-          <CardHeader><CardTitle>الخطوة 2: حالة الوردية</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>الخطوة 2: حالة الوردية</CardTitle>
+          </CardHeader>
           <CardContent>
-            {checkingShift ? <p className="text-sm text-muted-foreground">جاري التحميل...</p> : openShift ? (
+            {checkingShift ? (
+              <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+            ) : openShift ? (
               <div className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-5">
-                  <div><p className="text-sm text-muted-foreground">رقم الوردية</p><Badge variant="secondary">{openShift.id}</Badge></div>
-                  <div><p className="text-sm text-muted-foreground">رقم السيارة</p><p>{openShift.vehicleNo}</p></div>
-                  <div><p className="text-sm text-muted-foreground">تاريخ البداية</p><p>{openShift.startDate}</p></div>
-                  <div><p className="text-sm text-muted-foreground">تكعيب الكسارة</p><p>{openShift.crusherCubicDefault}</p></div>
-                  <div><p className="text-sm text-muted-foreground">تكعيب العميل</p><p>{openShift.clientCubicDefault}</p></div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">رقم الوردية</p>
+                    <Badge variant="secondary">{openShift.id}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">رقم السيارة</p>
+                    <p>{openShift.vehicleNo}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">تاريخ البداية</p>
+                    <p>{openShift.startDate}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">تكعيب الكسارة</p>
+                    <p>{openShift.crusherCubicDefault}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">تكعيب العميل</p>
+                    <p>{openShift.clientCubicDefault}</p>
+                  </div>
                 </div>
                 <Badge>وردية مفتوحة</Badge>
               </div>
             ) : (
               <div className="space-y-4">
                 <p className="text-sm text-amber-400">مفيش وردية مفتوحة لهذا السائق</p>
-                <Button type="button" onClick={() => setShowCreateShift(true)}>فتح وردية جديدة</Button>
+                <Button type="button" onClick={() => setShowCreateShift(true)}>
+                  فتح وردية جديدة
+                </Button>
               </div>
             )}
           </CardContent>
@@ -312,19 +368,98 @@ export function AddTripPage(): React.JSX.Element {
 
       {selectedDriverId && showCreateShift && !openShift && (
         <Card>
-          <CardHeader><CardTitle>فتح وردية جديدة</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>فتح وردية جديدة</CardTitle>
+          </CardHeader>
           <CardContent>
             <Form {...createShiftForm}>
-              <form onSubmit={createShiftForm.handleSubmit(handleCreateShift)} className="grid gap-4 md:grid-cols-2">
-                <FormField control={createShiftForm.control} name="vehicleNo" render={({ field }) => (
-                  <FormItem><FormLabel>السيارة</FormLabel><Select value={field.value ? String(field.value) : ''} onValueChange={(value) => field.onChange(Number(value))}><FormControl><SelectTrigger><SelectValue placeholder="اختار السيارة" /></SelectTrigger></FormControl><SelectContent>{resources.vehicles.map((vehicle) => <SelectItem key={vehicle.vehicleNo} value={String(vehicle.vehicleNo)}>{vehicle.vehicleNo}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>
-                )} />
-                <NumberField control={createShiftForm.control} name="crusherCubicDefault" label="تكعيب الكسارة" required />
-                <NumberField control={createShiftForm.control} name="clientCubicDefault" label="تكعيب العميل" required />
-                <FormField control={createShiftForm.control} name="startDate" render={({ field }) => (<FormItem><FormLabel>تاريخ البداية *</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={createShiftForm.control} name="reportedDestination" render={({ field }) => (<FormItem><FormLabel>الوجهة</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <NumberField control={createShiftForm.control} name="reportedTripCount" label="عدد النقلات" />
-                <FormField control={createShiftForm.control} name="notes" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>ملاحظات</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <form
+                onSubmit={createShiftForm.handleSubmit(handleCreateShift)}
+                className="grid gap-4 md:grid-cols-2"
+              >
+                <FormField
+                  control={createShiftForm.control}
+                  name="vehicleNo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>السيارة</FormLabel>
+                      <Select
+                        value={field.value ? String(field.value) : ''}
+                        onValueChange={(value) => field.onChange(Number(value))}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختار السيارة" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {resources.vehicles.map((vehicle) => (
+                            <SelectItem key={vehicle.vehicleNo} value={String(vehicle.vehicleNo)}>
+                              {vehicle.vehicleNo}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <NumberField
+                  control={createShiftForm.control}
+                  name="crusherCubicDefault"
+                  label="تكعيب الكسارة"
+                  required
+                />
+                <NumberField
+                  control={createShiftForm.control}
+                  name="clientCubicDefault"
+                  label="تكعيب العميل"
+                  required
+                />
+                <FormField
+                  control={createShiftForm.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>تاريخ البداية *</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={createShiftForm.control}
+                  name="reportedDestination"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>الوجهة</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <NumberField
+                  control={createShiftForm.control}
+                  name="reportedTripCount"
+                  label="عدد النقلات"
+                />
+                <FormField
+                  control={createShiftForm.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>ملاحظات</FormLabel>
+                      <FormControl>
+                        <Textarea {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <Button type="submit">فتح الوردية</Button>
               </form>
             </Form>
@@ -332,19 +467,36 @@ export function AddTripPage(): React.JSX.Element {
         </Card>
       )}
 
-      {openShift && <TripForm form={tripForm} resources={resources} locations={resources.locations} crusherReceiptStatus={crusherReceiptStatus} recipientNameStatus={recipientNameStatus} onSubmit={handleCreateTrip} />}
+      {openShift && (
+        <TripForm
+          form={tripForm}
+          resources={resources}
+          locations={resources.locations}
+          crusherReceiptStatus={crusherReceiptStatus}
+          recipientNameStatus={recipientNameStatus}
+          onSubmit={handleCreateTrip}
+        />
+      )}
 
       {tripLog.length > 0 && (
         <Card>
-          <CardHeader><CardTitle>سجل النقلات</CardTitle></CardHeader>
-          <CardContent><div className="space-y-2 text-sm">{tripLog.map((line, index) => <div key={`${line}-${index}`}>{line}</div>)}</div></CardContent>
+          <CardHeader>
+            <CardTitle>سجل النقلات</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              {tripLog.map((line, index) => (
+                <div key={`${line}-${index}`}>{line}</div>
+              ))}
+            </div>
+          </CardContent>
         </Card>
       )}
     </div>
   )
 }
 
-function TripForm({
+export function TripForm({
   form,
   resources,
   locations,
@@ -363,37 +515,257 @@ function TripForm({
 
   return (
     <Card>
-      <CardHeader><CardTitle>الخطوة 3: بيانات النقلة</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle>الخطوة 3: بيانات النقلة</CardTitle>
+      </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 md:grid-cols-2">
-            <FormField control={form.control} name="tripDate" render={({ field }) => (<FormItem><FormLabel>تاريخ النقلة *</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <NumberField control={form.control} name="crusherCubic" label="تكعيب الكسارة" required />
-            <NumberField control={form.control} name="clientCubicReported" label="تكعيب العميل" required />
+            <FormField
+              control={form.control}
+              name="tripDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>تاريخ النقلة *</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <NumberField
+              control={form.control}
+              name="crusherCubic"
+              label="تكعيب الكسارة"
+              required
+            />
+            <NumberField
+              control={form.control}
+              name="clientCubicReported"
+              label="تكعيب العميل"
+              required
+            />
             <NumberField control={form.control} name="discountQty" label="الخصم" />
-            <FormField control={form.control} name="discountReason" render={({ field }) => (<FormItem><FormLabel>سبب الخصم</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <FormField control={form.control} name="location" render={({ field }) => (
-              <FormItem>
-                <FormLabel>المكان</FormLabel>
-                <Popover open={locationOpen} onOpenChange={setLocationOpen}>
-                  <PopoverTrigger asChild><FormControl><Button variant="outline" role="combobox" className="w-full justify-between font-normal">{field.value || 'اختار أو اكتب المكان'}<ChevronsUpDown className="h-4 w-4 opacity-50" /></Button></FormControl></PopoverTrigger>
-                  <PopoverContent className="p-0"><Command><CommandInput value={field.value ?? ''} onValueChange={field.onChange} placeholder="اكتب المكان..." /><CommandList><CommandEmpty>اكتب قيمة جديدة أو اختار من القائمة</CommandEmpty>{locations.map((location) => <CommandItem key={location} value={location} onSelect={(value) => { field.onChange(value); setLocationOpen(false) }}><Check className={cn('mr-2 h-4 w-4', field.value === location ? 'opacity-100' : 'opacity-0')} />{location}</CommandItem>)}</CommandList></Command></PopoverContent>
-                </Popover>
-                <FormMessage />
-              </FormItem>
-            )} />
-            <FormField control={form.control} name="crusherId" render={({ field }) => (<FormItem><FormLabel>الكسارة *</FormLabel><Select value={field.value ? String(field.value) : ''} onValueChange={(value) => field.onChange(Number(value))}><FormControl><SelectTrigger><SelectValue placeholder="اختار الكسارة" /></SelectTrigger></FormControl><SelectContent>{resources.crushers.map((crusher) => <SelectItem key={crusher.id} value={String(crusher.id)}>{crusher.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+            <FormField
+              control={form.control}
+              name="discountReason"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>سبب الخصم</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>المكان</FormLabel>
+                  <Popover open={locationOpen} onOpenChange={setLocationOpen}>
+                    <PopoverTrigger asChild>
+                      <FormControl>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          className="w-full justify-between font-normal"
+                        >
+                          {field.value || 'اختار أو اكتب المكان'}
+                          <ChevronsUpDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0">
+                      <Command>
+                        <CommandInput
+                          value={field.value ?? ''}
+                          onValueChange={field.onChange}
+                          placeholder="اكتب المكان..."
+                        />
+                        <CommandList>
+                          <CommandEmpty>اكتب قيمة جديدة أو اختار من القائمة</CommandEmpty>
+                          {locations.map((location) => (
+                            <CommandItem
+                              key={location}
+                              value={location}
+                              onSelect={(value) => {
+                                field.onChange(value)
+                                setLocationOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  'mr-2 h-4 w-4',
+                                  field.value === location ? 'opacity-100' : 'opacity-0'
+                                )}
+                              />
+                              {location}
+                            </CommandItem>
+                          ))}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="crusherId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>الكسارة *</FormLabel>
+                  <Select
+                    value={field.value ? String(field.value) : ''}
+                    onValueChange={(value) => field.onChange(Number(value))}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختار الكسارة" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {resources.crushers.map((crusher) => (
+                        <SelectItem key={crusher.id} value={String(crusher.id)}>
+                          {crusher.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <NumberField control={form.control} name="stonePrice" label="سعر الحجر" required />
-            <FormField control={form.control} name="crusherReceiptStatus" render={({ field }) => (<FormItem><FormLabel>إيصال الكسارة *</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="قيمة">قيمة</SelectItem><SelectItem value="مفيش (متأكد)">مفيش (متأكد)</SelectItem><SelectItem value="مش معروف">مش معروف</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-            {crusherReceiptStatus === 'قيمة' && <NumberField control={form.control} name="crusherReceiptNo" label="رقم إيصال الكسارة" required />}
-            <FormField control={form.control} name="clientId" render={({ field }) => (<FormItem><FormLabel>العميل *</FormLabel><Select value={field.value ? String(field.value) : ''} onValueChange={(value) => field.onChange(Number(value))}><FormControl><SelectTrigger><SelectValue placeholder="اختار العميل" /></SelectTrigger></FormControl><SelectContent>{resources.clients.map((client) => <SelectItem key={client.id} value={String(client.id)}>{client.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem>)} />
+            <FormField
+              control={form.control}
+              name="crusherReceiptStatus"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>إيصال الكسارة *</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="قيمة">قيمة</SelectItem>
+                      <SelectItem value="مفيش (متأكد)">مفيش (متأكد)</SelectItem>
+                      <SelectItem value="مش معروف">مش معروف</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {crusherReceiptStatus === 'قيمة' && (
+              <NumberField
+                control={form.control}
+                name="crusherReceiptNo"
+                label="رقم إيصال الكسارة"
+                required
+              />
+            )}
+            <FormField
+              control={form.control}
+              name="clientId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>العميل *</FormLabel>
+                  <Select
+                    value={field.value ? String(field.value) : ''}
+                    onValueChange={(value) => field.onChange(Number(value))}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختار العميل" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {resources.clients.map((client) => (
+                        <SelectItem key={client.id} value={String(client.id)}>
+                          {client.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <NumberField control={form.control} name="transportPrice" label="سعر النقل" required />
             <NumberField control={form.control} name="clientPrice" label="سعر العميل" required />
-            <FormField control={form.control} name="recipientNameStatus" render={({ field }) => (<FormItem><FormLabel>اسم المستلم</FormLabel><Select value={field.value} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent><SelectItem value="قيمة">قيمة</SelectItem><SelectItem value="مش واضح">مش واضح</SelectItem></SelectContent></Select><FormMessage /></FormItem>)} />
-            {recipientNameStatus === 'قيمة' && <FormField control={form.control} name="recipientName" render={({ field }) => (<FormItem><FormLabel>اسم المستلم *</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />}
-            <FormField control={form.control} name="clientReceiptNo" render={({ field }) => (<FormItem><FormLabel>رقم إيصال العميل</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <FormField control={form.control} name="notes" render={({ field }) => (<FormItem className="md:col-span-2"><FormLabel>ملاحظات</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>)} />
-            <div className="md:col-span-2"><Button type="submit">إضافة النقلة</Button></div>
+            <FormField
+              control={form.control}
+              name="recipientNameStatus"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>اسم المستلم</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="قيمة">قيمة</SelectItem>
+                      <SelectItem value="مش واضح">مش واضح</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {recipientNameStatus === 'قيمة' && (
+              <FormField
+                control={form.control}
+                name="recipientName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>اسم المستلم *</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+            <FormField
+              control={form.control}
+              name="clientReceiptNo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>رقم إيصال العميل</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>ملاحظات</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <div className="md:col-span-2">
+              <Button type="submit">إضافة النقلة</Button>
+            </div>
           </form>
         </Form>
       </CardContent>
