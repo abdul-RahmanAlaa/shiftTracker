@@ -44,6 +44,7 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
     { vehicleNo: number; trailerNo: number; contractorId: number }[]
   >([])
   const [loading, setLoading] = useState(true)
+  const [editingVehicleNo, setEditingVehicleNo] = useState<number | null>(null)
   const vehicleForm = useForm<VehicleFormValues>({
     resolver: zodResolver(vehicleSchema),
     defaultValues: {
@@ -52,6 +53,17 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
       contractorId: undefined
     }
   })
+
+  async function loadVehicles(): Promise<void> {
+    setLoading(true)
+    const [contractorsResult, vehiclesResult] = await Promise.all([
+      window.api.listContractors(),
+      window.api.listVehicles()
+    ])
+    if (contractorsResult.ok) setContractors(contractorsResult.data)
+    if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
+    setLoading(false)
+  }
 
   useEffect(() => {
     void Promise.all([window.api.listContractors(), window.api.listVehicles()]).then(
@@ -63,23 +75,21 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
     )
   }, [])
 
-  async function handleCreateVehicle(values: VehicleFormValues): Promise<void> {
-    const result = await window.api.createVehicle(values)
+  async function handleSaveVehicle(values: VehicleFormValues): Promise<void> {
+    const result = editingVehicleNo
+      ? await window.api.updateVehicle(values)
+      : await window.api.createVehicle(values)
     addLog(
       result.ok
-        ? `✅ عربية: ${result.data?.vehicleNo}`
-        : `❌ عربية: ${result.errors?.map((x) => x.message).join(', ')}`
+        ? editingVehicleNo
+          ? `✅ عربية اتعدلت: ${result.data.vehicleNo}`
+          : `✅ عربية: ${result.data.vehicleNo}`
+        : `❌ عربية: ${result.errors.map((x) => x.message).join(', ')}`
     )
     if (result.ok) {
       vehicleForm.reset()
-      setLoading(true)
-      const [contractorsResult, vehiclesResult] = await Promise.all([
-        window.api.listContractors(),
-        window.api.listVehicles()
-      ])
-      if (contractorsResult.ok) setContractors(contractorsResult.data)
-      if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
-      setLoading(false)
+      setEditingVehicleNo(null)
+      await loadVehicles()
     } else {
       result.errors.forEach((error) => {
         if (
@@ -93,6 +103,34 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
     }
   }
 
+  function startEditingVehicle(vehicle: {
+    vehicleNo: number
+    trailerNo: number
+    contractorId: number
+  }): void {
+    setEditingVehicleNo(vehicle.vehicleNo)
+    vehicleForm.reset(vehicle)
+  }
+
+  function cancelEditingVehicle(): void {
+    setEditingVehicleNo(null)
+    vehicleForm.reset()
+  }
+
+  async function handleDeleteVehicle(vehicleNo: number): Promise<void> {
+    if (!confirm(`متأكد إنك عايز تمسح العربية ${vehicleNo}؟`)) return
+    const result = await window.api.deleteVehicle({ vehicleNo })
+    addLog(
+      result.ok
+        ? `✅ عربية اتمسحت: ${vehicleNo}`
+        : `❌ مسح العربية: ${result.errors.map((x) => x.message).join(', ')}`
+    )
+    if (result.ok) {
+      if (editingVehicleNo === vehicleNo) cancelEditingVehicle()
+      await loadVehicles()
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -101,7 +139,7 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
       <CardContent>
         <Form {...vehicleForm}>
           <form
-            onSubmit={vehicleForm.handleSubmit(handleCreateVehicle)}
+            onSubmit={vehicleForm.handleSubmit(handleSaveVehicle)}
             className="grid gap-4 md:grid-cols-2"
           >
             <FormField
@@ -114,6 +152,7 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
                     <Input
                       type="number"
                       placeholder="رقم السيارة"
+                      disabled={editingVehicleNo !== null}
                       value={field.value ?? ''}
                       onChange={(event) =>
                         field.onChange(
@@ -176,7 +215,12 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
               )}
             />
             <div className="flex items-end">
-              <Button type="submit">إضافة</Button>
+              <Button type="submit">{editingVehicleNo !== null ? 'حفظ التعديل' : 'إضافة'}</Button>
+              {editingVehicleNo !== null && (
+                <Button type="button" variant="outline" onClick={cancelEditingVehicle}>
+                  إلغاء
+                </Button>
+              )}
             </div>
           </form>
         </Form>
@@ -192,6 +236,7 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
                   <TableHead>رقم السيارة</TableHead>
                   <TableHead>رقم المقطورة</TableHead>
                   <TableHead>المقاول</TableHead>
+                  <TableHead>إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -202,6 +247,26 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
                       <TableCell>{vehicle.vehicleNo}</TableCell>
                       <TableCell>{vehicle.trailerNo ?? '-'}</TableCell>
                       <TableCell>{contractor?.name ?? '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => startEditingVehicle(vehicle)}
+                          >
+                            تعديل
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => void handleDeleteVehicle(vehicle.vehicleNo)}
+                          >
+                            مسح
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   )
                 })}
