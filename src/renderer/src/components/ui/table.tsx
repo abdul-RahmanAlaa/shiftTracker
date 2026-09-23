@@ -4,7 +4,11 @@ import { cn } from '@/lib/utils'
 function Table({ className, ...props }: React.ComponentProps<'table'>): React.JSX.Element {
   return (
     <div data-slot="table-container" className="relative w-full overflow-x-auto">
-      <table data-slot="table" className={cn('w-full caption-bottom text-sm', className)} {...props} />
+      <table
+        data-slot="table"
+        className={cn('w-full caption-bottom text-sm', className)}
+        {...props}
+      />
     </div>
   )
 }
@@ -14,7 +18,13 @@ function TableHeader({ className, ...props }: React.ComponentProps<'thead'>): Re
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<'tbody'>): React.JSX.Element {
-  return <tbody data-slot="table-body" className={cn('[&_tr:last-child]:border-0', className)} {...props} />
+  return (
+    <tbody
+      data-slot="table-body"
+      className={cn('[&_tr:last-child]:border-0', className)}
+      {...props}
+    />
+  )
 }
 
 function TableFooter({ className, ...props }: React.ComponentProps<'tfoot'>): React.JSX.Element {
@@ -45,7 +55,7 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>): React.J
     <th
       data-slot="table-head"
       className={cn(
-        'h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
+        'h-10 px-2 text-left align-middle font-medium whitespace-nowrap text-foreground has-[[role=checkbox]]:pr-0 *:[[role=checkbox]]:translate-y-0.5',
         className
       )}
       {...props}
@@ -58,7 +68,7 @@ function TableCell({ className, ...props }: React.ComponentProps<'td'>): React.J
     <td
       data-slot="table-cell"
       className={cn(
-        'p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
+        'p-2 align-middle whitespace-nowrap has-[[role=checkbox]]:pr-0 *:[[role=checkbox]]:translate-y-0.5',
         className
       )}
       {...props}
@@ -67,7 +77,13 @@ function TableCell({ className, ...props }: React.ComponentProps<'td'>): React.J
 }
 
 function TableCaption({ className, ...props }: React.ComponentProps<'caption'>): React.JSX.Element {
-  return <caption data-slot="table-caption" className={cn('mt-4 text-sm text-muted-foreground', className)} {...props} />
+  return (
+    <caption
+      data-slot="table-caption"
+      className={cn('mt-4 text-sm text-muted-foreground', className)}
+      {...props}
+    />
+  )
 }
 
 export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption }
