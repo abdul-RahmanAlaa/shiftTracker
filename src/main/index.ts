@@ -25,7 +25,7 @@ import { createVehicle, updateVehicle, deleteVehicle } from './use-cases/createV
 import { createShift } from './use-cases/createShift'
 import { closeShift } from './use-cases/closeShift'
 import { listVehicles, listOpenShifts, getDriverOpenShift, listShifts } from './use-cases/listData'
-import { createTrip } from './use-cases/createTrip'
+import { createTrip, updateTrip, deleteTrip } from './use-cases/createTrip'
 import { listTripsByShift, listTripLocations } from './use-cases/listTripData'
 import { createLedgerEntry } from './use-cases/createLedgerEntry'
 import { listLedgerEntries } from './use-cases/listLedgerData'
@@ -118,6 +118,8 @@ app.whenReady().then(() => {
   ipcMain.handle('client:payment:create', (_event, input) => createClientPayment(input))
   ipcMain.handle('account:client', (_event, input) => getClientAccount(input))
   ipcMain.handle('shift:listAll', () => listShifts())
+  ipcMain.handle('trip:update', (_event, input) => updateTrip(input))
+  ipcMain.handle('trip:delete', (_event, input) => deleteTrip(input))
 
   createWindow()
 

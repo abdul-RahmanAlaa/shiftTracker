@@ -68,7 +68,28 @@ const api = {
   getContractorAccount: (input: { contractorId: number }) =>
     ipcRenderer.invoke('account:contractor', input),
   getDriverHistory: (input: { driverId: number }) => ipcRenderer.invoke('account:driver', input),
-  listShifts: () => ipcRenderer.invoke('shift:listAll')
+  listShifts: () => ipcRenderer.invoke('shift:listAll'),
+  updateTrip: (input: {
+    id: string
+    tripDate: string
+    crusherCubic: number
+    clientCubicReported: number
+    discountQty?: number
+    discountReason?: string
+    location?: string
+    crusherId: number
+    stonePrice: number
+    crusherReceiptStatus: 'قيمة' | 'مفيش (متأكد)' | 'مش معروف'
+    crusherReceiptNo?: number
+    clientId: number
+    transportPrice: number
+    clientPrice: number
+    recipientNameStatus?: 'قيمة' | 'مش واضح'
+    recipientName?: string
+    clientReceiptNo?: string
+    notes?: string
+  }) => ipcRenderer.invoke('trip:update', input),
+  deleteTrip: (input: { id: string }) => ipcRenderer.invoke('trip:delete', input)
 }
 
 if (process.contextIsolated) {
