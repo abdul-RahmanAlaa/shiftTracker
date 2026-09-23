@@ -41,7 +41,7 @@ type VehicleFormValues = z.infer<typeof vehicleSchema>
 export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Element {
   const [contractors, setContractors] = useState<{ id: number; name: string }[]>([])
   const [vehicles, setVehicles] = useState<
-    { vehicleNo: number; trailerNo: number | null; contractorId: number }[]
+    { vehicleNo: number; trailerNo: number; contractorId: number }[]
   >([])
   const [loading, setLoading] = useState(true)
   const vehicleForm = useForm<VehicleFormValues>({

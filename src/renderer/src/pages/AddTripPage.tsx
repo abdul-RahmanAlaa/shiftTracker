@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, ChevronsUpDown } from 'lucide-react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useOutletContext } from 'react-router-dom'
 import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
@@ -52,7 +52,7 @@ type OpenShift = {
 
 export type ResourceState = {
   drivers: NamedOption[]
-  vehicles: { vehicleNo: number; trailerNo: number | null; contractorId: number }[]
+  vehicles: { vehicleNo: number; trailerNo: number; contractorId: number }[]
   crushers: NamedOption[]
   clients: NamedOption[]
   locations: string[]
@@ -184,8 +184,8 @@ export function AddTripPage(): React.JSX.Element {
     }
   })
 
-  const crusherReceiptStatus = tripForm.watch('crusherReceiptStatus')
-  const recipientNameStatus = tripForm.watch('recipientNameStatus')
+  const crusherReceiptStatus = useWatch({ control: tripForm.control, name: 'crusherReceiptStatus' })
+  const recipientNameStatus = useWatch({ control: tripForm.control, name: 'recipientNameStatus' })
 
   useEffect(() => {
     void Promise.all([
