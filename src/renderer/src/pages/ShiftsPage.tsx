@@ -1,9 +1,27 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { AddLog } from '@/App'
+
+type ShiftListRow = {
+  id: string
+  vehicleNo: number
+  driverId: number
+  driverName: string
+  crusherCubicDefault: number
+  clientCubicDefault: number
+  status: string
+  startDate: string
+  endDate: string | null
+  actualTripCount: number
+}
 
 export function ShiftsPage(): React.JSX.Element {
   const { addLog } = useOutletContext<{ addLog: AddLog }>()
+  const [shifts, setShifts] = useState<ShiftListRow[]>([])
+  const [loading, setLoading] = useState(true)
   const [shiftVehicleNo, setShiftVehicleNo] = useState('')
   const [shiftDriverId, setShiftDriverId] = useState('')
   const [crusherCubic, setCrusherCubic] = useState('')
@@ -11,6 +29,13 @@ export function ShiftsPage(): React.JSX.Element {
   const [startDate, setStartDate] = useState('')
   const [closeShiftId, setCloseShiftId] = useState('')
   const [endDate, setEndDate] = useState('')
+
+  useEffect(() => {
+    void window.api.listShifts().then((result) => {
+      if (result.ok) setShifts(result.data)
+      setLoading(false)
+    })
+  }, [])
 
   async function handleCreateShift(e: React.FormEvent): Promise<void> {
     e.preventDefault()
@@ -42,6 +67,57 @@ export function ShiftsPage(): React.JSX.Element {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">الورديات</h1>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>سجل الورديات</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+          ) : shifts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">لا يوجد بيانات بعد</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>رقم الوردية</TableHead>
+                  <TableHead>السائق</TableHead>
+                  <TableHead>رقم السيارة</TableHead>
+                  <TableHead>الحالة</TableHead>
+                  <TableHead>تاريخ البداية</TableHead>
+                  <TableHead>تاريخ النهاية</TableHead>
+                  <TableHead>عدد النقلات</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {shifts.map((shift) => (
+                  <TableRow key={shift.id}>
+                    <TableCell>{shift.id}</TableCell>
+                    <TableCell>{shift.driverName}</TableCell>
+                    <TableCell>{shift.vehicleNo}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          shift.status === 'مفتوحة'
+                            ? 'border-transparent bg-green-600 text-white hover:bg-green-600'
+                            : 'border-transparent bg-gray-500 text-white hover:bg-gray-500'
+                        }
+                      >
+                        {shift.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{shift.startDate}</TableCell>
+                    <TableCell>{shift.endDate ?? '—'}</TableCell>
+                    <TableCell>{shift.actualTripCount}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
       <h3>4) فتح وردية</h3>
       <form onSubmit={handleCreateShift}>
         <input
