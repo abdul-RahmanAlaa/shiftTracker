@@ -30,6 +30,8 @@ type OpenShift = {
   crusherCubicDefault: number
   clientCubicDefault: number
   status: string
+  startDate: string
+  endDate: string | null
 }
 
 type ResourceState = {
@@ -289,9 +291,10 @@ export function AddTripPage(): React.JSX.Element {
           <CardContent>
             {checkingShift ? <p className="text-sm text-muted-foreground">جاري التحميل...</p> : openShift ? (
               <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-5">
                   <div><p className="text-sm text-muted-foreground">رقم الوردية</p><Badge variant="secondary">{openShift.id}</Badge></div>
                   <div><p className="text-sm text-muted-foreground">رقم السيارة</p><p>{openShift.vehicleNo}</p></div>
+                  <div><p className="text-sm text-muted-foreground">تاريخ البداية</p><p>{openShift.startDate}</p></div>
                   <div><p className="text-sm text-muted-foreground">تكعيب الكسارة</p><p>{openShift.crusherCubicDefault}</p></div>
                   <div><p className="text-sm text-muted-foreground">تكعيب العميل</p><p>{openShift.clientCubicDefault}</p></div>
                 </div>
@@ -299,7 +302,7 @@ export function AddTripPage(): React.JSX.Element {
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-sm text-amber-400">السائق ده معندوش وردية مفتوحة</p>
+                <p className="text-sm text-amber-400">مفيش وردية مفتوحة لهذا السائق</p>
                 <Button type="button" onClick={() => setShowCreateShift(true)}>فتح وردية جديدة</Button>
               </div>
             )}

@@ -94,7 +94,8 @@ export function getOpenShiftByDriverFull(driverId: number): ShiftFullRow | undef
       SELECT
         id, vehicle_no as vehicleNo, driver_id as driverId,
         crusher_cubic_default as crusherCubicDefault,
-        client_cubic_default as clientCubicDefault, status
+        client_cubic_default as clientCubicDefault, status,
+        start_date as startDate, end_date as endDate
       FROM Shift
       WHERE driver_id = ? AND status = 'مفتوحة'
     `

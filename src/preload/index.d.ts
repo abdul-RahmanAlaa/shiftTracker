@@ -39,6 +39,8 @@ interface ShiftFullRow {
   crusherCubicDefault: number
   clientCubicDefault: number
   status: string
+  startDate: string
+  endDate: string | null
 }
 
 interface LedgerRow {
