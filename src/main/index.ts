@@ -35,6 +35,8 @@ import { listTripsByShift, listTripLocations } from './use-cases/listTripData'
 import { createLedgerEntry } from './use-cases/createLedgerEntry'
 import { listLedgerEntries } from './use-cases/listLedgerData'
 import { getContractorAccount, getDriverHistory } from './use-cases/getAccounts'
+import { createClientPayment } from './use-cases/createClientPayment'
+import { getClientAccount } from './use-cases/getAccounts'
 
 function createWindow(): void {
   // Create the browser window.
@@ -119,6 +121,8 @@ app.whenReady().then(() => {
   ipcMain.handle('ledger:list', () => listLedgerEntries())
   ipcMain.handle('account:contractor', (_event, input) => getContractorAccount(input))
   ipcMain.handle('account:driver', (_event, input) => getDriverHistory(input))
+  ipcMain.handle('client:payment:create', (_event, input) => createClientPayment(input))
+  ipcMain.handle('account:client', (_event, input) => getClientAccount(input))
 
   createWindow()
 

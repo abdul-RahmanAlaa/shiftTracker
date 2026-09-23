@@ -4,6 +4,11 @@ import {
   listLedgerByDriver
 } from '../repository/accountsRepository'
 import { LedgerRow } from '../repository/ledgerRepository'
+import {
+  getClientAccountTotals,
+  listClientPayments,
+  ClientPaymentRow
+} from '../repository/accountsRepository'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
@@ -31,4 +36,20 @@ export function getDriverHistory(input: { driverId: number }): UseCaseResult<Led
     return { ok: false, errors: [{ field: 'driverId', message: 'السائق مطلوب' }] }
   }
   return { ok: true, data: listLedgerByDriver(input.driverId) }
+}
+
+export interface ClientAccount {
+  receivableTotal: number
+  paidTotal: number
+  balance: number
+  payments: ClientPaymentRow[]
+}
+
+export function getClientAccount(input: { clientId: number }): UseCaseResult<ClientAccount> {
+  if (!input.clientId) {
+    return { ok: false, errors: [{ field: 'clientId', message: 'العميل مطلوب' }] }
+  }
+  const totals = getClientAccountTotals(input.clientId)
+  const payments = listClientPayments(input.clientId)
+  return { ok: true, data: { ...totals, payments } }
 }

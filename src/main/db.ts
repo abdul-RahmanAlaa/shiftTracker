@@ -107,6 +107,14 @@ SELECT
   (client_cubic_reported - discount_qty) AS effective_client_cubic,
   (client_cubic_reported - discount_qty) * client_price AS client_amount
 FROM Trip;
+
+CREATE TABLE IF NOT EXISTS ClientPayment (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  entry_date  TEXT NOT NULL,
+  client_id   INTEGER NOT NULL REFERENCES Client(id),
+  amount      REAL NOT NULL,
+  notes       TEXT
+);
 `
 
 let db: Database.Database

@@ -59,6 +59,49 @@ interface ContractorAccount {
   entries: LedgerRow[]
 }
 
+interface CreateTripInput {
+  shiftId: string
+  tripDate: string
+  crusherCubic: number
+  clientCubicReported: number
+  discountQty?: number
+  discountReason?: string
+  location?: string
+  crusherId: number
+  stonePrice: number
+  crusherReceiptStatus: 'قيمة' | 'مفيش (متأكد)' | 'مش معروف'
+  crusherReceiptNo?: number
+  clientId: number
+  transportPrice: number
+  clientPrice: number
+  recipientNameStatus?: 'قيمة' | 'مش واضح'
+  recipientName?: string
+  clientReceiptNo?: string
+  notes?: string
+}
+
+interface TripRow {
+  id: string
+  shiftId: string
+  tripDate: string
+  crusherCubic: number
+  clientCubicReported: number
+  discountQty: number
+  discountReason: string | null
+  location: string | null
+  crusherId: number
+  stonePrice: number
+  crusherReceiptStatus: string
+  crusherReceiptNo: number | null
+  clientId: number
+  transportPrice: number
+  clientPrice: number
+  recipientNameStatus: string
+  recipientName: string | null
+  clientReceiptNo: string | null
+  notes: string | null
+}
+
 interface Api {
   createDriver: (input: {
     name: string

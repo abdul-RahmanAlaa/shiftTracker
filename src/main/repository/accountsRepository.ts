@@ -59,3 +59,65 @@ export function listLedgerByDriver(driverId: number): LedgerRow[] {
     )
     .all(driverId) as LedgerRow[]
 }
+
+export interface ClientPaymentRow {
+  id: number
+  entryDate: string
+  clientId: number
+  amount: number
+  notes: string | null
+}
+
+export function insertClientPayment(input: {
+  entryDate: string
+  clientId: number
+  amount: number
+  notes: string | null
+}): number {
+  const db = getDb()
+  const stmt = db.prepare(`
+    INSERT INTO ClientPayment (entry_date, client_id, amount, notes)
+    VALUES (@entryDate, @clientId, @amount, @notes)
+  `)
+  return stmt.run(input).lastInsertRowid as number
+}
+
+export function listClientPayments(clientId: number): ClientPaymentRow[] {
+  const db = getDb()
+  return db
+    .prepare(
+      `
+      SELECT id, entry_date as entryDate, client_id as clientId, amount, notes
+      FROM ClientPayment
+      WHERE client_id = ?
+      ORDER BY entry_date DESC, id DESC
+    `
+    )
+    .all(clientId) as ClientPaymentRow[]
+}
+
+export interface ClientAccountTotals {
+  receivableTotal: number
+  paidTotal: number
+  balance: number
+}
+
+export function getClientAccountTotals(clientId: number): ClientAccountTotals {
+  const db = getDb()
+  const row = db
+    .prepare(
+      `
+      SELECT
+        (SELECT COALESCE(SUM((t.client_cubic_reported - t.discount_qty) * t.client_price), 0)
+         FROM Trip t WHERE t.client_id = @clientId) as receivableTotal,
+        (SELECT COALESCE(SUM(amount), 0) FROM ClientPayment WHERE client_id = @clientId) as paidTotal
+    `
+    )
+    .get({ clientId }) as { receivableTotal: number; paidTotal: number }
+
+  return {
+    receivableTotal: row.receivableTotal,
+    paidTotal: row.paidTotal,
+    balance: row.receivableTotal - row.paidTotal
+  }
+}
