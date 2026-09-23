@@ -8,6 +8,8 @@ import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
+import type { CreateShiftValues } from '@/components/CreateShiftForm'
 import {
   Command,
   CommandEmpty,
@@ -55,18 +57,6 @@ export type ResourceState = {
   clients: NamedOption[]
   locations: string[]
 }
-
-const createShiftSchema = z.object({
-  vehicleNo: z.number().int().positive('السيارة مطلوبة'),
-  crusherCubicDefault: z.number().nonnegative('تكعيب الكسارة مطلوب'),
-  clientCubicDefault: z.number().nonnegative('تكعيب العميل مطلوب'),
-  startDate: z.string().min(1, 'تاريخ البداية مطلوب'),
-  reportedDestination: z.string().optional(),
-  reportedTripCount: z.number().nonnegative().optional(),
-  notes: z.string().optional()
-})
-
-type CreateShiftValues = z.infer<typeof createShiftSchema>
 
 export const tripSchema = z
   .object({
@@ -372,97 +362,11 @@ export function AddTripPage(): React.JSX.Element {
             <CardTitle>فتح وردية جديدة</CardTitle>
           </CardHeader>
           <CardContent>
-            <Form {...createShiftForm}>
-              <form
-                onSubmit={createShiftForm.handleSubmit(handleCreateShift)}
-                className="grid gap-4 md:grid-cols-2"
-              >
-                <FormField
-                  control={createShiftForm.control}
-                  name="vehicleNo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>السيارة</FormLabel>
-                      <Select
-                        value={field.value ? String(field.value) : ''}
-                        onValueChange={(value) => field.onChange(Number(value))}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختار السيارة" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {resources.vehicles.map((vehicle) => (
-                            <SelectItem key={vehicle.vehicleNo} value={String(vehicle.vehicleNo)}>
-                              {vehicle.vehicleNo}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <NumberField
-                  control={createShiftForm.control}
-                  name="crusherCubicDefault"
-                  label="تكعيب الكسارة"
-                  required
-                />
-                <NumberField
-                  control={createShiftForm.control}
-                  name="clientCubicDefault"
-                  label="تكعيب العميل"
-                  required
-                />
-                <FormField
-                  control={createShiftForm.control}
-                  name="startDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>تاريخ البداية *</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={createShiftForm.control}
-                  name="reportedDestination"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>الوجهة</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <NumberField
-                  control={createShiftForm.control}
-                  name="reportedTripCount"
-                  label="عدد النقلات"
-                />
-                <FormField
-                  control={createShiftForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel>ملاحظات</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit">فتح الوردية</Button>
-              </form>
-            </Form>
+            <CreateShiftForm
+              form={createShiftForm}
+              vehicles={resources.vehicles}
+              onSubmit={handleCreateShift}
+            />
           </CardContent>
         </Card>
       )}

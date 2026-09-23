@@ -5,6 +5,10 @@ import { useOutletContext } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
+import type { CreateShiftValues } from '@/components/CreateShiftForm'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -39,11 +43,7 @@ export function ShiftsPage(): React.JSX.Element {
   const { addLog } = useOutletContext<{ addLog: AddLog }>()
   const [shifts, setShifts] = useState<ShiftListRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [shiftVehicleNo, setShiftVehicleNo] = useState('')
-  const [shiftDriverId, setShiftDriverId] = useState('')
-  const [crusherCubic, setCrusherCubic] = useState('')
-  const [clientCubic, setClientCubic] = useState('')
-  const [startDate, setStartDate] = useState('')
+  const [selectedDriverIdForShift, setSelectedDriverIdForShift] = useState<number>()
   const [closeShiftId, setCloseShiftId] = useState('')
   const [endDate, setEndDate] = useState('')
   const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null)
@@ -55,6 +55,18 @@ export function ShiftsPage(): React.JSX.Element {
     crushers: [],
     clients: [],
     locations: []
+  })
+  const createShiftForm = useForm<CreateShiftValues>({
+    resolver: zodResolver(createShiftSchema),
+    defaultValues: {
+      vehicleNo: undefined,
+      crusherCubicDefault: 0,
+      clientCubicDefault: 0,
+      startDate: '',
+      reportedDestination: '',
+      reportedTripCount: undefined,
+      notes: ''
+    }
   })
 
   const editTripForm = useForm<TripValues>({
@@ -94,6 +106,12 @@ export function ShiftsPage(): React.JSX.Element {
       setLoading(false)
     })
   }, [])
+
+  async function loadShifts(): Promise<void> {
+    const result = await window.api.listShifts()
+    if (result.ok) setShifts(result.data)
+    setLoading(false)
+  }
 
   useEffect(() => {
     void Promise.all([
@@ -174,21 +192,24 @@ export function ShiftsPage(): React.JSX.Element {
     }
   }
 
-  async function handleCreateShift(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
+  async function handleCreateShift(values: CreateShiftValues): Promise<void> {
+    if (!selectedDriverIdForShift) return
     const result = await window.api.createShift({
-      vehicleNo: Number(shiftVehicleNo),
-      driverId: Number(shiftDriverId),
-      crusherCubicDefault: Number(crusherCubic),
-      clientCubicDefault: Number(clientCubic),
-      startDate
+      ...values,
+      driverId: selectedDriverIdForShift
     })
-    addLog(
-      result.ok
-        ? `✅ وردية اتفتحت: ${result.data?.id}`
-        : `❌ وردية: ${result.errors?.map((x) => x.message).join(', ')}`
-    )
-    if (result.ok) setCloseShiftId(result.data?.id ?? '')
+    if (result.ok) {
+      addLog(`✅ وردية اتفتحت: ${result.data.id}`)
+      createShiftForm.reset()
+      await loadShifts()
+    } else {
+      addLog(`❌ وردية: ${result.errors.map((x) => x.message).join(', ')}`)
+      result.errors.forEach((error) => {
+        if (error.field in values) {
+          createShiftForm.setError(error.field as keyof CreateShiftValues, { message: error.message })
+        }
+      })
+    }
   }
 
   async function handleCloseShift(e: React.FormEvent): Promise<void> {
@@ -199,6 +220,11 @@ export function ShiftsPage(): React.JSX.Element {
         ? `✅ وردية اتقفلت: ${result.data?.id}`
         : `❌ قفل الوردية: ${result.errors?.map((x) => x.message).join(', ')}`
     )
+    if (result.ok) {
+      setCloseShiftId('')
+      setEndDate('')
+      await loadShifts()
+    }
   }
 
   return (
@@ -334,42 +360,68 @@ export function ShiftsPage(): React.JSX.Element {
         </Card>
       )}
 
-      <h3>4) فتح وردية</h3>
-      <form onSubmit={handleCreateShift}>
-        <input
-          value={shiftVehicleNo}
-          onChange={(e) => setShiftVehicleNo(e.target.value)}
-          placeholder="رقم السيارة"
-        />
-        <input
-          value={shiftDriverId}
-          onChange={(e) => setShiftDriverId(e.target.value)}
-          placeholder="id السائق"
-        />
-        <input
-          value={crusherCubic}
-          onChange={(e) => setCrusherCubic(e.target.value)}
-          placeholder="تكعيب الكسارة"
-        />
-        <input
-          value={clientCubic}
-          onChange={(e) => setClientCubic(e.target.value)}
-          placeholder="تكعيب العميل"
-        />
-        <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-        <button type="submit">فتح وردية</button>
-      </form>
+      <Card>
+        <CardHeader>
+          <CardTitle>فتح وردية جديدة</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Select
+            value={selectedDriverIdForShift ? String(selectedDriverIdForShift) : ''}
+            onValueChange={(value) => setSelectedDriverIdForShift(Number(value))}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="اختار السائق" />
+            </SelectTrigger>
+            <SelectContent>
+              {resources.drivers.map((driver) => (
+                <SelectItem key={driver.id} value={String(driver.id)}>
+                  {driver.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {selectedDriverIdForShift && (
+            <CreateShiftForm
+              form={createShiftForm}
+              vehicles={resources.vehicles}
+              onSubmit={handleCreateShift}
+            />
+          )}
+        </CardContent>
+      </Card>
 
-      <h3>5) قفل وردية</h3>
-      <form onSubmit={handleCloseShift}>
-        <input
-          value={closeShiftId}
-          onChange={(e) => setCloseShiftId(e.target.value)}
-          placeholder="رقم الوردية (SH-xxxx)"
-        />
-        <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-        <button type="submit">قفل الوردية</button>
-      </form>
+      <Card>
+        <CardHeader>
+          <CardTitle>قفل وردية</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCloseShift} className="grid gap-4 md:grid-cols-2">
+            <Select
+              value={closeShiftId || ''}
+              onValueChange={setCloseShiftId}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="اختار الوردية" />
+              </SelectTrigger>
+              <SelectContent>
+                {shifts
+                  .filter((shift) => shift.status === 'مفتوحة')
+                  .map((shift) => (
+                    <SelectItem key={shift.id} value={shift.id}>
+                      {shift.id} ({shift.driverName})
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(event) => setEndDate(event.target.value)}
+            />
+            <Button type="submit">قفل الوردية</Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }
