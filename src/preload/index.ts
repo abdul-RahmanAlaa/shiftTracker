@@ -68,6 +68,13 @@ const api = {
   getContractorAccount: (input: { contractorId: number }) =>
     ipcRenderer.invoke('account:contractor', input),
   getDriverHistory: (input: { driverId: number }) => ipcRenderer.invoke('account:driver', input),
+  getClientAccount: (input: { clientId: number }) => ipcRenderer.invoke('account:client', input),
+  createClientPayment: (input: {
+    entryDate: string
+    clientId: number
+    amount: number
+    notes?: string
+  }) => ipcRenderer.invoke('client:payment:create', input),
   listShifts: () => ipcRenderer.invoke('shift:listAll'),
   updateTrip: (input: {
     id: string

@@ -19,7 +19,11 @@ const navigationItems = [
 ]
 
 function PlaceholderPage(): React.JSX.Element {
-  return <div className="flex min-h-64 items-center justify-center text-2xl text-muted-foreground">قريبًا</div>
+  return (
+    <div className="flex min-h-64 items-center justify-center text-2xl text-muted-foreground">
+      قريبًا
+    </div>
+  )
 }
 
 function AppLayout(): React.JSX.Element {
@@ -49,8 +53,8 @@ function AppLayout(): React.JSX.Element {
                   )
                 }
               >
-                  <Icon className="h-4 w-4" />
-                  <span>{label}</span>
+                <Icon className="h-4 w-4" />
+                <span>{label}</span>
               </NavLink>
             </Button>
           ))}

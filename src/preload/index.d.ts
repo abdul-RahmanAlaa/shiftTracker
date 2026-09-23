@@ -95,6 +95,21 @@ interface ShiftListRow {
   actualTripCount: number
 }
 
+interface ClientPaymentRow {
+  id: number
+  entryDate: string
+  clientId: number
+  amount: number
+  notes: string | null
+}
+
+interface ClientAccount {
+  receivableTotal: number
+  paidTotal: number
+  balance: number
+  payments: ClientPaymentRow[]
+}
+
 interface Api {
   createDriver: (input: {
     name: string
@@ -241,6 +256,15 @@ interface Api {
   deleteTrip: (input: {
     id: string
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
+  getClientAccount: (input: {
+    clientId: number
+  }) => Promise<UseCaseResult<ClientAccount> | FailedUseCaseResult>
+  createClientPayment: (input: {
+    entryDate: string
+    clientId: number
+    amount: number
+    notes?: string
+  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
 }
 
 declare global {
