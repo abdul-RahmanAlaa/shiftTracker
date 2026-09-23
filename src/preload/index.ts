@@ -69,7 +69,8 @@ const api = {
   listLedgerEntries: () => ipcRenderer.invoke('ledger:list'),
   getContractorAccount: (input: { contractorId: number }) =>
     ipcRenderer.invoke('account:contractor', input),
-  getDriverHistory: (input: { driverId: number }) => ipcRenderer.invoke('account:driver', input)
+  getDriverHistory: (input: { driverId: number }) => ipcRenderer.invoke('account:driver', input),
+  listShifts: () => ipcRenderer.invoke('shift:listAll')
 }
 
 if (process.contextIsolated) {

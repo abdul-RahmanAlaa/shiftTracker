@@ -28,7 +28,8 @@ import {
   listVehicles,
   listOpenShifts,
   getOpenShiftByDriver,
-  getDriverOpenShift
+  getDriverOpenShift,
+  listShifts
 } from './use-cases/listData'
 import { createTrip } from './use-cases/createTrip'
 import { listTripsByShift, listTripLocations } from './use-cases/listTripData'
@@ -123,6 +124,7 @@ app.whenReady().then(() => {
   ipcMain.handle('account:driver', (_event, input) => getDriverHistory(input))
   ipcMain.handle('client:payment:create', (_event, input) => createClientPayment(input))
   ipcMain.handle('account:client', (_event, input) => getClientAccount(input))
+  ipcMain.handle('shift:listAll', () => listShifts())
 
   createWindow()
 

@@ -104,6 +104,19 @@ interface TripRow {
   notes: string | null
 }
 
+interface ShiftListRow {
+  id: string
+  vehicleNo: number
+  driverId: number
+  driverName: string
+  crusherCubicDefault: number
+  clientCubicDefault: number
+  status: string
+  startDate: string
+  endDate: string | null
+  actualTripCount: number
+}
+
 interface Api {
   createDriver: (input: {
     name: string
@@ -226,6 +239,7 @@ interface Api {
   getDriverHistory: (input: {
     driverId: number
   }) => Promise<UseCaseResult<LedgerRow[]> | FailedUseCaseResult>
+  listShifts: () => Promise<UseCaseResult<ShiftListRow[]> | FailedUseCaseResult>
 }
 
 declare global {

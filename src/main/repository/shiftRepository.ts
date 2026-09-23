@@ -102,3 +102,35 @@ export function getOpenShiftByDriverFull(driverId: number): ShiftFullRow | undef
     )
     .get(driverId) as ShiftFullRow | undefined
 }
+
+export interface ShiftListRow {
+  id: string
+  vehicleNo: number
+  driverId: number
+  driverName: string
+  crusherCubicDefault: number
+  clientCubicDefault: number
+  status: string
+  startDate: string
+  endDate: string | null
+  actualTripCount: number
+}
+
+export function listAllShifts(): ShiftListRow[] {
+  const db = getDb()
+  return db
+    .prepare(
+      `
+      SELECT
+        s.id, s.vehicle_no as vehicleNo, s.driver_id as driverId, d.name as driverName,
+        s.crusher_cubic_default as crusherCubicDefault,
+        s.client_cubic_default as clientCubicDefault, s.status,
+        s.start_date as startDate, s.end_date as endDate,
+        (SELECT COUNT(*) FROM Trip t WHERE t.shift_id = s.id) as actualTripCount
+      FROM Shift s
+      JOIN Driver d ON d.id = s.driver_id
+      ORDER BY s.start_date DESC, s.id DESC
+    `
+    )
+    .all() as ShiftListRow[]
+}
