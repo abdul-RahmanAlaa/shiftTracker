@@ -97,3 +97,5 @@ export const updateCrusher = updateSimpleLookupUseCase('Crusher', 'الكسار�
 export const deleteCrusher = deleteSimpleLookupUseCase('Crusher', 'الكسارة')
 export const updateContractor = updateSimpleLookupUseCase('TransportContractor', 'مقاول النقل')
 export const deleteContractor = deleteSimpleLookupUseCase('TransportContractor', 'مقاول النقل')
+export const listClients = createSimpleLookupListUseCase('Client')
+export const listCrushers = createSimpleLookupListUseCase('Crusher')

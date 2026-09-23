@@ -76,3 +76,28 @@ export function getOpenShiftByDriver(driverId: number): { id: string } | undefin
     .prepare(`SELECT id FROM Shift WHERE driver_id = ? AND status = 'مفتوحة'`)
     .get(driverId) as { id: string } | undefined
 }
+
+export interface ShiftFullRow {
+  id: string
+  vehicleNo: number
+  driverId: number
+  crusherCubicDefault: number
+  clientCubicDefault: number
+  status: string
+}
+
+export function getOpenShiftByDriverFull(driverId: number): ShiftFullRow | undefined {
+  const db = getDb()
+  return db
+    .prepare(
+      `
+      SELECT
+        id, vehicle_no as vehicleNo, driver_id as driverId,
+        crusher_cubic_default as crusherCubicDefault,
+        client_cubic_default as clientCubicDefault, status
+      FROM Shift
+      WHERE driver_id = ? AND status = 'مفتوحة'
+    `
+    )
+    .get(driverId) as ShiftFullRow | undefined
+}

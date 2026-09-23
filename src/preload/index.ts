@@ -28,7 +28,35 @@ const api = {
   deleteContractor: (input: { id: number }) => ipcRenderer.invoke('contractor:delete', input),
   updateVehicle: (input: { vehicleNo: number; trailerNo: number; contractorId: number }) =>
     ipcRenderer.invoke('vehicle:update', input),
-  deleteVehicle: (input: { vehicleNo: number }) => ipcRenderer.invoke('vehicle:delete', input)
+  deleteVehicle: (input: { vehicleNo: number }) => ipcRenderer.invoke('vehicle:delete', input),
+  createTrip: (input: {
+    shiftId: string
+    tripDate: string
+    crusherCubic: number
+    clientCubicReported: number
+    discountQty?: number
+    discountReason?: string
+    location?: string
+    crusherId: number
+    stonePrice: number
+    crusherReceiptStatus: 'قيمة' | 'مفيش (متأكد)' | 'مش معروف'
+    crusherReceiptNo?: number
+    clientId: number
+    transportPrice: number
+    clientPrice: number
+    recipientNameStatus?: 'قيمة' | 'مش واضح'
+    recipientName?: string
+    clientReceiptNo?: string
+    notes?: string
+  }) => ipcRenderer.invoke('trip:create', input),
+  listTripsByShift: (input: { shiftId: string }) => ipcRenderer.invoke('trip:listByShift', input),
+  listTripLocations: () => ipcRenderer.invoke('trip:listLocations'),
+  listClients: () => ipcRenderer.invoke('client:list'),
+  listCrushers: () => ipcRenderer.invoke('crusher:list'),
+  getOpenShiftByDriver: (input: { driverId: number }) =>
+    ipcRenderer.invoke('shift:getOpenByDriver', input),
+  getDriverOpenShift: (input: { driverId: number }) =>
+    ipcRenderer.invoke('shift:getForDriver', input)
 }
 
 if (process.contextIsolated) {

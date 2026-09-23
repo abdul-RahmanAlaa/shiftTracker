@@ -87,6 +87,26 @@ CREATE TABLE IF NOT EXISTS Ledger (
   contractor_id  INTEGER NOT NULL REFERENCES TransportContractor(id),
   notes          TEXT
 );
+
+CREATE VIEW IF NOT EXISTS ShiftStats AS
+SELECT
+  s.id AS shift_id,
+  COUNT(t.id) AS actual_trip_count,
+  s.reported_trip_count,
+  (s.reported_trip_count IS NOT NULL
+   AND s.reported_trip_count <> COUNT(t.id)) AS has_count_mismatch
+FROM Shift s
+LEFT JOIN Trip t ON t.shift_id = s.id
+GROUP BY s.id;
+
+CREATE VIEW IF NOT EXISTS TripAccounting AS
+SELECT
+  id,
+  crusher_cubic * stone_price AS crusher_amount,
+  crusher_cubic * transport_price AS transport_amount,
+  (client_cubic_reported - discount_qty) AS effective_client_cubic,
+  (client_cubic_reported - discount_qty) * client_price AS client_amount
+FROM Trip;
 `
 
 let db: Database.Database
