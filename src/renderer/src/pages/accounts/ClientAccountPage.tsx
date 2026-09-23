@@ -12,6 +12,7 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import {
   Select,
   SelectContent,
@@ -153,7 +154,7 @@ export function ClientAccountPage({ addLog }: { addLog: AddLog }): React.JSX.Ele
                   <FormItem>
                     <FormLabel>تاريخ الدفعة</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ الدفعة" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

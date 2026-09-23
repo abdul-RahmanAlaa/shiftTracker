@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
@@ -98,7 +99,7 @@ export function LedgerPage(): React.JSX.Element {
           <Form {...ledgerForm}>
             <form onSubmit={ledgerForm.handleSubmit(handleCreateEntry)} className="grid gap-4 md:grid-cols-2">
               <FormField control={ledgerForm.control} name="entryDate" render={({ field }) => (
-                <FormItem><FormLabel>تاريخ الحركة</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>تاريخ الحركة</FormLabel><FormControl><DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ الحركة" /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={ledgerForm.control} name="movementType" render={({ field }) => (
                 <FormItem><FormLabel>نوع الحركة</FormLabel><Select value={field.value ?? ''} onValueChange={field.onChange}><FormControl><SelectTrigger><SelectValue placeholder="اختر نوع الحركة" /></SelectTrigger></FormControl><SelectContent><SelectItem value="عهدة">عهدة</SelectItem><SelectItem value="دفعة">دفعة</SelectItem><SelectItem value="اخرى">اخرى</SelectItem></SelectContent></Select><FormMessage /></FormItem>

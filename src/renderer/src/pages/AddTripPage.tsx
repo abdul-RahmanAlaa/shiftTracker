@@ -26,6 +26,7 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Select,
@@ -432,7 +433,7 @@ export function TripForm({
                 <FormItem>
                   <FormLabel>تاريخ النقلة *</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ النقلة" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

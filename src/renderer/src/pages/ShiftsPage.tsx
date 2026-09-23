@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
 import type { CreateShiftValues } from '@/components/CreateShiftForm'
-import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Table,
@@ -413,11 +413,7 @@ export function ShiftsPage(): React.JSX.Element {
                   ))}
               </SelectContent>
             </Select>
-            <Input
-              type="date"
-              value={endDate}
-              onChange={(event) => setEndDate(event.target.value)}
-            />
+            <DatePicker value={endDate} onChange={setEndDate} placeholder="اختر تاريخ القفل" />
             <Button type="submit">قفل الوردية</Button>
           </form>
         </CardContent>
