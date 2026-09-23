@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { AddTripPage } from '@/pages/AddTripPage'
 import { AccountsPage } from '@/pages/AccountsPage'
+import { LedgerPage } from '@/pages/LedgerPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ShiftsPage } from '@/pages/ShiftsPage'
 
@@ -18,14 +19,6 @@ const navigationItems = [
   { to: '/accounts', label: 'الحسابات', icon: Calculator },
   { to: '/settings', label: 'بيانات أساسية', icon: Settings }
 ]
-
-function PlaceholderPage(): React.JSX.Element {
-  return (
-    <div className="flex min-h-64 items-center justify-center text-2xl text-muted-foreground">
-      قريبًا
-    </div>
-  )
-}
 
 function AppLayout(): React.JSX.Element {
   const [log, setLog] = useState<string[]>([])
@@ -94,7 +87,7 @@ function App(): React.JSX.Element {
         <Route element={<AppLayout />}>
           <Route index element={<AddTripPage />} />
           <Route path="shifts" element={<ShiftsPage />} />
-          <Route path="ledger" element={<PlaceholderPage />} />
+          <Route path="ledger" element={<LedgerPage />} />
           <Route path="accounts" element={<AccountsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
