@@ -1,5 +1,7 @@
 import { format, parse } from 'date-fns'
-import { Calendar as CalendarIcon } from 'lucide-react'
+import { arEG } from 'date-fns/locale'
+import { CalendarIcon } from 'lucide-react'
+import { arSA as arSADayPicker } from 'react-day-picker/locale'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -26,20 +28,27 @@ export function DatePicker({
           variant="outline"
           disabled={disabled}
           data-empty={!selectedDate}
+          dir="rtl"
           className={cn(
-            'w-full justify-start text-right font-normal',
+            'w-full justify-between text-right font-normal',
             !selectedDate && 'text-muted-foreground'
           )}
         >
-          <CalendarIcon className="ml-2 h-4 w-4" />
-          {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : placeholder}
+          {selectedDate ? format(selectedDate, 'PPP', { locale: arEG }) : placeholder}
+          <CalendarIcon className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-88 p-0" align="center" dir="rtl">
         <Calendar
+          className="w-full"
           mode="single"
           selected={selectedDate}
+          captionLayout="dropdown"
           onSelect={(date) => onChange(date ? format(date, 'yyyy-MM-dd') : '')}
+          defaultMonth={selectedDate}
+          dir="rtl"
+          locale={arSADayPicker}
+          weekStartsOn={6}
         />
       </PopoverContent>
     </Popover>
