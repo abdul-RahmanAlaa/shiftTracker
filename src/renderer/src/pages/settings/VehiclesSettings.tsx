@@ -4,10 +4,30 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 import type { AddLog } from '@/App'
 
 const vehicleSchema = z.object({
@@ -62,7 +82,11 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
       setLoading(false)
     } else {
       result.errors.forEach((error) => {
-        if (error.field === 'vehicleNo' || error.field === 'trailerNo' || error.field === 'contractorId') {
+        if (
+          error.field === 'vehicleNo' ||
+          error.field === 'trailerNo' ||
+          error.field === 'contractorId'
+        ) {
           vehicleForm.setError(error.field, { message: error.message })
         }
       })
@@ -76,7 +100,10 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
       </CardHeader>
       <CardContent>
         <Form {...vehicleForm}>
-          <form onSubmit={vehicleForm.handleSubmit(handleCreateVehicle)} className="grid gap-4 md:grid-cols-2">
+          <form
+            onSubmit={vehicleForm.handleSubmit(handleCreateVehicle)}
+            className="grid gap-4 md:grid-cols-2"
+          >
             <FormField
               control={vehicleForm.control}
               name="vehicleNo"
@@ -89,7 +116,9 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
                       placeholder="رقم السيارة"
                       value={field.value ?? ''}
                       onChange={(event) =>
-                        field.onChange(event.target.value === '' ? undefined : Number(event.target.value))
+                        field.onChange(
+                          event.target.value === '' ? undefined : Number(event.target.value)
+                        )
                       }
                     />
                   </FormControl>
@@ -109,7 +138,9 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
                       placeholder="رقم المقطورة"
                       value={field.value ?? ''}
                       onChange={(event) =>
-                        field.onChange(event.target.value === '' ? undefined : Number(event.target.value))
+                        field.onChange(
+                          event.target.value === '' ? undefined : Number(event.target.value)
+                        )
                       }
                     />
                   </FormControl>

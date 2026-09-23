@@ -53,8 +53,6 @@ const api = {
   listTripLocations: () => ipcRenderer.invoke('trip:listLocations'),
   listClients: () => ipcRenderer.invoke('client:list'),
   listCrushers: () => ipcRenderer.invoke('crusher:list'),
-  getOpenShiftByDriver: (input: { driverId: number }) =>
-    ipcRenderer.invoke('shift:getOpenByDriver', input),
   getDriverOpenShift: (input: { driverId: number }) =>
     ipcRenderer.invoke('shift:getForDriver', input),
   createLedgerEntry: (input: {

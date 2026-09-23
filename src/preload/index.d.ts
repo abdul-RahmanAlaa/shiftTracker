@@ -82,28 +82,6 @@ interface CreateTripInput {
   notes?: string
 }
 
-interface TripRow {
-  id: string
-  shiftId: string
-  tripDate: string
-  crusherCubic: number
-  clientCubicReported: number
-  discountQty: number
-  discountReason: string | null
-  location: string | null
-  crusherId: number
-  stonePrice: number
-  crusherReceiptStatus: string
-  crusherReceiptNo: number | null
-  clientId: number
-  transportPrice: number
-  clientPrice: number
-  recipientNameStatus: string
-  recipientName: string | null
-  clientReceiptNo: string | null
-  notes: string | null
-}
-
 interface ShiftListRow {
   id: string
   vehicleNo: number

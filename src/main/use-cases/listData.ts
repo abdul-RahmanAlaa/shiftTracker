@@ -3,7 +3,6 @@ import {
   listOpenShifts as listOpenShiftsRepo,
   VehicleRow
 } from '../repository/listRepository'
-import { getOpenShiftByDriver as getOpenShiftByDriverRepo } from '../repository/shiftRepository'
 import { getOpenShiftByDriverFull, ShiftFullRow } from '../repository/shiftRepository'
 import { listAllShifts as listAllShiftsRepo, ShiftListRow } from '../repository/shiftRepository'
 
@@ -16,12 +15,6 @@ export function listVehicles(): UseCaseResult<VehicleRow[]> {
 
 export function listOpenShifts(): UseCaseResult<{ id: string }[]> {
   return { ok: true, data: listOpenShiftsRepo() }
-}
-
-export function getOpenShiftByDriver(input: {
-  driverId: number
-}): UseCaseResult<{ id: string } | null> {
-  return { ok: true, data: getOpenShiftByDriverRepo(input.driverId) ?? null }
 }
 
 export function getDriverOpenShift(driverId: number): UseCaseResult<ShiftFullRow | null> {
