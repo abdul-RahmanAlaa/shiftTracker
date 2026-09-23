@@ -32,6 +32,9 @@ import {
 } from './use-cases/listData'
 import { createTrip } from './use-cases/createTrip'
 import { listTripsByShift, listTripLocations } from './use-cases/listTripData'
+import { createLedgerEntry } from './use-cases/createLedgerEntry'
+import { listLedgerEntries } from './use-cases/listLedgerData'
+import { getContractorAccount, getDriverHistory } from './use-cases/getAccounts'
 
 function createWindow(): void {
   // Create the browser window.
@@ -112,6 +115,10 @@ app.whenReady().then(() => {
   ipcMain.handle('crusher:list', () => listCrushers())
   ipcMain.handle('shift:getOpenByDriver', (_event, input) => getOpenShiftByDriver(input))
   ipcMain.handle('shift:getForDriver', (_event, input) => getDriverOpenShift(input.driverId))
+  ipcMain.handle('ledger:create', (_event, input) => createLedgerEntry(input))
+  ipcMain.handle('ledger:list', () => listLedgerEntries())
+  ipcMain.handle('account:contractor', (_event, input) => getContractorAccount(input))
+  ipcMain.handle('account:driver', (_event, input) => getDriverHistory(input))
 
   createWindow()
 

@@ -4,6 +4,7 @@ import { BookOpen, Calculator, ClipboardList, Settings, Truck } from 'lucide-rea
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { AddTripPage } from '@/pages/AddTripPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ShiftsPage } from '@/pages/ShiftsPage'
 
@@ -86,7 +87,7 @@ function App(): React.JSX.Element {
     <HashRouter>
       <Routes>
         <Route element={<AppLayout />}>
-          <Route index element={<PlaceholderPage />} />
+          <Route index element={<AddTripPage />} />
           <Route path="shifts" element={<ShiftsPage />} />
           <Route path="ledger" element={<PlaceholderPage />} />
           <Route path="accounts" element={<PlaceholderPage />} />

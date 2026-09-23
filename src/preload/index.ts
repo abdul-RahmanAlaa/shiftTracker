@@ -56,7 +56,20 @@ const api = {
   getOpenShiftByDriver: (input: { driverId: number }) =>
     ipcRenderer.invoke('shift:getOpenByDriver', input),
   getDriverOpenShift: (input: { driverId: number }) =>
-    ipcRenderer.invoke('shift:getForDriver', input)
+    ipcRenderer.invoke('shift:getForDriver', input),
+  createLedgerEntry: (input: {
+    entryDate: string
+    driverId?: number
+    movementType: 'عهدة' | 'دفعة' | 'اخرى'
+    amount: number
+    shiftId?: string
+    contractorId?: number
+    notes?: string
+  }) => ipcRenderer.invoke('ledger:create', input),
+  listLedgerEntries: () => ipcRenderer.invoke('ledger:list'),
+  getContractorAccount: (input: { contractorId: number }) =>
+    ipcRenderer.invoke('account:contractor', input),
+  getDriverHistory: (input: { driverId: number }) => ipcRenderer.invoke('account:driver', input)
 }
 
 if (process.contextIsolated) {

@@ -41,6 +41,24 @@ interface ShiftFullRow {
   status: string
 }
 
+interface LedgerRow {
+  id: number
+  entryDate: string
+  driverId: number | null
+  movementType: string
+  amount: number
+  shiftId: string | null
+  contractorId: number
+  notes: string | null
+}
+
+interface ContractorAccount {
+  transportTotal: number
+  ledgerTotal: number
+  balance: number
+  entries: LedgerRow[]
+}
+
 interface Api {
   createDriver: (input: {
     name: string
@@ -147,6 +165,22 @@ interface Api {
   }) => Promise<UseCaseResult<ShiftFullRow | null> | FailedUseCaseResult>
   listCrushers: () => Promise<UseCaseResult<{ id: number; name: string }[]> | FailedUseCaseResult>
   listClients: () => Promise<UseCaseResult<{ id: number; name: string }[]> | FailedUseCaseResult>
+  createLedgerEntry: (input: {
+    entryDate: string
+    driverId?: number
+    movementType: 'عهدة' | 'دفعة' | 'اخرى'
+    amount: number
+    shiftId?: string
+    contractorId?: number
+    notes?: string
+  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  listLedgerEntries: () => Promise<UseCaseResult<LedgerRow[]> | FailedUseCaseResult>
+  getContractorAccount: (input: {
+    contractorId: number
+  }) => Promise<UseCaseResult<ContractorAccount> | FailedUseCaseResult>
+  getDriverHistory: (input: {
+    driverId: number
+  }) => Promise<UseCaseResult<LedgerRow[]> | FailedUseCaseResult>
 }
 
 declare global {
