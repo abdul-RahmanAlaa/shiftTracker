@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { AddTripPage } from '@/pages/AddTripPage'
+import { AccountsPage } from '@/pages/AccountsPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ShiftsPage } from '@/pages/ShiftsPage'
 
@@ -94,7 +95,7 @@ function App(): React.JSX.Element {
           <Route index element={<AddTripPage />} />
           <Route path="shifts" element={<ShiftsPage />} />
           <Route path="ledger" element={<PlaceholderPage />} />
-          <Route path="accounts" element={<PlaceholderPage />} />
+          <Route path="accounts" element={<AccountsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
