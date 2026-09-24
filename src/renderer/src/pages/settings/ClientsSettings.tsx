@@ -1,6 +1,26 @@
 import { useEffect, useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm, type Resolver } from 'react-hook-form'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -12,13 +32,28 @@ import {
 } from '@/components/ui/table'
 import type { AddLog } from '@/App'
 
-type Client = { id: number; name: string }
+const clientSchema = z.object({
+  name: z.string().min(1, 'اسم العميل مطلوب'),
+  initialPrice: z
+    .string()
+    .optional()
+    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
+    .refine((val) => val === undefined || val >= 0, 'السعر لازم يكون رقم موجب')
+})
+
+type ClientFormValues = z.infer<typeof clientSchema>
+type ClientFormInput = z.input<typeof clientSchema>
+type Client = { id: number; name: string; initialPrice: number | null }
 
 export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Element {
-  const [clientName, setClientName] = useState('')
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const clientForm = useForm<ClientFormInput>({
+    resolver: zodResolver(clientSchema) as Resolver<ClientFormInput>,
+    defaultValues: { name: '', initialPrice: '' }
+  })
 
   async function loadClients(): Promise<void> {
     setLoading(true)
@@ -34,11 +69,11 @@ export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
     })
   }, [])
 
-  async function handleSaveClient(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
+  async function handleSaveClient(values: ClientFormInput): Promise<void> {
+    const parsedValues: ClientFormValues = clientSchema.parse(values)
     const result = editingClientId
-      ? await window.api.updateClient({ id: editingClientId, name: clientName })
-      : await window.api.createClient({ name: clientName })
+      ? await window.api.updateClient({ id: editingClientId, ...parsedValues })
+      : await window.api.createClient(parsedValues)
     addLog(
       result.ok
         ? editingClientId
@@ -47,20 +82,32 @@ export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
         : `❌ عميل: ${result.errors.map((x) => x.message).join(', ')}`
     )
     if (result.ok) {
-      setClientName('')
+      setIsDialogOpen(false)
+      clientForm.reset()
       setEditingClientId(null)
       await loadClients()
+    } else {
+      result.errors.forEach((error) => {
+        if (error.field === 'name' || error.field === 'initialPrice') {
+          clientForm.setError(error.field, { message: error.message })
+        }
+      })
     }
   }
 
   function startEditingClient(client: Client): void {
     setEditingClientId(client.id)
-    setClientName(client.name)
+    clientForm.reset({
+      name: client.name,
+      initialPrice: client.initialPrice === null ? '' : String(client.initialPrice)
+    })
+    setIsDialogOpen(true)
   }
 
   function cancelEditingClient(): void {
     setEditingClientId(null)
-    setClientName('')
+    clientForm.reset()
+    setIsDialogOpen(false)
   }
 
   async function handleDeleteClient(client: Client): Promise<void> {
@@ -77,25 +124,82 @@ export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
     }
   }
 
+  function handleDialogChange(open: boolean): void {
+    setIsDialogOpen(open)
+    if (!open) {
+      setEditingClientId(null)
+      clientForm.reset()
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>العملاء</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSaveClient}>
-          <Input
-            value={clientName}
-            onChange={(event) => setClientName(event.target.value)}
-            placeholder="اسم العميل"
-          />
-          <Button type="submit">{editingClientId ? 'حفظ التعديل' : 'إضافة'}</Button>
-          {editingClientId && (
-            <Button type="button" variant="outline" onClick={cancelEditingClient}>
-              إلغاء
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              onClick={() => {
+                setEditingClientId(null)
+                clientForm.reset()
+              }}
+            >
+              إضافة عميل
             </Button>
-          )}
-        </form>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingClientId ? 'تعديل عميل' : 'إضافة عميل جديد'}</DialogTitle>
+            </DialogHeader>
+            <Form {...clientForm}>
+              <form onSubmit={clientForm.handleSubmit(handleSaveClient)} className="grid gap-4">
+                <FormField
+                  control={clientForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>اسم العميل</FormLabel>
+                      <FormControl>
+                        <Input placeholder="اسم العميل" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={clientForm.control}
+                  name="initialPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>السعر الافتراضي</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="السعر الافتراضي"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="submit">{editingClientId ? 'حفظ التعديل' : 'إضافة'}</Button>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline" onClick={cancelEditingClient}>
+                      إلغاء
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
         <div className="mt-6">
           {loading ? (
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
@@ -106,6 +210,7 @@ export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
               <TableHeader>
                 <TableRow>
                   <TableHead>الاسم</TableHead>
+                  <TableHead>السعر الافتراضي</TableHead>
                   <TableHead>إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -113,6 +218,7 @@ export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
                 {clients.map((client) => (
                   <TableRow key={client.id}>
                     <TableCell>{client.name}</TableCell>
+                    <TableCell>{client.initialPrice ?? '-'}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
