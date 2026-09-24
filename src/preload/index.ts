@@ -111,7 +111,11 @@ const api = {
     clientReceiptNo?: string
     notes?: string
   }) => ipcRenderer.invoke('trip:update', input),
-  deleteTrip: (input: { id: string }) => ipcRenderer.invoke('trip:delete', input)
+  deleteTrip: (input: { id: string }) => ipcRenderer.invoke('trip:delete', input),
+  saveTripPhoto: (input: { tripId: string; imageBase64: string }) =>
+    ipcRenderer.invoke('trip:savePhoto', input),
+  deleteTripPhoto: (input: { tripId: string }) => ipcRenderer.invoke('trip:deletePhoto', input),
+  getTripPhoto: (input: { photoPath: string }) => ipcRenderer.invoke('trip:getPhoto', input)
 }
 
 if (process.contextIsolated) {

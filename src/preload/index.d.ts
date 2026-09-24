@@ -304,6 +304,16 @@ interface Api {
   deleteTrip: (input: {
     id: string
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
+  saveTripPhoto: (input: {
+    tripId: string
+    imageBase64: string
+  }) => Promise<UseCaseResult<{ path: string }> | FailedUseCaseResult>
+  deleteTripPhoto: (input: {
+    tripId: string
+  }) => Promise<UseCaseResult<{ tripId: string }> | FailedUseCaseResult>
+  getTripPhoto: (input: {
+    photoPath: string
+  }) => Promise<UseCaseResult<{ dataUri: string | null }> | FailedUseCaseResult>
   getClientAccount: (input: {
     clientId: number
   }) => Promise<UseCaseResult<ClientAccount> | FailedUseCaseResult>

@@ -28,6 +28,7 @@ import { listLedgerEntries } from './use-cases/listLedgerData'
 import { getContractorAccount, getDriverHistory } from './use-cases/getAccounts'
 import { createClientPayment } from './use-cases/createClientPayment'
 import { getClientAccount } from './use-cases/getAccounts'
+import { deleteTripPhoto, getTripPhoto, saveTripPhoto } from './use-cases/tripPhoto'
 
 function createWindow(): void {
   // Create the browser window.
@@ -116,6 +117,9 @@ app.whenReady().then(() => {
   ipcMain.handle('shift:listAll', () => listShifts())
   ipcMain.handle('trip:update', (_event, input) => updateTrip(input))
   ipcMain.handle('trip:delete', (_event, input) => deleteTrip(input))
+  ipcMain.handle('trip:savePhoto', (_event, input) => saveTripPhoto(input))
+  ipcMain.handle('trip:deletePhoto', (_event, input) => deleteTripPhoto(input))
+  ipcMain.handle('trip:getPhoto', (_event, input) => getTripPhoto(input))
 
   createWindow()
 

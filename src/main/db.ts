@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS Trip (
   recipient_name           TEXT,
   client_receipt_no        TEXT,
   notes                    TEXT,
+  receipt_photo_path       TEXT,
   CHECK (
     (crusher_receipt_status = 'قيمة' AND crusher_receipt_no IS NOT NULL)
     OR (crusher_receipt_status <> 'قيمة' AND crusher_receipt_no IS NULL)
@@ -132,6 +133,10 @@ ALTER TABLE Vehicle ADD COLUMN default_cubic REAL;
 ALTER TABLE Vehicle ADD COLUMN owner_name TEXT;
 `
 
+const MIGRATION_V3_ADD_RECEIPT_PHOTO = `
+ALTER TABLE Trip ADD COLUMN receipt_photo_path TEXT;
+`
+
 let db: Database.Database
 
 export function initDatabase(): Database.Database {
@@ -145,16 +150,21 @@ export function initDatabase(): Database.Database {
 
   if (currentVersion === 0) {
     db.exec(SCHEMA)
-    db.pragma('user_version = 2')
-    console.log('[db] Schema created (fresh install). user_version = 2')
+    db.pragma('user_version = 3')
+    console.log('[db] Schema created (fresh install). user_version = 3')
   } else if (currentVersion === 1) {
     db.exec(MIGRATION_V2_ADD_OPTIONAL_FIELDS)
-    db.pragma('user_version = 2')
+    db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
+    db.pragma('user_version = 3')
     console.log(
-      '[db] Migration v1 -> v2 applied (phone1/phone2, initial_price, default_cubic, owner_name). user_version = 2'
+      '[db] Migrations v1 -> v2 -> v3 applied (optional fields, receipt_photo_path). user_version = 3'
     )
+  } else if (currentVersion === 2) {
+    db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
+    db.pragma('user_version = 3')
+    console.log('[db] Migration v2 -> v3 applied (receipt_photo_path). user_version = 3')
   } else {
-    console.log(`[db] Existing database found. user_version = ${currentVersion}`)
+    console.log(`[db] Database up to date. user_version = ${currentVersion}`)
   }
 
   console.log('[db] Database path:', dbPath)
