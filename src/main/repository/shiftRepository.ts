@@ -41,6 +41,34 @@ export function insertShift(input: InsertShiftInput): void {
   stmt.run(input)
 }
 
+export function insertHistoricalShift(input: {
+  id: string
+  vehicleNo: number
+  driverId: number
+  crusherCubicDefault: number
+  clientCubicDefault: number
+  startDate: string
+  endDate: string
+}): void {
+  const db = getDb()
+  db.prepare(
+    `
+    INSERT INTO Shift (
+      id, vehicle_no, driver_id, crusher_cubic_default, client_cubic_default,
+      start_date, end_date, status, reported_destination, reported_trip_count, notes
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'منتهية', NULL, NULL, NULL)
+  `
+  ).run(
+    input.id,
+    input.vehicleNo,
+    input.driverId,
+    input.crusherCubicDefault,
+    input.clientCubicDefault,
+    input.startDate,
+    input.endDate
+  )
+}
+
 interface ShiftRow {
   id: string
   status: string

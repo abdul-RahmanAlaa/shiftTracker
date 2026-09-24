@@ -21,6 +21,13 @@ export function listDrivers(): DriverRow[] {
     .all() as DriverRow[]
 }
 
+export function getDriverIdByName(name: string): number | undefined {
+  const db = getDb()
+  const row = db.prepare('SELECT id FROM Driver WHERE name = ?').get(name) as
+    { id: number } | undefined
+  return row?.id
+}
+
 export function updateDriver(
   id: number,
   name: string,

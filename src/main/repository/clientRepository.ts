@@ -20,6 +20,13 @@ export function listClients(): ClientRow[] {
     .all() as ClientRow[]
 }
 
+export function getClientIdByName(name: string): number | undefined {
+  const db = getDb()
+  const row = db.prepare('SELECT id FROM Client WHERE name = ?').get(name) as
+    { id: number } | undefined
+  return row?.id
+}
+
 export function updateClient(id: number, name: string, initialPrice: number | null): void {
   const db = getDb()
   db.prepare('UPDATE Client SET name = ?, initial_price = ? WHERE id = ?').run(

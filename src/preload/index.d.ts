@@ -10,6 +10,17 @@ interface FailedUseCaseResult {
   errors: { field: string; message: string }[]
 }
 
+interface ImportRowError {
+  row: number
+  field: string
+  message: string
+}
+
+interface ImportSummary {
+  shiftsCreated: number
+  tripsCreated: number
+}
+
 interface TripRow {
   id: string
   shiftId: string
@@ -315,6 +326,9 @@ interface Api {
   getTripPhoto: (input: {
     photoPath: string
   }) => Promise<UseCaseResult<{ dataUri: string | null }> | FailedUseCaseResult>
+  importCsvData: (input: {
+    csvText: string
+  }) => Promise<UseCaseResult<ImportSummary> | { ok: false; errors: ImportRowError[] }>
   getClientAccount: (input: {
     clientId: number
   }) => Promise<UseCaseResult<ClientAccount> | FailedUseCaseResult>

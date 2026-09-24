@@ -20,6 +20,13 @@ export function listCrushers(): CrusherRow[] {
     .all() as CrusherRow[]
 }
 
+export function getCrusherIdByName(name: string): number | undefined {
+  const db = getDb()
+  const row = db.prepare('SELECT id FROM Crusher WHERE name = ?').get(name) as
+    { id: number } | undefined
+  return row?.id
+}
+
 export function updateCrusher(id: number, name: string, initialPrice: number | null): void {
   const db = getDb()
   db.prepare('UPDATE Crusher SET name = ?, initial_price = ? WHERE id = ?').run(

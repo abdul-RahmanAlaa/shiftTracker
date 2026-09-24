@@ -1,10 +1,11 @@
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
-import { BookOpen, Calculator, ClipboardList, Settings, Truck } from 'lucide-react'
+import { BookOpen, Calculator, ClipboardList, Settings, Truck, UploadCloud } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { AddTripPage } from '@/pages/AddTripPage'
 import { AccountsPage } from '@/pages/AccountsPage'
 import { LedgerPage } from '@/pages/LedgerPage'
+import { ImportPage } from '@/pages/ImportPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ShiftsPage } from '@/pages/ShiftsPage'
 
@@ -13,7 +14,8 @@ const navigationItems = [
   { to: '/shifts', label: 'الورديات', icon: ClipboardList },
   { to: '/ledger', label: 'سجل العهد والدفعات', icon: BookOpen },
   { to: '/accounts', label: 'الحسابات', icon: Calculator },
-  { to: '/settings', label: 'بيانات أساسية', icon: Settings }
+  { to: '/settings', label: 'بيانات أساسية', icon: Settings },
+  { to: '/import', label: 'استيراد بيانات', icon: UploadCloud }
 ]
 
 function AppLayout(): React.JSX.Element {
@@ -64,6 +66,7 @@ function App(): React.JSX.Element {
           <Route path="ledger" element={<LedgerPage />} />
           <Route path="accounts" element={<AccountsPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="import" element={<ImportPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

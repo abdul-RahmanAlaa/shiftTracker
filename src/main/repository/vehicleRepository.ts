@@ -31,3 +31,10 @@ export function deleteVehicle(vehicleNo: number): void {
   const db = getDb()
   db.prepare('DELETE FROM Vehicle WHERE vehicle_no = ?').run(vehicleNo)
 }
+
+export function vehicleExists(vehicleNo: number): boolean {
+  const db = getDb()
+  const row = db.prepare('SELECT 1 as found FROM Vehicle WHERE vehicle_no = ?').get(vehicleNo) as
+    { found: number } | undefined
+  return row !== undefined
+}

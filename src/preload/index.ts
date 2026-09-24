@@ -115,7 +115,8 @@ const api = {
   saveTripPhoto: (input: { tripId: string; imageBase64: string }) =>
     ipcRenderer.invoke('trip:savePhoto', input),
   deleteTripPhoto: (input: { tripId: string }) => ipcRenderer.invoke('trip:deletePhoto', input),
-  getTripPhoto: (input: { photoPath: string }) => ipcRenderer.invoke('trip:getPhoto', input)
+  getTripPhoto: (input: { photoPath: string }) => ipcRenderer.invoke('trip:getPhoto', input),
+  importCsvData: (input: { csvText: string }) => ipcRenderer.invoke('data:importCsv', input)
 }
 
 if (process.contextIsolated) {
