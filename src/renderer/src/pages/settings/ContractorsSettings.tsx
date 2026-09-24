@@ -1,15 +1,53 @@
 import { useEffect, useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
 import type { AddLog } from '@/App'
 
+const contractorSchema = z.object({
+  name: z.string().min(1, 'اسم المقاول مطلوب')
+})
+
+type ContractorFormValues = z.infer<typeof contractorSchema>
+type Contractor = { id: number; name: string }
+
 export function ContractorsSettings({ addLog }: { addLog: AddLog }): React.JSX.Element {
-  const [contractorName, setContractorName] = useState('')
-  const [contractors, setContractors] = useState<{ id: number; name: string }[]>([])
+  const [contractors, setContractors] = useState<Contractor[]>([])
   const [loading, setLoading] = useState(true)
   const [editingContractorId, setEditingContractorId] = useState<number | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const contractorForm = useForm<ContractorFormValues>({
+    resolver: zodResolver(contractorSchema),
+    defaultValues: { name: '' }
+  })
 
   async function loadContractors(): Promise<void> {
     setLoading(true)
@@ -25,11 +63,10 @@ export function ContractorsSettings({ addLog }: { addLog: AddLog }): React.JSX.E
     })
   }, [])
 
-  async function handleSaveContractor(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
+  async function handleSaveContractor(values: ContractorFormValues): Promise<void> {
     const result = editingContractorId
-      ? await window.api.updateContractor({ id: editingContractorId, name: contractorName })
-      : await window.api.createContractor({ name: contractorName })
+      ? await window.api.updateContractor({ id: editingContractorId, ...values })
+      : await window.api.createContractor(values)
     addLog(
       result.ok
         ? editingContractorId
@@ -38,23 +75,32 @@ export function ContractorsSettings({ addLog }: { addLog: AddLog }): React.JSX.E
         : `❌ مقاول: ${result.errors.map((x) => x.message).join(', ')}`
     )
     if (result.ok) {
-      setContractorName('')
+      setIsDialogOpen(false)
+      contractorForm.reset()
       setEditingContractorId(null)
       await loadContractors()
+    } else {
+      result.errors.forEach((error) => {
+        if (error.field === 'name') {
+          contractorForm.setError(error.field, { message: error.message })
+        }
+      })
     }
   }
 
-  function startEditingContractor(contractor: { id: number; name: string }): void {
+  function startEditingContractor(contractor: Contractor): void {
     setEditingContractorId(contractor.id)
-    setContractorName(contractor.name)
+    contractorForm.reset({ name: contractor.name })
+    setIsDialogOpen(true)
   }
 
   function cancelEditingContractor(): void {
     setEditingContractorId(null)
-    setContractorName('')
+    contractorForm.reset()
+    setIsDialogOpen(false)
   }
 
-  async function handleDeleteContractor(contractor: { id: number; name: string }): Promise<void> {
+  async function handleDeleteContractor(contractor: Contractor): Promise<void> {
     if (!confirm(`متأكد إنك عايز تمسح المقاول ${contractor.name}؟`)) return
     const result = await window.api.deleteContractor({ id: contractor.id })
     addLog(
@@ -68,25 +114,66 @@ export function ContractorsSettings({ addLog }: { addLog: AddLog }): React.JSX.E
     }
   }
 
+  function handleDialogChange(open: boolean): void {
+    setIsDialogOpen(open)
+    if (!open) {
+      setEditingContractorId(null)
+      contractorForm.reset()
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>المقاولون</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSaveContractor}>
-          <Input
-            value={contractorName}
-            onChange={(e) => setContractorName(e.target.value)}
-            placeholder="اسم المقاول"
-          />
-          <Button type="submit">{editingContractorId ? 'حفظ التعديل' : 'إضافة'}</Button>
-          {editingContractorId && (
-            <Button type="button" variant="outline" onClick={cancelEditingContractor}>
-              إلغاء
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              onClick={() => {
+                setEditingContractorId(null)
+                contractorForm.reset()
+              }}
+            >
+              إضافة مقاول
             </Button>
-          )}
-        </form>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingContractorId ? 'تعديل مقاول' : 'إضافة مقاول جديد'}</DialogTitle>
+            </DialogHeader>
+            <Form {...contractorForm}>
+              <form
+                onSubmit={contractorForm.handleSubmit(handleSaveContractor)}
+                className="grid gap-4"
+              >
+                <FormField
+                  control={contractorForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>اسم المقاول</FormLabel>
+                      <FormControl>
+                        <Input placeholder="اسم المقاول" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="submit">{editingContractorId ? 'حفظ التعديل' : 'إضافة'}</Button>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline" onClick={cancelEditingContractor}>
+                      إلغاء
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
         <div className="mt-6">
           {loading ? (
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
