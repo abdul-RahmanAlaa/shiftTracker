@@ -1,6 +1,26 @@
 import { useEffect, useState } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm, type Resolver } from 'react-hook-form'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -12,13 +32,28 @@ import {
 } from '@/components/ui/table'
 import type { AddLog } from '@/App'
 
-type Crusher = { id: number; name: string }
+const crusherSchema = z.object({
+  name: z.string().min(1, 'اسم الكسارة مطلوب'),
+  initialPrice: z
+    .string()
+    .optional()
+    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
+    .refine((val) => val === undefined || val >= 0, 'السعر لازم يكون رقم موجب')
+})
+
+type CrusherFormValues = z.infer<typeof crusherSchema>
+type CrusherFormInput = z.input<typeof crusherSchema>
+type Crusher = { id: number; name: string; initialPrice: number | null }
 
 export function CrushersSettings({ addLog }: { addLog: AddLog }): React.JSX.Element {
-  const [crusherName, setCrusherName] = useState('')
   const [crushers, setCrushers] = useState<Crusher[]>([])
   const [loading, setLoading] = useState(true)
   const [editingCrusherId, setEditingCrusherId] = useState<number | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const crusherForm = useForm<CrusherFormInput>({
+    resolver: zodResolver(crusherSchema) as Resolver<CrusherFormInput>,
+    defaultValues: { name: '', initialPrice: '' }
+  })
 
   async function loadCrushers(): Promise<void> {
     setLoading(true)
@@ -34,11 +69,11 @@ export function CrushersSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
     })
   }, [])
 
-  async function handleSaveCrusher(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
+  async function handleSaveCrusher(values: CrusherFormInput): Promise<void> {
+    const parsedValues: CrusherFormValues = crusherSchema.parse(values)
     const result = editingCrusherId
-      ? await window.api.updateCrusher({ id: editingCrusherId, name: crusherName })
-      : await window.api.createCrusher({ name: crusherName })
+      ? await window.api.updateCrusher({ id: editingCrusherId, ...parsedValues })
+      : await window.api.createCrusher(parsedValues)
     addLog(
       result.ok
         ? editingCrusherId
@@ -47,20 +82,32 @@ export function CrushersSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
         : `❌ كسارة: ${result.errors.map((x) => x.message).join(', ')}`
     )
     if (result.ok) {
-      setCrusherName('')
+      setIsDialogOpen(false)
+      crusherForm.reset()
       setEditingCrusherId(null)
       await loadCrushers()
+    } else {
+      result.errors.forEach((error) => {
+        if (error.field === 'name' || error.field === 'initialPrice') {
+          crusherForm.setError(error.field, { message: error.message })
+        }
+      })
     }
   }
 
   function startEditingCrusher(crusher: Crusher): void {
     setEditingCrusherId(crusher.id)
-    setCrusherName(crusher.name)
+    crusherForm.reset({
+      name: crusher.name,
+      initialPrice: crusher.initialPrice === null ? '' : String(crusher.initialPrice)
+    })
+    setIsDialogOpen(true)
   }
 
   function cancelEditingCrusher(): void {
     setEditingCrusherId(null)
-    setCrusherName('')
+    crusherForm.reset()
+    setIsDialogOpen(false)
   }
 
   async function handleDeleteCrusher(crusher: Crusher): Promise<void> {
@@ -77,25 +124,82 @@ export function CrushersSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
     }
   }
 
+  function handleDialogChange(open: boolean): void {
+    setIsDialogOpen(open)
+    if (!open) {
+      setEditingCrusherId(null)
+      crusherForm.reset()
+    }
+  }
+
   return (
     <Card>
       <CardHeader>
         <CardTitle>الكسارات</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSaveCrusher}>
-          <Input
-            value={crusherName}
-            onChange={(event) => setCrusherName(event.target.value)}
-            placeholder="اسم الكسارة"
-          />
-          <Button type="submit">{editingCrusherId ? 'حفظ التعديل' : 'إضافة'}</Button>
-          {editingCrusherId && (
-            <Button type="button" variant="outline" onClick={cancelEditingCrusher}>
-              إلغاء
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              onClick={() => {
+                setEditingCrusherId(null)
+                crusherForm.reset()
+              }}
+            >
+              إضافة كسارة
             </Button>
-          )}
-        </form>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editingCrusherId ? 'تعديل كسارة' : 'إضافة كسارة جديدة'}</DialogTitle>
+            </DialogHeader>
+            <Form {...crusherForm}>
+              <form onSubmit={crusherForm.handleSubmit(handleSaveCrusher)} className="grid gap-4">
+                <FormField
+                  control={crusherForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>اسم الكسارة</FormLabel>
+                      <FormControl>
+                        <Input placeholder="اسم الكسارة" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={crusherForm.control}
+                  name="initialPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>السعر الافتراضي</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="any"
+                          placeholder="السعر الافتراضي"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter>
+                  <Button type="submit">{editingCrusherId ? 'حفظ التعديل' : 'إضافة'}</Button>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline" onClick={cancelEditingCrusher}>
+                      إلغاء
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
         <div className="mt-6">
           {loading ? (
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
@@ -106,6 +210,7 @@ export function CrushersSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
               <TableHeader>
                 <TableRow>
                   <TableHead>الاسم</TableHead>
+                  <TableHead>السعر الافتراضي</TableHead>
                   <TableHead>إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -113,6 +218,7 @@ export function CrushersSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
                 {crushers.map((crusher) => (
                   <TableRow key={crusher.id}>
                     <TableCell>{crusher.name}</TableCell>
+                    <TableCell>{crusher.initialPrice ?? '-'}</TableCell>
                     <TableCell>
                       <div className="flex gap-2">
                         <Button
