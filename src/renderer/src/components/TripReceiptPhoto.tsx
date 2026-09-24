@@ -285,7 +285,7 @@ export function TripReceiptPhoto({
           </DialogHeader>
           {imageToCrop && (
             <>
-              <div className="relative h-[420px] w-full overflow-hidden rounded-md bg-black">
+              <div className="relative h-105 w-full overflow-hidden rounded-md bg-black">
                 <Cropper
                   image={imageToCrop}
                   crop={crop}
