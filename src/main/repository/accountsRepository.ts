@@ -98,6 +98,7 @@ export function listClientPayments(clientId: number): ClientPaymentRow[] {
 
 export interface ClientAccountTotals {
   receivableTotal: number
+  totalCubic: number
   paidTotal: number
   balance: number
 }
@@ -110,13 +111,16 @@ export function getClientAccountTotals(clientId: number): ClientAccountTotals {
       SELECT
         (SELECT COALESCE(SUM((t.client_cubic_reported - t.discount_qty) * t.client_price), 0)
          FROM Trip t WHERE t.client_id = @clientId) as receivableTotal,
+        (SELECT COALESCE(SUM(t.client_cubic_reported - t.discount_qty), 0)
+         FROM Trip t WHERE t.client_id = @clientId) as totalCubic,
         (SELECT COALESCE(SUM(amount), 0) FROM ClientPayment WHERE client_id = @clientId) as paidTotal
     `
     )
-    .get({ clientId }) as { receivableTotal: number; paidTotal: number }
+    .get({ clientId }) as { receivableTotal: number; totalCubic: number; paidTotal: number }
 
   return {
     receivableTotal: row.receivableTotal,
+    totalCubic: row.totalCubic,
     paidTotal: row.paidTotal,
     balance: row.receivableTotal - row.paidTotal
   }

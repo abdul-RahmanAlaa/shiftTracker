@@ -118,6 +118,7 @@ export function ClientAccountPage({ addLog }: { addLog: AddLog }): React.JSX.Ele
           <AccountSummary
             items={[
               { label: 'مستحق من العميل', value: account.receivableTotal },
+              { label: 'إجمالي الكمية (م³)', value: account.totalCubic },
               { label: 'المدفوع', value: account.paidTotal },
               { label: 'الرصيد', value: account.balance, highlight: true }
             ]}
@@ -154,7 +155,11 @@ export function ClientAccountPage({ addLog }: { addLog: AddLog }): React.JSX.Ele
                   <FormItem>
                     <FormLabel>تاريخ الدفعة</FormLabel>
                     <FormControl>
-                      <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ الدفعة" />
+                      <DatePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="اختر تاريخ الدفعة"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

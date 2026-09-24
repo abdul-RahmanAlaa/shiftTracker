@@ -40,6 +40,7 @@ export function getDriverHistory(input: { driverId: number }): UseCaseResult<Led
 
 export interface ClientAccount {
   receivableTotal: number
+  totalCubic: number
   paidTotal: number
   balance: number
   payments: ClientPaymentRow[]
