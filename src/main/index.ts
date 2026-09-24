@@ -4,23 +4,19 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { initDatabase } from './db'
 import {
-  createDriver,
-  createClient,
-  createCrusher,
   createContractor,
-  listDrivers,
   listContractors,
-  listCrushers,
-  listClients,
-  updateDriver,
-  deleteDriver,
-  updateClient,
-  deleteClient,
-  updateCrusher,
-  deleteCrusher,
   updateContractor,
   deleteContractor
 } from './use-cases/simpleLookup'
+import { createDriver, listDrivers, updateDriver, deleteDriver } from './use-cases/createDriver'
+import { createClient, listClients, updateClient, deleteClient } from './use-cases/createClient'
+import {
+  createCrusher,
+  listCrushers,
+  updateCrusher,
+  deleteCrusher
+} from './use-cases/createCrusher'
 import { createVehicle, updateVehicle, deleteVehicle } from './use-cases/createVehicle'
 import { createShift } from './use-cases/createShift'
 import { closeShift } from './use-cases/closeShift'

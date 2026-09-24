@@ -83,19 +83,7 @@ function deleteSimpleLookupUseCase(table: string, entityLabel: string) {
   }
 }
 
-export const createDriver = createSimpleLookupUseCase('Driver', 'السائق')
-export const createClient = createSimpleLookupUseCase('Client', 'العميل')
-export const createCrusher = createSimpleLookupUseCase('Crusher', 'الكسارة')
 export const createContractor = createSimpleLookupUseCase('TransportContractor', 'مقاول النقل')
-export const listDrivers = createSimpleLookupListUseCase('Driver')
 export const listContractors = createSimpleLookupListUseCase('TransportContractor')
-export const updateDriver = updateSimpleLookupUseCase('Driver', 'السائق')
-export const deleteDriver = deleteSimpleLookupUseCase('Driver', 'السائق')
-export const updateClient = updateSimpleLookupUseCase('Client', 'العميل')
-export const deleteClient = deleteSimpleLookupUseCase('Client', 'العميل')
-export const updateCrusher = updateSimpleLookupUseCase('Crusher', 'الكسارة')
-export const deleteCrusher = deleteSimpleLookupUseCase('Crusher', 'الكسارة')
 export const updateContractor = updateSimpleLookupUseCase('TransportContractor', 'مقاول النقل')
 export const deleteContractor = deleteSimpleLookupUseCase('TransportContractor', 'مقاول النقل')
-export const listClients = createSimpleLookupListUseCase('Client')
-export const listCrushers = createSimpleLookupListUseCase('Crusher')

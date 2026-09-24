@@ -11,22 +11,28 @@ CREATE TABLE IF NOT EXISTS TransportContractor (
 CREATE TABLE IF NOT EXISTS Vehicle (
   vehicle_no    INTEGER PRIMARY KEY,
   trailer_no    INTEGER NOT NULL,
-  contractor_id INTEGER NOT NULL REFERENCES TransportContractor(id)
+  contractor_id INTEGER NOT NULL REFERENCES TransportContractor(id),
+  default_cubic REAL,
+  owner_name    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS Driver (
-  id    INTEGER PRIMARY KEY AUTOINCREMENT,
-  name  TEXT NOT NULL UNIQUE
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  name    TEXT NOT NULL UNIQUE,
+  phone1  TEXT,
+  phone2  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS Crusher (
-  id    INTEGER PRIMARY KEY AUTOINCREMENT,
-  name  TEXT NOT NULL UNIQUE
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  name           TEXT NOT NULL UNIQUE,
+  initial_price  REAL
 );
 
 CREATE TABLE IF NOT EXISTS Client (
-  id    INTEGER PRIMARY KEY AUTOINCREMENT,
-  name  TEXT NOT NULL UNIQUE
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  name           TEXT NOT NULL UNIQUE,
+  initial_price  REAL
 );
 
 CREATE TABLE IF NOT EXISTS Shift (
@@ -117,6 +123,15 @@ CREATE TABLE IF NOT EXISTS ClientPayment (
 );
 `
 
+const MIGRATION_V2_ADD_OPTIONAL_FIELDS = `
+ALTER TABLE Driver ADD COLUMN phone1 TEXT;
+ALTER TABLE Driver ADD COLUMN phone2 TEXT;
+ALTER TABLE Client ADD COLUMN initial_price REAL;
+ALTER TABLE Crusher ADD COLUMN initial_price REAL;
+ALTER TABLE Vehicle ADD COLUMN default_cubic REAL;
+ALTER TABLE Vehicle ADD COLUMN owner_name TEXT;
+`
+
 let db: Database.Database
 
 export function initDatabase(): Database.Database {
@@ -130,8 +145,14 @@ export function initDatabase(): Database.Database {
 
   if (currentVersion === 0) {
     db.exec(SCHEMA)
-    db.pragma('user_version = 1')
-    console.log('[db] Schema created. user_version = 1')
+    db.pragma('user_version = 2')
+    console.log('[db] Schema created (fresh install). user_version = 2')
+  } else if (currentVersion === 1) {
+    db.exec(MIGRATION_V2_ADD_OPTIONAL_FIELDS)
+    db.pragma('user_version = 2')
+    console.log(
+      '[db] Migration v1 -> v2 applied (phone1/phone2, initial_price, default_cubic, owner_name). user_version = 2'
+    )
   } else {
     console.log(`[db] Existing database found. user_version = ${currentVersion}`)
   }

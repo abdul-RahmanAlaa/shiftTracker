@@ -113,13 +113,24 @@ interface ClientAccount {
 interface Api {
   createDriver: (input: {
     name: string
-  }) => Promise<UseCaseResult<{ id: number; name: string }> | FailedUseCaseResult>
+    phone1?: string
+    phone2?: string
+  }) => Promise<
+    | UseCaseResult<{ id: number; name: string; phone1: string | null; phone2: string | null }>
+    | FailedUseCaseResult
+  >
   createClient: (input: {
     name: string
-  }) => Promise<UseCaseResult<{ id: number; name: string }> | FailedUseCaseResult>
+    initialPrice?: number
+  }) => Promise<
+    UseCaseResult<{ id: number; name: string; initialPrice: number | null }> | FailedUseCaseResult
+  >
   createCrusher: (input: {
     name: string
-  }) => Promise<UseCaseResult<{ id: number; name: string }> | FailedUseCaseResult>
+    initialPrice?: number
+  }) => Promise<
+    UseCaseResult<{ id: number; name: string; initialPrice: number | null }> | FailedUseCaseResult
+  >
   createContractor: (input: {
     name: string
   }) => Promise<UseCaseResult<{ id: number; name: string }> | FailedUseCaseResult>
@@ -127,7 +138,12 @@ interface Api {
     vehicleNo: number
     trailerNo: number
     contractorId: number
-  }) => Promise<UseCaseResult<{ vehicleNo: number }> | FailedUseCaseResult>
+    defaultCubic?: number
+    ownerName?: string
+  }) => Promise<
+    | UseCaseResult<{ vehicleNo: number; defaultCubic: number | null; ownerName: string | null }>
+    | FailedUseCaseResult
+  >
   createShift: (input: {
     vehicleNo: number
     driverId: number
@@ -142,33 +158,55 @@ interface Api {
     shiftId: string
     endDate: string
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
-  listDrivers: () => Promise<UseCaseResult<{ id: number; name: string }[]> | FailedUseCaseResult>
+  listDrivers: () => Promise<
+    | UseCaseResult<{ id: number; name: string; phone1: string | null; phone2: string | null }[]>
+    | FailedUseCaseResult
+  >
   listContractors: () => Promise<
     UseCaseResult<{ id: number; name: string }[]> | FailedUseCaseResult
   >
   listVehicles: () => Promise<
-    | UseCaseResult<{ vehicleNo: number; trailerNo: number; contractorId: number }[]>
+    | UseCaseResult<
+        {
+          vehicleNo: number
+          trailerNo: number
+          contractorId: number
+          defaultCubic: number | null
+          ownerName: string | null
+        }[]
+      >
     | FailedUseCaseResult
   >
   listOpenShifts: () => Promise<UseCaseResult<{ id: string }[]> | FailedUseCaseResult>
   updateDriver: (input: {
     id: number
     name: string
-  }) => Promise<UseCaseResult<{ id: number; name: string }> | FailedUseCaseResult>
+    phone1?: string
+    phone2?: string
+  }) => Promise<
+    | UseCaseResult<{ id: number; name: string; phone1: string | null; phone2: string | null }>
+    | FailedUseCaseResult
+  >
   deleteDriver: (input: {
     id: number
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
   updateClient: (input: {
     id: number
     name: string
-  }) => Promise<UseCaseResult<{ id: number; name: string }> | FailedUseCaseResult>
+    initialPrice?: number
+  }) => Promise<
+    UseCaseResult<{ id: number; name: string; initialPrice: number | null }> | FailedUseCaseResult
+  >
   deleteClient: (input: {
     id: number
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
   updateCrusher: (input: {
     id: number
     name: string
-  }) => Promise<UseCaseResult<{ id: number; name: string }> | FailedUseCaseResult>
+    initialPrice?: number
+  }) => Promise<
+    UseCaseResult<{ id: number; name: string; initialPrice: number | null }> | FailedUseCaseResult
+  >
   deleteCrusher: (input: {
     id: number
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
@@ -183,7 +221,12 @@ interface Api {
     vehicleNo: number
     trailerNo: number
     contractorId: number
-  }) => Promise<UseCaseResult<{ vehicleNo: number }> | FailedUseCaseResult>
+    defaultCubic?: number
+    ownerName?: string
+  }) => Promise<
+    | UseCaseResult<{ vehicleNo: number; defaultCubic: number | null; ownerName: string | null }>
+    | FailedUseCaseResult
+  >
   deleteVehicle: (input: {
     vehicleNo: number
   }) => Promise<UseCaseResult<{ vehicleNo: number }> | FailedUseCaseResult>
@@ -214,8 +257,12 @@ interface Api {
   getDriverOpenShift: (input: {
     driverId: number
   }) => Promise<UseCaseResult<ShiftFullRow | null> | FailedUseCaseResult>
-  listCrushers: () => Promise<UseCaseResult<{ id: number; name: string }[]> | FailedUseCaseResult>
-  listClients: () => Promise<UseCaseResult<{ id: number; name: string }[]> | FailedUseCaseResult>
+  listCrushers: () => Promise<
+    UseCaseResult<{ id: number; name: string; initialPrice: number | null }[]> | FailedUseCaseResult
+  >
+  listClients: () => Promise<
+    UseCaseResult<{ id: number; name: string; initialPrice: number | null }[]> | FailedUseCaseResult
+  >
   createLedgerEntry: (input: {
     entryDate: string
     driverId?: number
