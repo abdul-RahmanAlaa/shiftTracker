@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
+import { TripReceiptPhoto } from '@/components/TripReceiptPhoto'
 import type { CreateShiftValues } from '@/components/CreateShiftForm'
 import { DatePicker } from '@/components/ui/date-picker'
 import {
@@ -191,6 +192,12 @@ export function ShiftsPage(): React.JSX.Element {
     }
   }
 
+  function handlePhotoChange(tripId: string, photoPath: string | null): void {
+    setShiftTrips((previous) =>
+      previous.map((trip) => (trip.id === tripId ? { ...trip, receiptPhotoPath: photoPath } : trip))
+    )
+  }
+
   async function handleCreateShift(values: CreateShiftValues): Promise<void> {
     if (!selectedDriverIdForShift) return
     const result = await window.api.createShift({
@@ -304,6 +311,7 @@ export function ShiftsPage(): React.JSX.Element {
                   <TableHead>سعر الحجر</TableHead>
                   <TableHead>سعر النقل</TableHead>
                   <TableHead>سعر العميل</TableHead>
+                  <TableHead>صورة الإيصال</TableHead>
                   <TableHead>إجراءات</TableHead>
                 </TableRow>
               </TableHeader>
@@ -321,6 +329,13 @@ export function ShiftsPage(): React.JSX.Element {
                       <TableCell>{trip.stonePrice}</TableCell>
                       <TableCell>{trip.transportPrice}</TableCell>
                       <TableCell>{trip.clientPrice}</TableCell>
+                      <TableCell>
+                        <TripReceiptPhoto
+                          tripId={trip.id}
+                          photoPath={trip.receiptPhotoPath}
+                          onPhotoChange={(photoPath) => handlePhotoChange(trip.id, photoPath)}
+                        />
+                      </TableCell>
                       <TableCell>
                         {isClosed ? (
                           <span className="text-sm text-muted-foreground">الوردية مقفولة</span>

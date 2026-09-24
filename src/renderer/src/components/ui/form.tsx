@@ -95,7 +95,14 @@ function FormControl({ ...props }: React.ComponentProps<typeof Slot>): React.JSX
 
 function FormDescription({ className, ...props }: React.ComponentProps<'p'>): React.JSX.Element {
   const { formDescriptionId } = useFormField()
-  return <p data-slot="form-description" id={formDescriptionId} className={cn('text-sm text-muted-foreground', className)} {...props} />
+  return (
+    <p
+      data-slot="form-description"
+      id={formDescriptionId}
+      className={cn('text-sm text-muted-foreground', className)}
+      {...props}
+    />
+  )
 }
 
 function FormMessage({ className, ...props }: React.ComponentProps<'p'>): React.JSX.Element | null {
@@ -103,10 +110,25 @@ function FormMessage({ className, ...props }: React.ComponentProps<'p'>): React.
   const body = error?.message ?? props.children
   if (!body) return null
   return (
-    <p data-slot="form-message" id={formMessageId} className={cn('text-sm text-destructive', className)} {...props}>
+    <p
+      data-slot="form-message"
+      id={formMessageId}
+      className={cn('text-sm text-destructive', className)}
+      {...props}
+    >
       {body}
     </p>
   )
 }
 
-export { useFormField, Form, FormItem, FormLabel, FormControl, FormDescription, FormMessage, FormField }
+export {
+  // eslint-disable-next-line react-refresh/only-export-components
+  useFormField,
+  Form,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormDescription,
+  FormMessage,
+  FormField
+}

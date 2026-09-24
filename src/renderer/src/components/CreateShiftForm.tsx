@@ -2,10 +2,23 @@
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage
+} from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { DatePicker } from '@/components/ui/date-picker'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { NumberField } from '@/pages/AddTripPage'
 import type { ResourceState } from '@/pages/AddTripPage'
@@ -80,7 +93,11 @@ export function CreateShiftForm({
             <FormItem>
               <FormLabel>تاريخ البداية *</FormLabel>
               <FormControl>
-                <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ البداية" />
+                <DatePicker
+                  value={field.value}
+                  onChange={field.onChange}
+                  placeholder="اختر تاريخ البداية"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

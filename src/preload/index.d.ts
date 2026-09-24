@@ -30,6 +30,7 @@ interface TripRow {
   recipientName: string | null
   clientReceiptNo: string | null
   notes: string | null
+  receiptPhotoPath: string | null
 }
 
 interface ShiftFullRow {
