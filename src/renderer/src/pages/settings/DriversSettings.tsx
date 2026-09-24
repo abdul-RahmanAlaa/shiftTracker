@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DataTable } from '@/components/DataTable'
 import {
   Dialog,
   DialogClose,
@@ -22,15 +24,6 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
-import type { AddLog } from '@/App'
 
 const driverSchema = z.object({
   name: z.string().min(1, 'اسم السائق مطلوب'),
@@ -41,7 +34,7 @@ const driverSchema = z.object({
 type DriverFormValues = z.infer<typeof driverSchema>
 type Driver = { id: number; name: string; phone1: string | null; phone2: string | null }
 
-export function DriversSettings({ addLog }: { addLog: AddLog }): React.JSX.Element {
+export function DriversSettings(): React.JSX.Element {
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
   const [editingDriverId, setEditingDriverId] = useState<number | null>(null)
@@ -69,13 +62,6 @@ export function DriversSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
     const result = editingDriverId
       ? await window.api.updateDriver({ id: editingDriverId, ...values })
       : await window.api.createDriver(values)
-    addLog(
-      result.ok
-        ? editingDriverId
-          ? `✅ سائق اتعدل: ${result.data.name} (id: ${result.data.id})`
-          : `✅ سائق: ${result.data.name} (id: ${result.data.id})`
-        : `❌ سائق: ${result.errors.map((x) => x.message).join(', ')}`
-    )
     if (result.ok) {
       setIsDialogOpen(false)
       driverForm.reset()
@@ -109,11 +95,6 @@ export function DriversSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
   async function handleDeleteDriver(driver: Driver): Promise<void> {
     if (!confirm(`متأكد إنك عايز تمسح السائق ${driver.name}؟`)) return
     const result = await window.api.deleteDriver({ id: driver.id })
-    addLog(
-      result.ok
-        ? `✅ سائق اتمسح: ${driver.name} (id: ${driver.id})`
-        : `❌ مسح السائق: ${result.errors.map((x) => x.message).join(', ')}`
-    )
     if (result.ok) {
       if (editingDriverId === driver.id) cancelEditingDriver()
       await loadDrivers()
@@ -127,6 +108,38 @@ export function DriversSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
       driverForm.reset()
     }
   }
+
+  const columns: ColumnDef<Driver, unknown>[] = [
+    { accessorKey: 'name', header: 'الاسم' },
+    { accessorKey: 'phone1', header: 'تليفون 1', cell: ({ getValue }) => getValue() ?? '-' },
+    { accessorKey: 'phone2', header: 'تليفون 2', cell: ({ getValue }) => getValue() ?? '-' },
+    {
+      id: 'actions',
+      header: 'إجراءات',
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) => (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => startEditingDriver(row.original)}
+          >
+            تعديل
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => void handleDeleteDriver(row.original)}
+          >
+            مسح
+          </Button>
+        </div>
+      )
+    }
+  ]
 
   return (
     <Card>
@@ -206,48 +219,13 @@ export function DriversSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
         <div className="mt-6">
           {loading ? (
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
-          ) : drivers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">لا يوجد بيانات بعد</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>الاسم</TableHead>
-                  <TableHead>تليفون 1</TableHead>
-                  <TableHead>تليفون 2</TableHead>
-                  <TableHead>إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {drivers.map((driver) => (
-                  <TableRow key={driver.id}>
-                    <TableCell>{driver.name}</TableCell>
-                    <TableCell>{driver.phone1 ?? '-'}</TableCell>
-                    <TableCell>{driver.phone2 ?? '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => startEditingDriver(driver)}
-                        >
-                          تعديل
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => void handleDeleteDriver(driver)}
-                        >
-                          مسح
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={columns}
+              data={drivers}
+              getRowId={(driver) => String(driver.id)}
+              enableRowSelection
+            />
           )}
         </div>
       </CardContent>

@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DataTable } from '@/components/DataTable'
 import {
   Dialog,
   DialogClose,
@@ -22,15 +24,6 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
-import type { AddLog } from '@/App'
 
 const contractorSchema = z.object({
   name: z.string().min(1, 'اسم المقاول مطلوب')
@@ -39,7 +32,7 @@ const contractorSchema = z.object({
 type ContractorFormValues = z.infer<typeof contractorSchema>
 type Contractor = { id: number; name: string }
 
-export function ContractorsSettings({ addLog }: { addLog: AddLog }): React.JSX.Element {
+export function ContractorsSettings(): React.JSX.Element {
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [loading, setLoading] = useState(true)
   const [editingContractorId, setEditingContractorId] = useState<number | null>(null)
@@ -67,13 +60,6 @@ export function ContractorsSettings({ addLog }: { addLog: AddLog }): React.JSX.E
     const result = editingContractorId
       ? await window.api.updateContractor({ id: editingContractorId, ...values })
       : await window.api.createContractor(values)
-    addLog(
-      result.ok
-        ? editingContractorId
-          ? `✅ مقاول اتعدل: ${result.data.name} (id: ${result.data.id})`
-          : `✅ مقاول: ${result.data.name} (id: ${result.data.id})`
-        : `❌ مقاول: ${result.errors.map((x) => x.message).join(', ')}`
-    )
     if (result.ok) {
       setIsDialogOpen(false)
       contractorForm.reset()
@@ -103,11 +89,6 @@ export function ContractorsSettings({ addLog }: { addLog: AddLog }): React.JSX.E
   async function handleDeleteContractor(contractor: Contractor): Promise<void> {
     if (!confirm(`متأكد إنك عايز تمسح المقاول ${contractor.name}؟`)) return
     const result = await window.api.deleteContractor({ id: contractor.id })
-    addLog(
-      result.ok
-        ? `✅ مقاول اتمسح: ${contractor.name} (id: ${contractor.id})`
-        : `❌ مسح المقاول: ${result.errors.map((x) => x.message).join(', ')}`
-    )
     if (result.ok) {
       if (editingContractorId === contractor.id) cancelEditingContractor()
       await loadContractors()
@@ -121,6 +102,36 @@ export function ContractorsSettings({ addLog }: { addLog: AddLog }): React.JSX.E
       contractorForm.reset()
     }
   }
+
+  const columns: ColumnDef<Contractor, unknown>[] = [
+    { accessorKey: 'name', header: 'الاسم' },
+    {
+      id: 'actions',
+      header: 'إجراءات',
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) => (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => startEditingContractor(row.original)}
+          >
+            تعديل
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => void handleDeleteContractor(row.original)}
+          >
+            مسح
+          </Button>
+        </div>
+      )
+    }
+  ]
 
   return (
     <Card>
@@ -177,44 +188,13 @@ export function ContractorsSettings({ addLog }: { addLog: AddLog }): React.JSX.E
         <div className="mt-6">
           {loading ? (
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
-          ) : contractors.length === 0 ? (
-            <p className="text-sm text-muted-foreground">لا يوجد بيانات بعد</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>الاسم</TableHead>
-                  <TableHead>إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {contractors.map((contractor) => (
-                  <TableRow key={contractor.id}>
-                    <TableCell>{contractor.name}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => startEditingContractor(contractor)}
-                        >
-                          تعديل
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => void handleDeleteContractor(contractor)}
-                        >
-                          مسح
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={columns}
+              data={contractors}
+              getRowId={(contractor) => String(contractor.id)}
+              enableRowSelection
+            />
           )}
         </div>
       </CardContent>

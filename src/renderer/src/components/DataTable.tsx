@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import {
   flexRender,
   getCoreRowModel,
@@ -12,6 +13,15 @@ import {
   type SortingState
 } from '@tanstack/react-table'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from '@/components/ui/command'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Table,
   TableBody,
@@ -20,7 +30,6 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import { Input } from '@/components/ui/input'
 
 interface DataTableProps<T> {
   columns: ColumnDef<T, unknown>[]
@@ -29,6 +38,22 @@ interface DataTableProps<T> {
   enableRowSelection?: boolean
   sumColumnId?: string
   emptyMessage?: string
+}
+
+function getColumnId<T>(column: ColumnDef<T, unknown>): string | undefined {
+  if ('id' in column && column.id) return column.id
+  if ('accessorKey' in column && column.accessorKey) return String(column.accessorKey)
+  return undefined
+}
+
+function getColumnValue<T>(column: ColumnDef<T, unknown>, row: T, index: number): unknown {
+  if ('accessorFn' in column && column.accessorFn) return column.accessorFn(row, index)
+  if ('accessorKey' in column && column.accessorKey) {
+    return String(column.accessorKey)
+      .split('.')
+      .reduce<unknown>((value, key) => (value as Record<string, unknown>)?.[key], row)
+  }
+  return undefined
 }
 
 function DataTable<T>({
@@ -42,11 +67,31 @@ function DataTable<T>({
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
+  const [openFilterId, setOpenFilterId] = useState<string | null>(null)
 
-  const includesString: FilterFn<T> = (row, columnId, filterValue) =>
-    String(row.getValue(columnId) ?? '')
-      .toLowerCase()
-      .includes(String(filterValue ?? '').toLowerCase())
+  const includesSome: FilterFn<T> = (row, columnId, filterValue) => {
+    const selectedValues = Array.isArray(filterValue) ? filterValue.map(String) : []
+    if (selectedValues.length === 0) return true
+    return selectedValues.includes(String(row.getValue(columnId) ?? '-'))
+  }
+  includesSome.autoRemove = (value) => !Array.isArray(value) || value.length === 0
+
+  const distinctValuesByColumnId = useMemo(() => {
+    const valuesByColumnId = new Map<string, string[]>()
+
+    columns.forEach((column) => {
+      const columnId = getColumnId(column)
+      if (!columnId) return
+
+      const values = data.map((row, index) => {
+        const value = getColumnValue(column, row, index)
+        return value === null || value === undefined || value === '' ? '-' : String(value)
+      })
+      valuesByColumnId.set(columnId, Array.from(new Set(values)).sort())
+    })
+
+    return valuesByColumnId
+  }, [columns, data])
 
   // TanStack Table exposes an intentionally mutable table instance.
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -63,8 +108,8 @@ function DataTable<T>({
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     ...(enableRowSelection ? { onRowSelectionChange: setRowSelection } : {}),
-    filterFns: { includesString },
-    defaultColumn: { filterFn: 'includesString' },
+    filterFns: { includesSome },
+    defaultColumn: { filterFn: includesSome },
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel()
@@ -78,6 +123,20 @@ function DataTable<T>({
   const selectedSum = sumColumnId
     ? selectedRows.reduce((sum, row) => sum + Number(row.getValue(sumColumnId) ?? 0), 0)
     : 0
+
+  function toggleColumnFilterValue(columnId: string, value: string): void {
+    const column = table.getColumn(columnId)
+    if (!column) return
+    const selectedValues = (column.getFilterValue() as string[] | undefined) ?? []
+    const nextValues = selectedValues.includes(value)
+      ? selectedValues.filter((selectedValue) => selectedValue !== value)
+      : [...selectedValues, value]
+    column.setFilterValue(nextValues.length > 0 ? nextValues : undefined)
+  }
+
+  function clearColumnFilter(columnId: string): void {
+    table.getColumn(columnId)?.setFilterValue(undefined)
+  }
 
   return (
     <div>
@@ -102,38 +161,117 @@ function DataTable<T>({
               )}
               {headerGroup.headers.map((header) => (
                 <TableHead key={header.id}>
-                  {header.isPlaceholder ? null : (
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 font-medium hover:underline"
-                      onClick={header.column.getToggleSortingHandler()}
+                  {header.isPlaceholder ? null : header.column.getCanSort() ||
+                    header.column.getCanFilter() ? (
+                    <Popover
+                      open={openFilterId === header.column.id}
+                      onOpenChange={(open) => setOpenFilterId(open ? header.column.id : null)}
                     >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {header.column.getIsSorted() === 'asc'
-                        ? ' ▲'
-                        : header.column.getIsSorted() === 'desc'
-                          ? ' ▼'
-                          : null}
-                    </button>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-full justify-between gap-2 font-medium"
+                        >
+                          <span className="truncate">
+                            {flexRender(header.column.columnDef.header, header.getContext())}
+                            {header.column.getIsSorted() === 'asc' && ' ↑'}
+                            {header.column.getIsSorted() === 'desc' && ' ↓'}
+                            {Array.isArray(header.column.getFilterValue()) &&
+                              (header.column.getFilterValue() as string[]).length > 0 &&
+                              ` (${(header.column.getFilterValue() as string[]).length})`}
+                          </span>
+                          <ArrowUpDown
+                            className={
+                              header.column.getIsSorted() || header.column.getFilterValue()
+                                ? 'h-3.5 w-3.5 shrink-0 text-primary'
+                                : 'h-3.5 w-3.5 shrink-0 text-muted-foreground'
+                            }
+                          />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-64 p-0" align="start">
+                        <Command>
+                          {header.column.getCanSort() && (
+                            <div className="flex gap-1 p-2">
+                              <Button
+                                type="button"
+                                variant={
+                                  header.column.getIsSorted() === 'asc' ? 'secondary' : 'ghost'
+                                }
+                                size="sm"
+                                className="flex-1 justify-start"
+                                onClick={() => header.column.toggleSorting(false)}
+                              >
+                                <ArrowUp className="h-3.5 w-3.5" />
+                                ترتيب تصاعدي
+                              </Button>
+                              <Button
+                                type="button"
+                                variant={
+                                  header.column.getIsSorted() === 'desc' ? 'secondary' : 'ghost'
+                                }
+                                size="sm"
+                                className="flex-1 justify-start"
+                                onClick={() => header.column.toggleSorting(true)}
+                              >
+                                <ArrowDown className="h-3.5 w-3.5" />
+                                ترتيب تنازلي
+                              </Button>
+                            </div>
+                          )}
+                          {header.column.getCanSort() && header.column.getCanFilter() && (
+                            <div className="my-1 border-t" />
+                          )}
+                          {header.column.getCanFilter() && (
+                            <>
+                              <CommandInput placeholder="ابحث في القيم..." />
+                              <CommandList>
+                                <CommandEmpty>لا توجد قيم</CommandEmpty>
+                                {distinctValuesByColumnId.get(header.column.id)?.map((value) => {
+                                  const selectedValues =
+                                    (header.column.getFilterValue() as string[] | undefined) ?? []
+                                  return (
+                                    <CommandItem
+                                      key={value}
+                                      value={value}
+                                      onSelect={() =>
+                                        toggleColumnFilterValue(header.column.id, value)
+                                      }
+                                    >
+                                      <Checkbox
+                                        checked={selectedValues.includes(value)}
+                                        className="mr-2"
+                                        tabIndex={-1}
+                                        aria-hidden="true"
+                                        onClick={(event) => event.stopPropagation()}
+                                      />
+                                      {value}
+                                    </CommandItem>
+                                  )
+                                })}
+                              </CommandList>
+                            </>
+                          )}
+                          {header.column.getCanFilter() &&
+                            Array.isArray(header.column.getFilterValue()) &&
+                            (header.column.getFilterValue() as string[]).length > 0 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="m-1 h-8 w-[calc(100%-0.5rem)]"
+                                onClick={() => clearColumnFilter(header.column.id)}
+                              >
+                                مسح الفلتر
+                              </Button>
+                            )}
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  ) : (
+                    flexRender(header.column.columnDef.header, header.getContext())
                   )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={`${headerGroup.id}-filters`}>
-              {enableRowSelection && <TableHead />}
-              {headerGroup.headers.map((header) => (
-                <TableHead key={`${header.id}-filter`}>
-                  {header.column.getCanFilter() ? (
-                    <Input
-                      className="h-8 min-w-20 text-xs"
-                      value={(header.column.getFilterValue() as string) ?? ''}
-                      onChange={(event) => header.column.setFilterValue(event.target.value)}
-                      placeholder="فلترة..."
-                      aria-label={`فلترة ${String(flexRender(header.column.columnDef.header, header.getContext()))}`}
-                    />
-                  ) : null}
                 </TableHead>
               ))}
             </TableRow>

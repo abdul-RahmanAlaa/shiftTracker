@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import type { AddLog } from '@/App'
 import { ClientAccountPage } from '@/pages/accounts/ClientAccountPage'
 import { ContractorAccountPage } from '@/pages/accounts/ContractorAccountPage'
 import { DriverHistoryPage } from '@/pages/accounts/DriverHistoryPage'
@@ -17,7 +15,6 @@ const accountsItems: { id: AccountsSection; label: string }[] = [
 ]
 
 export function AccountsPage(): React.JSX.Element {
-  const { addLog } = useOutletContext<{ addLog: AddLog }>()
   const [activeSection, setActiveSection] = useState<AccountsSection>('contractor')
 
   return (
@@ -45,9 +42,9 @@ export function AccountsPage(): React.JSX.Element {
           </CardContent>
         </Card>
         <div className="min-w-0">
-          {activeSection === 'contractor' && <ContractorAccountPage addLog={addLog} />}
-          {activeSection === 'driver' && <DriverHistoryPage addLog={addLog} />}
-          {activeSection === 'client' && <ClientAccountPage addLog={addLog} />}
+          {activeSection === 'contractor' && <ContractorAccountPage />}
+          {activeSection === 'driver' && <DriverHistoryPage />}
+          {activeSection === 'client' && <ClientAccountPage />}
         </div>
       </div>
     </div>

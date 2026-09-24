@@ -1,9 +1,7 @@
 import { useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import type { AddLog } from '@/App'
 import { ClientsSettings } from '@/pages/settings/ClientsSettings'
 import { ContractorsSettings } from '@/pages/settings/ContractorsSettings'
 import { CrushersSettings } from '@/pages/settings/CrushersSettings'
@@ -21,7 +19,6 @@ const settingsItems: { id: SettingsSection; label: string }[] = [
 ]
 
 export function SettingsPage(): React.JSX.Element {
-  const { addLog } = useOutletContext<{ addLog: AddLog }>()
   const [activeSection, setActiveSection] = useState<SettingsSection>('vehicles')
 
   return (
@@ -37,7 +34,10 @@ export function SettingsPage(): React.JSX.Element {
               <Button
                 key={item.id}
                 variant={activeSection === item.id ? 'secondary' : 'ghost'}
-                className={cn('w-full justify-start', activeSection === item.id && 'text-secondary-foreground')}
+                className={cn(
+                  'w-full justify-start',
+                  activeSection === item.id && 'text-secondary-foreground'
+                )}
                 onClick={() => setActiveSection(item.id)}
               >
                 {item.label}
@@ -47,11 +47,11 @@ export function SettingsPage(): React.JSX.Element {
         </Card>
 
         <div className="min-w-0">
-          {activeSection === 'vehicles' && <VehiclesSettings addLog={addLog} />}
-          {activeSection === 'drivers' && <DriversSettings addLog={addLog} />}
-          {activeSection === 'contractors' && <ContractorsSettings addLog={addLog} />}
-          {activeSection === 'crushers' && <CrushersSettings addLog={addLog} />}
-          {activeSection === 'clients' && <ClientsSettings addLog={addLog} />}
+          {activeSection === 'vehicles' && <VehiclesSettings />}
+          {activeSection === 'drivers' && <DriversSettings />}
+          {activeSection === 'contractors' && <ContractorsSettings />}
+          {activeSection === 'crushers' && <CrushersSettings />}
+          {activeSection === 'clients' && <ClientsSettings />}
         </div>
       </div>
     </div>

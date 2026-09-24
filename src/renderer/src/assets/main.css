@@ -107,7 +107,7 @@ code {
 
 .app-main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 24px;
   min-width: 0;
@@ -131,11 +131,6 @@ code {
   min-width: 0;
 }
 
-.app-log-panel {
-  position: sticky;
-  top: 32px;
-}
-
 @media (max-width: 900px) {
   .app-navbar {
     align-items: stretch;
@@ -150,10 +145,6 @@ code {
 
   .app-main {
     grid-template-columns: 1fr;
-  }
-
-  .app-log-panel {
-    position: static;
   }
 
   .settings-layout {

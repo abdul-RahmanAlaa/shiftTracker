@@ -6,7 +6,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import type { AddLog } from '@/App'
 import {
   AccountCard,
   AccountSummary,
@@ -17,7 +16,7 @@ import {
 type Contractor = { id: number; name: string }
 const emptyValue = '__none__'
 
-export function ContractorAccountPage({ addLog }: { addLog: AddLog }): React.JSX.Element {
+export function ContractorAccountPage(): React.JSX.Element {
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [selectedContractorId, setSelectedContractorId] = useState<number>()
   const [account, setAccount] = useState<ContractorAccount | null>(null)
@@ -25,9 +24,8 @@ export function ContractorAccountPage({ addLog }: { addLog: AddLog }): React.JSX
   useEffect(() => {
     void window.api.listContractors().then((result) => {
       if (result.ok) setContractors(result.data)
-      else addLog(`❌ تحميل المقاولين: ${result.errors.map((x) => x.message).join(', ')}`)
     })
-  }, [addLog])
+  }, [])
 
   async function handleChange(value: string): Promise<void> {
     if (value === emptyValue) {
@@ -40,10 +38,8 @@ export function ContractorAccountPage({ addLog }: { addLog: AddLog }): React.JSX
     const result = await window.api.getContractorAccount({ contractorId })
     if (result.ok) {
       setAccount(result.data)
-      addLog(`✅ حساب المقاول اتعرض: ${contractorId}`)
     } else {
       setAccount(null)
-      addLog(`❌ حساب المقاول: ${result.errors.map((x) => x.message).join(', ')}`)
     }
   }
 

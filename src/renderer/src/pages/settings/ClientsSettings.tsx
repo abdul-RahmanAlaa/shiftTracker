@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DataTable } from '@/components/DataTable'
 import {
   Dialog,
   DialogClose,
@@ -22,15 +24,6 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
-import type { AddLog } from '@/App'
 
 const clientSchema = z.object({
   name: z.string().min(1, 'اسم العميل مطلوب'),
@@ -45,7 +38,7 @@ type ClientFormValues = z.infer<typeof clientSchema>
 type ClientFormInput = z.input<typeof clientSchema>
 type Client = { id: number; name: string; initialPrice: number | null }
 
-export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Element {
+export function ClientsSettings(): React.JSX.Element {
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
@@ -74,13 +67,6 @@ export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
     const result = editingClientId
       ? await window.api.updateClient({ id: editingClientId, ...parsedValues })
       : await window.api.createClient(parsedValues)
-    addLog(
-      result.ok
-        ? editingClientId
-          ? `✅ عميل اتعدل: ${result.data.name} (id: ${result.data.id})`
-          : `✅ عميل: ${result.data.name} (id: ${result.data.id})`
-        : `❌ عميل: ${result.errors.map((x) => x.message).join(', ')}`
-    )
     if (result.ok) {
       setIsDialogOpen(false)
       clientForm.reset()
@@ -113,11 +99,6 @@ export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
   async function handleDeleteClient(client: Client): Promise<void> {
     if (!confirm(`متأكد إنك عايز تمسح العميل ${client.name}؟`)) return
     const result = await window.api.deleteClient({ id: client.id })
-    addLog(
-      result.ok
-        ? `✅ عميل اتمسح: ${client.name} (id: ${client.id})`
-        : `❌ مسح العميل: ${result.errors.map((x) => x.message).join(', ')}`
-    )
     if (result.ok) {
       if (editingClientId === client.id) cancelEditingClient()
       await loadClients()
@@ -131,6 +112,41 @@ export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
       clientForm.reset()
     }
   }
+
+  const columns: ColumnDef<Client, unknown>[] = [
+    { accessorKey: 'name', header: 'الاسم' },
+    {
+      accessorKey: 'initialPrice',
+      header: 'السعر الافتراضي',
+      cell: ({ getValue }) => getValue() ?? '-'
+    },
+    {
+      id: 'actions',
+      header: 'إجراءات',
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) => (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => startEditingClient(row.original)}
+          >
+            تعديل
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => void handleDeleteClient(row.original)}
+          >
+            مسح
+          </Button>
+        </div>
+      )
+    }
+  ]
 
   return (
     <Card>
@@ -203,46 +219,13 @@ export function ClientsSettings({ addLog }: { addLog: AddLog }): React.JSX.Eleme
         <div className="mt-6">
           {loading ? (
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
-          ) : clients.length === 0 ? (
-            <p className="text-sm text-muted-foreground">لا يوجد بيانات بعد</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>الاسم</TableHead>
-                  <TableHead>السعر الافتراضي</TableHead>
-                  <TableHead>إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {clients.map((client) => (
-                  <TableRow key={client.id}>
-                    <TableCell>{client.name}</TableCell>
-                    <TableCell>{client.initialPrice ?? '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => startEditingClient(client)}
-                        >
-                          تعديل
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => void handleDeleteClient(client)}
-                        >
-                          مسح
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={columns}
+              data={clients}
+              getRowId={(client) => String(client.id)}
+              enableRowSelection
+            />
           )}
         </div>
       </CardContent>

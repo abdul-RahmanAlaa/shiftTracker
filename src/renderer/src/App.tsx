@@ -1,16 +1,12 @@
-import { useState } from 'react'
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { BookOpen, Calculator, ClipboardList, Settings, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
 import { AddTripPage } from '@/pages/AddTripPage'
 import { AccountsPage } from '@/pages/AccountsPage'
 import { LedgerPage } from '@/pages/LedgerPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ShiftsPage } from '@/pages/ShiftsPage'
-
-export type AddLog = (message: string) => void
 
 const navigationItems = [
   { to: '/', label: 'إضافة نقلة', icon: Truck },
@@ -21,12 +17,6 @@ const navigationItems = [
 ]
 
 function AppLayout(): React.JSX.Element {
-  const [log, setLog] = useState<string[]>([])
-
-  function addLog(message: string): void {
-    setLog((previous) => [message, ...previous])
-  }
-
   return (
     <div className="app-shell" dir="rtl">
       <header className="app-navbar">
@@ -57,24 +47,8 @@ function AppLayout(): React.JSX.Element {
 
       <main className="app-main">
         <div className="app-page">
-          <Outlet context={{ addLog }} />
+          <Outlet />
         </div>
-        <Card className="app-log-panel">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">السجل</CardTitle>
-          </CardHeader>
-          <CardContent className="max-h-64 overflow-y-auto pt-0">
-            {log.length === 0 ? (
-              <p className="text-sm text-muted-foreground">لا توجد عمليات بعد</p>
-            ) : (
-              <div className="space-y-2 text-sm">
-                {log.map((line, index) => (
-                  <div key={`${line}-${index}`}>{line}</div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </main>
     </div>
   )

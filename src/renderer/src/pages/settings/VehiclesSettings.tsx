@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { DataTable } from '@/components/DataTable'
 import {
   Dialog,
   DialogClose,
@@ -29,15 +31,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
-import type { AddLog } from '@/App'
 
 const vehicleSchema = z.object({
   vehicleNo: z.number().int().positive('رقم السيارة مطلوب'),
@@ -56,7 +49,7 @@ type Vehicle = {
   ownerName: string | null
 }
 
-export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Element {
+export function VehiclesSettings(): React.JSX.Element {
   const [contractors, setContractors] = useState<{ id: number; name: string }[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
@@ -98,13 +91,6 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
     const result = editingVehicleNo
       ? await window.api.updateVehicle(values)
       : await window.api.createVehicle(values)
-    addLog(
-      result.ok
-        ? editingVehicleNo
-          ? `✅ عربية اتعدلت: ${result.data.vehicleNo}`
-          : `✅ عربية: ${result.data.vehicleNo}`
-        : `❌ عربية: ${result.errors.map((x) => x.message).join(', ')}`
-    )
     if (result.ok) {
       setIsDialogOpen(false)
       vehicleForm.reset()
@@ -146,11 +132,6 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
   async function handleDeleteVehicle(vehicleNo: number): Promise<void> {
     if (!confirm(`متأكد إنك عايز تمسح العربية ${vehicleNo}؟`)) return
     const result = await window.api.deleteVehicle({ vehicleNo })
-    addLog(
-      result.ok
-        ? `✅ عربية اتمسحت: ${vehicleNo}`
-        : `❌ مسح العربية: ${result.errors.map((x) => x.message).join(', ')}`
-    )
     if (result.ok) {
       if (editingVehicleNo === vehicleNo) cancelEditingVehicle()
       await loadVehicles()
@@ -164,6 +145,53 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
       vehicleForm.reset()
     }
   }
+
+  const columns: ColumnDef<Vehicle, unknown>[] = [
+    { accessorKey: 'vehicleNo', header: 'رقم السيارة' },
+    { accessorKey: 'trailerNo', header: 'رقم المقطورة', cell: ({ getValue }) => getValue() ?? '-' },
+    {
+      id: 'contractorName',
+      accessorFn: (vehicle) =>
+        contractors.find((contractor) => contractor.id === vehicle.contractorId)?.name ?? '-',
+      header: 'المقاول'
+    },
+    {
+      accessorKey: 'defaultCubic',
+      header: 'التكعيب الافتراضي',
+      cell: ({ getValue }) => getValue() ?? '-'
+    },
+    {
+      accessorKey: 'ownerName',
+      header: 'صاحب السيارة',
+      cell: ({ getValue }) => getValue() ?? '-'
+    },
+    {
+      id: 'actions',
+      header: 'إجراءات',
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) => (
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => startEditingVehicle(row.original)}
+          >
+            تعديل
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => void handleDeleteVehicle(row.original.vehicleNo)}
+          >
+            مسح
+          </Button>
+        </div>
+      )
+    }
+  ]
 
   return (
     <Card>
@@ -318,55 +346,14 @@ export function VehiclesSettings({ addLog }: { addLog: AddLog }): React.JSX.Elem
         <div className="mt-6">
           {loading ? (
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
-          ) : vehicles.length === 0 ? (
-            <p className="text-sm text-muted-foreground">لا يوجد بيانات بعد</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>رقم السيارة</TableHead>
-                  <TableHead>رقم المقطورة</TableHead>
-                  <TableHead>المقاول</TableHead>
-                  <TableHead>التكعيب الافتراضي</TableHead>
-                  <TableHead>صاحب السيارة</TableHead>
-                  <TableHead>إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {vehicles.map((vehicle) => {
-                  const contractor = contractors.find((item) => item.id === vehicle.contractorId)
-                  return (
-                    <TableRow key={vehicle.vehicleNo}>
-                      <TableCell>{vehicle.vehicleNo}</TableCell>
-                      <TableCell>{vehicle.trailerNo ?? '-'}</TableCell>
-                      <TableCell>{contractor?.name ?? '-'}</TableCell>
-                      <TableCell>{vehicle.defaultCubic ?? '-'}</TableCell>
-                      <TableCell>{vehicle.ownerName ?? '-'}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => startEditingVehicle(vehicle)}
-                          >
-                            تعديل
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => void handleDeleteVehicle(vehicle.vehicleNo)}
-                          >
-                            مسح
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={columns}
+              data={vehicles}
+              getRowId={(vehicle) => String(vehicle.vehicleNo)}
+              enableRowSelection
+              sumColumnId="defaultCubic"
+            />
           )}
         </div>
       </CardContent>

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { useOutletContext } from 'react-router-dom'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
@@ -25,7 +24,6 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import type { AddLog } from '@/App'
 
 type LedgerRow = Extract<
   Awaited<ReturnType<typeof window.api.listLedgerEntries>>,
@@ -50,7 +48,6 @@ const ledgerSchema = z.object({
 type LedgerFormValues = z.infer<typeof ledgerSchema>
 
 export function LedgerPage(): React.JSX.Element {
-  const { addLog } = useOutletContext<{ addLog: AddLog }>()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
@@ -94,11 +91,9 @@ export function LedgerPage(): React.JSX.Element {
   async function handleCreateEntry(values: LedgerFormValues): Promise<void> {
     const result = await window.api.createLedgerEntry(values)
     if (result.ok) {
-      addLog(`✅ حركة اتضافت: ${result.data.id}`)
       ledgerForm.reset()
       await loadEntries()
     } else {
-      addLog(`❌ حركة: ${result.errors.map((x) => x.message).join(', ')}`)
       result.errors.forEach((error) => {
         if (error.field in values) {
           ledgerForm.setError(error.field as keyof LedgerFormValues, { message: error.message })

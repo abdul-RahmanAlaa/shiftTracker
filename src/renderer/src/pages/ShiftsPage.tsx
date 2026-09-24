@@ -1,14 +1,19 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
-import { useOutletContext } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
 import type { CreateShiftValues } from '@/components/CreateShiftForm'
 import { DatePicker } from '@/components/ui/date-picker'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -17,7 +22,6 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
-import type { AddLog } from '@/App'
 import { TripForm, tripSchema } from './AddTripPage'
 import type { ResourceState, TripValues } from './AddTripPage'
 
@@ -40,7 +44,6 @@ type ShiftListRow = {
 }
 
 export function ShiftsPage(): React.JSX.Element {
-  const { addLog } = useOutletContext<{ addLog: AddLog }>()
   const [shifts, setShifts] = useState<ShiftListRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDriverIdForShift, setSelectedDriverIdForShift] = useState<number>()
@@ -169,7 +172,6 @@ export function ShiftsPage(): React.JSX.Element {
     if (!editingTripId || !selectedShiftId) return
     const result = await window.api.updateTrip({ id: editingTripId, ...values })
     if (result.ok) {
-      addLog(`✅ نقلة اتعدلت: ${result.data.id}`)
       setEditingTripId(null)
       await loadShiftTrips(selectedShiftId)
     } else {
@@ -185,10 +187,7 @@ export function ShiftsPage(): React.JSX.Element {
     if (!confirm(`متأكد إنك عايز تمسح النقلة ${trip.id}؟`)) return
     const result = await window.api.deleteTrip({ id: trip.id })
     if (result.ok) {
-      addLog(`✅ نقلة اتمسحت: ${trip.id}`)
       if (selectedShiftId) await loadShiftTrips(selectedShiftId)
-    } else {
-      addLog(`❌ مسح النقلة: ${result.errors.map((x) => x.message).join(', ')}`)
     }
   }
 
@@ -199,14 +198,14 @@ export function ShiftsPage(): React.JSX.Element {
       driverId: selectedDriverIdForShift
     })
     if (result.ok) {
-      addLog(`✅ وردية اتفتحت: ${result.data.id}`)
       createShiftForm.reset()
       await loadShifts()
     } else {
-      addLog(`❌ وردية: ${result.errors.map((x) => x.message).join(', ')}`)
       result.errors.forEach((error) => {
         if (error.field in values) {
-          createShiftForm.setError(error.field as keyof CreateShiftValues, { message: error.message })
+          createShiftForm.setError(error.field as keyof CreateShiftValues, {
+            message: error.message
+          })
         }
       })
     }
@@ -215,11 +214,6 @@ export function ShiftsPage(): React.JSX.Element {
   async function handleCloseShift(e: React.FormEvent): Promise<void> {
     e.preventDefault()
     const result = await window.api.closeShift({ shiftId: closeShiftId, endDate })
-    addLog(
-      result.ok
-        ? `✅ وردية اتقفلت: ${result.data?.id}`
-        : `❌ قفل الوردية: ${result.errors?.map((x) => x.message).join(', ')}`
-    )
     if (result.ok) {
       setCloseShiftId('')
       setEndDate('')
@@ -396,10 +390,7 @@ export function ShiftsPage(): React.JSX.Element {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCloseShift} className="grid gap-4 md:grid-cols-2">
-            <Select
-              value={closeShiftId || ''}
-              onValueChange={setCloseShiftId}
-            >
+            <Select value={closeShiftId || ''} onValueChange={setCloseShiftId}>
               <SelectTrigger>
                 <SelectValue placeholder="اختار الوردية" />
               </SelectTrigger>

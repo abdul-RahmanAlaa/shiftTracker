@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { useForm, useWatch } from 'react-hook-form'
-import { useOutletContext } from 'react-router-dom'
 import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,7 +35,6 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import type { AddLog } from '@/App'
 import { cn } from '@/lib/utils'
 
 type NamedOption = { id: number; name: string }
@@ -134,7 +132,6 @@ export function NumberField({
 }
 
 export function AddTripPage(): React.JSX.Element {
-  const { addLog } = useOutletContext<{ addLog: AddLog }>()
   const [resources, setResources] = useState<ResourceState>({
     drivers: [],
     vehicles: [],
@@ -232,10 +229,6 @@ export function AddTripPage(): React.JSX.Element {
   async function handleCreateShift(values: CreateShiftValues): Promise<void> {
     if (!selectedDriverId) return
     const result = await window.api.createShift({ ...values, driverId: selectedDriverId })
-    const message = result.ok
-      ? `✅ وردية اتفتحت: ${result.data?.id}`
-      : `❌ وردية: ${result.errors?.map((x) => x.message).join(', ')}`
-    addLog(message)
     if (!result.ok) {
       result.errors.forEach((error) => {
         if (error.field in values)
@@ -260,7 +253,6 @@ export function AddTripPage(): React.JSX.Element {
       ? `✅ نقلة اتضافت: ${result.data?.id}`
       : `❌ نقلة: ${result.errors?.map((x) => x.message).join(', ')}`
     setTripLog((previous) => [message, ...previous])
-    addLog(message)
     if (result.ok) {
       tripForm.reset({
         ...tripForm.getValues(),
@@ -433,7 +425,11 @@ export function TripForm({
                 <FormItem>
                   <FormLabel>تاريخ النقلة *</FormLabel>
                   <FormControl>
-                    <DatePicker value={field.value} onChange={field.onChange} placeholder="اختر تاريخ النقلة" />
+                    <DatePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="اختر تاريخ النقلة"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

@@ -29,7 +29,6 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
-import type { AddLog } from '@/App'
 import { AccountCard, AccountSummary, type ClientAccount } from './AccountTables'
 
 type Client = { id: number; name: string }
@@ -41,7 +40,7 @@ const paymentSchema = z.object({
 })
 type PaymentFormValues = z.infer<typeof paymentSchema>
 
-export function ClientAccountPage({ addLog }: { addLog: AddLog }): React.JSX.Element {
+export function ClientAccountPage(): React.JSX.Element {
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClientId, setSelectedClientId] = useState<number>()
   const [account, setAccount] = useState<ClientAccount | null>(null)
@@ -53,18 +52,15 @@ export function ClientAccountPage({ addLog }: { addLog: AddLog }): React.JSX.Ele
   useEffect(() => {
     void window.api.listClients().then((result) => {
       if (result.ok) setClients(result.data)
-      else addLog(`❌ تحميل العملاء: ${result.errors.map((x) => x.message).join(', ')}`)
     })
-  }, [addLog])
+  }, [])
 
   async function loadAccount(clientId: number): Promise<void> {
     const result = await window.api.getClientAccount({ clientId })
     if (result.ok) {
       setAccount(result.data)
-      addLog(`✅ حساب العميل اتعرض: ${clientId}`)
     } else {
       setAccount(null)
-      addLog(`❌ حساب العميل: ${result.errors.map((x) => x.message).join(', ')}`)
     }
   }
 
@@ -83,11 +79,9 @@ export function ClientAccountPage({ addLog }: { addLog: AddLog }): React.JSX.Ele
     if (!selectedClientId) return
     const result = await window.api.createClientPayment({ clientId: selectedClientId, ...values })
     if (result.ok) {
-      addLog(`✅ دفعة اتسجلت: ${result.data.id}`)
       paymentForm.reset()
       await loadAccount(selectedClientId)
     } else {
-      addLog(`❌ دفعة: ${result.errors.map((x) => x.message).join(', ')}`)
       result.errors.forEach((error) => {
         if (error.field in values)
           paymentForm.setError(error.field as keyof PaymentFormValues, { message: error.message })
