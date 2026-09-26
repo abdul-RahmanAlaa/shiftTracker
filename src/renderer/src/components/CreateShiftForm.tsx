@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,15 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
 import { NumberField } from '@/pages/AddTripPage'
 import type { ResourceState } from '@/pages/AddTripPage'
 
@@ -42,96 +52,126 @@ export function CreateShiftForm({
 }: {
   form: ReturnType<typeof useForm<CreateShiftValues>>
   vehicles: ResourceState['vehicles']
-  onSubmit: (values: CreateShiftValues) => void
+  onSubmit: (values: CreateShiftValues) => Promise<boolean>
 }): React.JSX.Element {
+  const [isOpen, setIsOpen] = useState(false)
+
+  async function handleSubmit(values: CreateShiftValues): Promise<void> {
+    const created = await onSubmit(values)
+    if (created) setIsOpen(false)
+  }
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 md:grid-cols-2">
-        <FormField
-          control={form.control}
-          name="vehicleNo"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>السيارة</FormLabel>
-              <Select
-                value={field.value ? String(field.value) : ''}
-                onValueChange={(value) => field.onChange(Number(value))}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="اختار السيارة" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {vehicles.map((vehicle) => (
-                    <SelectItem key={vehicle.vehicleNo} value={String(vehicle.vehicleNo)}>
-                      {vehicle.vehicleNo}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <NumberField
-          control={form.control}
-          name="crusherCubicDefault"
-          label="تكعيب الكسارة"
-          required
-        />
-        <NumberField
-          control={form.control}
-          name="clientCubicDefault"
-          label="تكعيب العميل"
-          required
-        />
-        <FormField
-          control={form.control}
-          name="startDate"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>تاريخ البداية *</FormLabel>
-              <FormControl>
-                <DatePicker
-                  value={field.value}
-                  onChange={field.onChange}
-                  placeholder="اختر تاريخ البداية"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="reportedDestination"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>الوجهة</FormLabel>
-              <FormControl>
-                <Input {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <NumberField control={form.control} name="reportedTripCount" label="عدد النقلات" />
-        <FormField
-          control={form.control}
-          name="notes"
-          render={({ field }) => (
-            <FormItem className="md:col-span-2">
-              <FormLabel>ملاحظات</FormLabel>
-              <FormControl>
-                <Textarea {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <Button type="submit">فتح الوردية</Button>
-      </form>
-    </Form>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        setIsOpen(open)
+        if (!open) form.reset()
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button type="button">فتح وردية جديدة</Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>فتح وردية جديدة</DialogTitle>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="grid gap-4 md:grid-cols-2">
+            <FormField
+              control={form.control}
+              name="vehicleNo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>السيارة</FormLabel>
+                  <Select
+                    value={field.value ? String(field.value) : ''}
+                    onValueChange={(value) => field.onChange(Number(value))}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="اختار السيارة" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {vehicles.map((vehicle) => (
+                        <SelectItem key={vehicle.vehicleNo} value={String(vehicle.vehicleNo)}>
+                          {vehicle.vehicleNo}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <NumberField
+              control={form.control}
+              name="crusherCubicDefault"
+              label="تكعيب الكسارة"
+              required
+            />
+            <NumberField
+              control={form.control}
+              name="clientCubicDefault"
+              label="تكعيب العميل"
+              required
+            />
+            <FormField
+              control={form.control}
+              name="startDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>تاريخ البداية *</FormLabel>
+                  <FormControl>
+                    <DatePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                      placeholder="اختر تاريخ البداية"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="reportedDestination"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>الوجهة</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <NumberField control={form.control} name="reportedTripCount" label="عدد النقلات" />
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem className="md:col-span-2">
+                  <FormLabel>ملاحظات</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <DialogFooter className="md:col-span-2">
+              <Button type="submit">فتح الوردية</Button>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  إلغاء
+                </Button>
+              </DialogClose>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   )
 }

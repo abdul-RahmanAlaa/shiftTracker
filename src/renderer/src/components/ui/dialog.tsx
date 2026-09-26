@@ -35,7 +35,7 @@ const DialogHeader = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>): React.JSX.Element => (
-  <div className={cn('flex flex-col space-y-1.5 text-right', className)} {...props} />
+  <div className={cn('flex flex-col gap-y-1.5 text-right', className)} {...props} />
 )
 DialogHeader.displayName = 'DialogHeader'
 

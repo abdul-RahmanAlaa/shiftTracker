@@ -1,13 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
+import type { ColumnDef } from '@tanstack/react-table'
+import { DataTable } from '@/components/DataTable'
 
 export type LedgerRow = Extract<
   Awaited<ReturnType<typeof window.api.getDriverHistory>>,
@@ -21,6 +15,24 @@ export type ClientAccount = Extract<
   Awaited<ReturnType<typeof window.api.getClientAccount>>,
   { ok: true }
 >['data']
+
+const ledgerColumns: ColumnDef<LedgerRow, unknown>[] = [
+  { accessorKey: 'id', header: 'id' },
+  { accessorKey: 'entryDate', header: 'التاريخ' },
+  { accessorKey: 'movementType', header: 'نوع الحركة' },
+  { accessorKey: 'amount', header: 'المبلغ' },
+  { id: 'shiftId', accessorFn: (entry) => entry.shiftId ?? '-', header: 'الوردية' },
+  { id: 'notes', accessorFn: (entry) => entry.notes ?? '-', header: 'ملاحظات' }
+]
+
+export type ClientPaymentRow = ClientAccount['payments'][number]
+
+export const clientPaymentColumns: ColumnDef<ClientPaymentRow, unknown>[] = [
+  { accessorKey: 'id', header: 'id' },
+  { accessorKey: 'entryDate', header: 'التاريخ' },
+  { accessorKey: 'amount', header: 'المبلغ' },
+  { id: 'notes', accessorFn: (payment) => payment.notes ?? '-', header: 'ملاحظات' }
+]
 
 export function balanceClassName(balance: number): string {
   if (balance > 0) return 'text-lg font-semibold text-green-600'
@@ -49,30 +61,13 @@ export function AccountSummary({
 
 export function LedgerEntriesTable({ entries }: { entries: LedgerRow[] }): React.JSX.Element {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>id</TableHead>
-          <TableHead>التاريخ</TableHead>
-          <TableHead>نوع الحركة</TableHead>
-          <TableHead>المبلغ</TableHead>
-          <TableHead>الوردية</TableHead>
-          <TableHead>ملاحظات</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {entries.map((entry) => (
-          <TableRow key={entry.id}>
-            <TableCell>{entry.id}</TableCell>
-            <TableCell>{entry.entryDate}</TableCell>
-            <TableCell>{entry.movementType}</TableCell>
-            <TableCell>{entry.amount}</TableCell>
-            <TableCell>{entry.shiftId ?? '-'}</TableCell>
-            <TableCell>{entry.notes ?? '-'}</TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <DataTable
+      columns={ledgerColumns}
+      data={entries}
+      getRowId={(entry) => String(entry.id)}
+      enableRowSelection
+      sumColumnId="amount"
+    />
   )
 }
 
@@ -88,7 +83,7 @@ export function AccountCard({
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">{children}</CardContent>
+      <CardContent className="flex flex-col gap-4">{children}</CardContent>
     </Card>
   )
 }

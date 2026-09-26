@@ -48,7 +48,7 @@ export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JS
   ]
 
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5">
       <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
         {details.map(([label, value]) => (
           <div key={label} className="min-w-0 border-b border-border/60 pb-2">
@@ -57,7 +57,7 @@ export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JS
           </div>
         ))}
       </dl>
-      <section className="space-y-2">
+      <section className="flex flex-col gap-2">
         <h3 className="text-sm font-medium">صورة الإيصال</h3>
         {photoLoading ? (
           <p className="text-sm text-muted-foreground">جاري تحميل الصورة...</p>

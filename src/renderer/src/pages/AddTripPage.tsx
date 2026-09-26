@@ -142,7 +142,6 @@ export function AddTripPage(): React.JSX.Element {
   const [selectedDriverId, setSelectedDriverId] = useState<number>()
   const [openShift, setOpenShift] = useState<OpenShift | null>()
   const [checkingShift, setCheckingShift] = useState(false)
-  const [showCreateShift, setShowCreateShift] = useState(false)
   const [resourceLoading, setResourceLoading] = useState(true)
   const [tripLog, setTripLog] = useState<string[]>([])
 
@@ -207,7 +206,6 @@ export function AddTripPage(): React.JSX.Element {
   async function selectDriver(driverId: number): Promise<void> {
     setSelectedDriverId(driverId)
     setCheckingShift(true)
-    setShowCreateShift(false)
     const result = await window.api.getDriverOpenShift({ driverId })
     if (result.ok && result.data) {
       setOpenShift(result.data)
@@ -226,8 +224,8 @@ export function AddTripPage(): React.JSX.Element {
     })
   }
 
-  async function handleCreateShift(values: CreateShiftValues): Promise<void> {
-    if (!selectedDriverId) return
+  async function handleCreateShift(values: CreateShiftValues): Promise<boolean> {
+    if (!selectedDriverId) return false
     const result = await window.api.createShift({ ...values, driverId: selectedDriverId })
     if (!result.ok) {
       result.errors.forEach((error) => {
@@ -236,14 +234,15 @@ export function AddTripPage(): React.JSX.Element {
             message: error.message
           })
       })
-      return
+      return false
     }
     const shiftResult = await window.api.getDriverOpenShift({ driverId: selectedDriverId })
     if (shiftResult.ok && shiftResult.data) {
       setOpenShift(shiftResult.data)
-      setShowCreateShift(false)
       syncTripDefaults(shiftResult.data)
+      return true
     }
+    return false
   }
 
   async function handleCreateTrip(values: TripValues): Promise<void> {
@@ -273,7 +272,7 @@ export function AddTripPage(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="flex flex-col gap-6" dir="rtl">
       <div>
         <h1 className="text-2xl font-semibold">إضافة نقلة</h1>
         <p className="mt-1 text-sm text-muted-foreground">اختار السائق ثم أدخل بيانات النقلة</p>
@@ -312,7 +311,7 @@ export function AddTripPage(): React.JSX.Element {
             {checkingShift ? (
               <p className="text-sm text-muted-foreground">جاري التحميل...</p>
             ) : openShift ? (
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 <div className="grid gap-3 sm:grid-cols-5">
                   <div>
                     <p className="text-sm text-muted-foreground">رقم الوردية</p>
@@ -338,28 +337,15 @@ export function AddTripPage(): React.JSX.Element {
                 <Badge>وردية مفتوحة</Badge>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="flex flex-col gap-4">
                 <p className="text-sm text-amber-400">مفيش وردية مفتوحة لهذا السائق</p>
-                <Button type="button" onClick={() => setShowCreateShift(true)}>
-                  فتح وردية جديدة
-                </Button>
+                <CreateShiftForm
+                  form={createShiftForm}
+                  vehicles={resources.vehicles}
+                  onSubmit={handleCreateShift}
+                />
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
-
-      {selectedDriverId && showCreateShift && !openShift && (
-        <Card>
-          <CardHeader>
-            <CardTitle>فتح وردية جديدة</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <CreateShiftForm
-              form={createShiftForm}
-              vehicles={resources.vehicles}
-              onSubmit={handleCreateShift}
-            />
           </CardContent>
         </Card>
       )}
@@ -381,7 +367,7 @@ export function AddTripPage(): React.JSX.Element {
             <CardTitle>سجل النقلات</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2 text-sm">
+            <div className="flex flex-col gap-2 text-sm">
               {tripLog.map((line, index) => (
                 <div key={`${line}-${index}`}>{line}</div>
               ))}

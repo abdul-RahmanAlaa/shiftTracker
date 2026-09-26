@@ -22,14 +22,14 @@ export function SettingsPage(): React.JSX.Element {
   const [activeSection, setActiveSection] = useState<SettingsSection>('vehicles')
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">بيانات أساسية</h1>
       <div className="settings-layout">
         <Card className="settings-menu">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">بيانات أساسية</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="settings-navigation flex flex-col gap-1">
             {settingsItems.map((item) => (
               <Button
                 key={item.id}

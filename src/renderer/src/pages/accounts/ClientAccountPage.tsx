@@ -4,6 +4,15 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
+import {
   Form,
   FormControl,
   FormField,
@@ -20,16 +29,14 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
 import { Textarea } from '@/components/ui/textarea'
-import { AccountCard, AccountSummary, type ClientAccount } from './AccountTables'
+import { DataTable } from '@/components/DataTable'
+import {
+  AccountCard,
+  AccountSummary,
+  clientPaymentColumns,
+  type ClientAccount
+} from './AccountTables'
 
 type Client = { id: number; name: string }
 const emptyValue = '__none__'
@@ -44,6 +51,7 @@ export function ClientAccountPage(): React.JSX.Element {
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClientId, setSelectedClientId] = useState<number>()
   const [account, setAccount] = useState<ClientAccount | null>(null)
+  const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
   const paymentForm = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
     defaultValues: { entryDate: '', amount: undefined, notes: '' }
@@ -68,6 +76,8 @@ export function ClientAccountPage(): React.JSX.Element {
     if (value === emptyValue) {
       setSelectedClientId(undefined)
       setAccount(null)
+      setIsPaymentDialogOpen(false)
+      paymentForm.reset()
       return
     }
     const clientId = Number(value)
@@ -80,6 +90,7 @@ export function ClientAccountPage(): React.JSX.Element {
     const result = await window.api.createClientPayment({ clientId: selectedClientId, ...values })
     if (result.ok) {
       paymentForm.reset()
+      setIsPaymentDialogOpen(false)
       await loadAccount(selectedClientId)
     } else {
       result.errors.forEach((error) => {
@@ -117,87 +128,97 @@ export function ClientAccountPage(): React.JSX.Element {
               { label: 'الرصيد', value: account.balance, highlight: true }
             ]}
           />
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>id</TableHead>
-                <TableHead>التاريخ</TableHead>
-                <TableHead>المبلغ</TableHead>
-                <TableHead>ملاحظات</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {account.payments.map((payment) => (
-                <TableRow key={payment.id}>
-                  <TableCell>{payment.id}</TableCell>
-                  <TableCell>{payment.entryDate}</TableCell>
-                  <TableCell>{payment.amount}</TableCell>
-                  <TableCell>{payment.notes ?? '-'}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <Form {...paymentForm}>
-            <form
-              onSubmit={paymentForm.handleSubmit(handleCreatePayment)}
-              className="grid gap-4 md:grid-cols-2"
-            >
-              <FormField
-                control={paymentForm.control}
-                name="entryDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>تاريخ الدفعة</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        value={field.value}
-                        onChange={field.onChange}
-                        placeholder="اختر تاريخ الدفعة"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={paymentForm.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>المبلغ</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        value={field.value ?? ''}
-                        onChange={(event) =>
-                          field.onChange(
-                            event.target.value === '' ? undefined : Number(event.target.value)
-                          )
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={paymentForm.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>ملاحظات</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="md:col-span-2">
-                <Button type="submit">تسجيل الدفعة</Button>
-              </div>
-            </form>
-          </Form>
+          <DataTable
+            columns={clientPaymentColumns}
+            data={account.payments}
+            getRowId={(payment) => String(payment.id)}
+            enableRowSelection
+            sumColumnId="amount"
+          />
+          <Dialog
+            open={isPaymentDialogOpen}
+            onOpenChange={(open) => {
+              setIsPaymentDialogOpen(open)
+              if (!open) paymentForm.reset()
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button type="button" className="w-fit">
+                إضافة دفعة
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>إضافة دفعة</DialogTitle>
+              </DialogHeader>
+              <Form {...paymentForm}>
+                <form
+                  onSubmit={paymentForm.handleSubmit(handleCreatePayment)}
+                  className="grid gap-4 md:grid-cols-2"
+                >
+                  <FormField
+                    control={paymentForm.control}
+                    name="entryDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>تاريخ الدفعة</FormLabel>
+                        <FormControl>
+                          <DatePicker
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="اختر تاريخ الدفعة"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={paymentForm.control}
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>المبلغ</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            value={field.value ?? ''}
+                            onChange={(event) =>
+                              field.onChange(
+                                event.target.value === '' ? undefined : Number(event.target.value)
+                              )
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={paymentForm.control}
+                    name="notes"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>ملاحظات</FormLabel>
+                        <FormControl>
+                          <Textarea {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter className="md:col-span-2">
+                    <Button type="submit">تسجيل الدفعة</Button>
+                    <DialogClose asChild>
+                      <Button type="button" variant="outline">
+                        إلغاء
+                      </Button>
+                    </DialogClose>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </>
       ) : (
         <p className="text-sm text-muted-foreground">اختر عميل عشان تشوف الحساب</p>

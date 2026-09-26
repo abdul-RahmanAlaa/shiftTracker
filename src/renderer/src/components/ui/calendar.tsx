@@ -12,13 +12,13 @@ export function Calendar({
       className={cn('w-full p-3', className)}
       classNames={{
         months: 'flex w-full flex-col gap-2 sm:flex-row',
-        month: 'w-full space-y-6',
+        month: 'flex w-full flex-col gap-6',
         month_caption: 'flex justify-center pb-2 relative items-center',
         caption_label: 'hidden',
         nav: 'flex items-center gap-1',
         button_previous: 'absolute left-1 h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100',
         button_next: 'absolute right-1 h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100',
-        month_grid: 'w-full border-collapse space-y-1',
+        month_grid: 'w-full border-separate border-spacing-y-1',
         weekdays: 'flex w-full',
         weekday: 'flex-1 rounded-md text-muted-foreground font-normal text-[0.8rem]',
         week: 'flex w-full mt-2',

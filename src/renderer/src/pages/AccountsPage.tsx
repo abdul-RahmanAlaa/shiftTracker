@@ -18,14 +18,14 @@ export function AccountsPage(): React.JSX.Element {
   const [activeSection, setActiveSection] = useState<AccountsSection>('contractor')
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">الحسابات</h1>
       <div className="settings-layout">
         <Card className="settings-menu">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">الحسابات</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="flex flex-col gap-1">
             {accountsItems.map((item) => (
               <Button
                 key={item.id}

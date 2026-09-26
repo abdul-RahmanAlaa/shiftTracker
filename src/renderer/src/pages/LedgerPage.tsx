@@ -7,6 +7,15 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@/components/ui/dialog'
+import {
   Form,
   FormControl,
   FormField,
@@ -53,6 +62,7 @@ export function LedgerPage(): React.JSX.Element {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [entries, setEntries] = useState<LedgerRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const ledgerForm = useForm<LedgerFormValues>({
     resolver: zodResolver(ledgerSchema),
     defaultValues: {
@@ -92,6 +102,7 @@ export function LedgerPage(): React.JSX.Element {
     const result = await window.api.createLedgerEntry(values)
     if (result.ok) {
       ledgerForm.reset()
+      setIsCreateDialogOpen(false)
       await loadEntries()
     } else {
       result.errors.forEach((error) => {
@@ -123,188 +134,204 @@ export function LedgerPage(): React.JSX.Element {
   ]
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">سجل العهد والدفعات</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>إضافة حركة</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Form {...ledgerForm}>
-            <form
-              onSubmit={ledgerForm.handleSubmit(handleCreateEntry)}
-              className="grid gap-4 md:grid-cols-2"
-            >
-              <FormField
-                control={ledgerForm.control}
-                name="entryDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>تاريخ الحركة</FormLabel>
-                    <FormControl>
-                      <DatePicker
-                        value={field.value}
-                        onChange={field.onChange}
-                        placeholder="اختر تاريخ الحركة"
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={ledgerForm.control}
-                name="movementType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>نوع الحركة</FormLabel>
-                    <Select value={field.value ?? ''} onValueChange={field.onChange}>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold">سجل العهد والدفعات</h1>
+        <Dialog
+          open={isCreateDialogOpen}
+          onOpenChange={(open) => {
+            setIsCreateDialogOpen(open)
+            if (!open) ledgerForm.reset()
+          }}
+        >
+          <DialogTrigger asChild>
+            <Button type="button">إضافة حركة</Button>
+          </DialogTrigger>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>إضافة حركة</DialogTitle>
+            </DialogHeader>
+            <Form {...ledgerForm}>
+              <form
+                onSubmit={ledgerForm.handleSubmit(handleCreateEntry)}
+                className="grid gap-4 md:grid-cols-2"
+              >
+                <FormField
+                  control={ledgerForm.control}
+                  name="entryDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>تاريخ الحركة</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="اختر نوع الحركة" />
-                        </SelectTrigger>
+                        <DatePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="اختر تاريخ الحركة"
+                        />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="عهدة">عهدة</SelectItem>
-                        <SelectItem value="دفعة">دفعة</SelectItem>
-                        <SelectItem value="اخرى">اخرى</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={ledgerForm.control}
-                name="amount"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>المبلغ</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        value={field.value ?? ''}
-                        onChange={(event) =>
-                          field.onChange(
-                            event.target.value === '' ? undefined : Number(event.target.value)
-                          )
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={ledgerForm.control}
+                  name="movementType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>نوع الحركة</FormLabel>
+                      <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="اختر نوع الحركة" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="عهدة">عهدة</SelectItem>
+                          <SelectItem value="دفعة">دفعة</SelectItem>
+                          <SelectItem value="اخرى">اخرى</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={ledgerForm.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>المبلغ</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          value={field.value ?? ''}
+                          onChange={(event) =>
+                            field.onChange(
+                              event.target.value === '' ? undefined : Number(event.target.value)
+                            )
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={ledgerForm.control}
+                  name="driverId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>السائق</FormLabel>
+                      <Select
+                        value={field.value ? String(field.value) : emptyValue}
+                        onValueChange={(value) =>
+                          field.onChange(value === emptyValue ? undefined : Number(value))
                         }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={ledgerForm.control}
-                name="driverId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>السائق</FormLabel>
-                    <Select
-                      value={field.value ? String(field.value) : emptyValue}
-                      onValueChange={(value) =>
-                        field.onChange(value === emptyValue ? undefined : Number(value))
-                      }
-                    >
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="بدون سائق" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={emptyValue}>بدون سائق</SelectItem>
+                          {drivers.map((driver) => (
+                            <SelectItem key={driver.id} value={String(driver.id)}>
+                              {driver.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={ledgerForm.control}
+                  name="shiftId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>الوردية</FormLabel>
+                      <Select
+                        value={field.value ?? emptyValue}
+                        onValueChange={(value) =>
+                          field.onChange(value === emptyValue ? undefined : value)
+                        }
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="بدون وردية" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={emptyValue}>بدون وردية</SelectItem>
+                          {shifts.map((shift) => (
+                            <SelectItem key={shift.id} value={shift.id}>
+                              {shift.id}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={ledgerForm.control}
+                  name="contractorId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>المقاول</FormLabel>
+                      <Select
+                        value={field.value ? String(field.value) : emptyValue}
+                        onValueChange={(value) =>
+                          field.onChange(value === emptyValue ? undefined : Number(value))
+                        }
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="بدون مقاول" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value={emptyValue}>بدون مقاول</SelectItem>
+                          {contractors.map((contractor) => (
+                            <SelectItem key={contractor.id} value={String(contractor.id)}>
+                              {contractor.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={ledgerForm.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem className="md:col-span-2">
+                      <FormLabel>ملاحظات</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="بدون سائق" />
-                        </SelectTrigger>
+                        <Textarea {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value={emptyValue}>بدون سائق</SelectItem>
-                        {drivers.map((driver) => (
-                          <SelectItem key={driver.id} value={String(driver.id)}>
-                            {driver.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={ledgerForm.control}
-                name="shiftId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>الوردية</FormLabel>
-                    <Select
-                      value={field.value ?? emptyValue}
-                      onValueChange={(value) =>
-                        field.onChange(value === emptyValue ? undefined : value)
-                      }
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="بدون وردية" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={emptyValue}>بدون وردية</SelectItem>
-                        {shifts.map((shift) => (
-                          <SelectItem key={shift.id} value={shift.id}>
-                            {shift.id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={ledgerForm.control}
-                name="contractorId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>المقاول</FormLabel>
-                    <Select
-                      value={field.value ? String(field.value) : emptyValue}
-                      onValueChange={(value) =>
-                        field.onChange(value === emptyValue ? undefined : Number(value))
-                      }
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="بدون مقاول" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={emptyValue}>بدون مقاول</SelectItem>
-                        {contractors.map((contractor) => (
-                          <SelectItem key={contractor.id} value={String(contractor.id)}>
-                            {contractor.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={ledgerForm.control}
-                name="notes"
-                render={({ field }) => (
-                  <FormItem className="md:col-span-2">
-                    <FormLabel>ملاحظات</FormLabel>
-                    <FormControl>
-                      <Textarea {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="md:col-span-2">
-                <Button type="submit">إضافة</Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <DialogFooter className="md:col-span-2">
+                  <Button type="submit">إضافة</Button>
+                  <DialogClose asChild>
+                    <Button type="button" variant="outline">
+                      إلغاء
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       <Card>
         <CardHeader>

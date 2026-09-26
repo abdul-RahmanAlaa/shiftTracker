@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
+import type { ColumnDef } from '@tanstack/react-table'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
 import { TripReceiptPhoto } from '@/components/TripReceiptPhoto'
+import { DataTable } from '@/components/DataTable'
 import type { CreateShiftValues } from '@/components/CreateShiftForm'
 import { DatePicker } from '@/components/ui/date-picker'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -15,14 +18,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
 import { TripForm, tripSchema } from './AddTripPage'
 import type { ResourceState, TripValues } from './AddTripPage'
 
@@ -198,8 +193,8 @@ export function ShiftsPage(): React.JSX.Element {
     )
   }
 
-  async function handleCreateShift(values: CreateShiftValues): Promise<void> {
-    if (!selectedDriverIdForShift) return
+  async function handleCreateShift(values: CreateShiftValues): Promise<boolean> {
+    if (!selectedDriverIdForShift) return false
     const result = await window.api.createShift({
       ...values,
       driverId: selectedDriverIdForShift
@@ -207,6 +202,7 @@ export function ShiftsPage(): React.JSX.Element {
     if (result.ok) {
       createShiftForm.reset()
       await loadShifts()
+      return true
     } else {
       result.errors.forEach((error) => {
         if (error.field in values) {
@@ -216,6 +212,7 @@ export function ShiftsPage(): React.JSX.Element {
         }
       })
     }
+    return false
   }
 
   async function handleCloseShift(e: React.FormEvent): Promise<void> {
@@ -228,8 +225,100 @@ export function ShiftsPage(): React.JSX.Element {
     }
   }
 
+  const selectedShift = shifts.find((shift) => shift.id === selectedShiftId)
+  const isSelectedShiftClosed = selectedShift?.status === 'منتهية'
+
+  const shiftColumns: ColumnDef<ShiftListRow, unknown>[] = [
+    {
+      accessorKey: 'id',
+      header: 'رقم الوردية',
+      cell: ({ row }) => (
+        <Button type="button" variant="link" onClick={() => void selectShift(row.original.id)}>
+          {row.original.id}
+        </Button>
+      )
+    },
+    { accessorKey: 'driverName', header: 'السائق' },
+    { accessorKey: 'vehicleNo', header: 'رقم السيارة' },
+    {
+      accessorKey: 'status',
+      header: 'الحالة',
+      cell: ({ getValue }) => (
+        <Badge
+          className={
+            getValue() === 'مفتوحة'
+              ? 'border-transparent bg-green-600 text-white hover:bg-green-600'
+              : 'border-transparent bg-gray-500 text-white hover:bg-gray-500'
+          }
+        >
+          {String(getValue())}
+        </Badge>
+      )
+    },
+    { accessorKey: 'startDate', header: 'تاريخ البداية' },
+    { id: 'endDate', accessorFn: (shift) => shift.endDate ?? '—', header: 'تاريخ النهاية' },
+    { accessorKey: 'actualTripCount', header: 'عدد النقلات' }
+  ]
+
+  const tripColumns: ColumnDef<TripRow, unknown>[] = [
+    { accessorKey: 'id', header: 'id' },
+    { accessorKey: 'tripDate', header: 'تاريخ النقلة' },
+    { id: 'location', accessorFn: (trip) => trip.location ?? '—', header: 'المكان' },
+    { accessorKey: 'crusherCubic', header: 'تكعيب الكسارة' },
+    { accessorKey: 'clientCubicReported', header: 'تكعيب العميل' },
+    {
+      id: 'stonePrice',
+      accessorFn: (trip) => trip.stonePrice ?? '—',
+      header: 'سعر الحجر'
+    },
+    { accessorKey: 'transportPrice', header: 'سعر النقل' },
+    { accessorKey: 'clientPrice', header: 'سعر العميل' },
+    {
+      id: 'receiptPhoto',
+      header: 'صورة الإيصال',
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) => (
+        <TripReceiptPhoto
+          tripId={row.original.id}
+          photoPath={row.original.receiptPhotoPath}
+          onPhotoChange={(photoPath) => handlePhotoChange(row.original.id, photoPath)}
+        />
+      )
+    },
+    {
+      id: 'actions',
+      header: 'إجراءات',
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) =>
+        isSelectedShiftClosed ? (
+          <span className="text-sm text-muted-foreground">الوردية مقفولة</span>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => startEditingTrip(row.original)}
+            >
+              تعديل
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void handleDeleteTrip(row.original)}
+            >
+              مسح
+            </Button>
+          </div>
+        )
+    }
+  ]
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">الورديات</h1>
 
       <Card>
@@ -239,45 +328,14 @@ export function ShiftsPage(): React.JSX.Element {
         <CardContent>
           {loading ? (
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
-          ) : shifts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">لا يوجد بيانات بعد</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>رقم الوردية</TableHead>
-                  <TableHead>السائق</TableHead>
-                  <TableHead>رقم السيارة</TableHead>
-                  <TableHead>الحالة</TableHead>
-                  <TableHead>تاريخ البداية</TableHead>
-                  <TableHead>تاريخ النهاية</TableHead>
-                  <TableHead>عدد النقلات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shifts.map((shift) => (
-                  <TableRow key={shift.id} onClick={() => void selectShift(shift.id)}>
-                    <TableCell>{shift.id}</TableCell>
-                    <TableCell>{shift.driverName}</TableCell>
-                    <TableCell>{shift.vehicleNo}</TableCell>
-                    <TableCell>
-                      <Badge
-                        className={
-                          shift.status === 'مفتوحة'
-                            ? 'border-transparent bg-green-600 text-white hover:bg-green-600'
-                            : 'border-transparent bg-gray-500 text-white hover:bg-gray-500'
-                        }
-                      >
-                        {shift.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{shift.startDate}</TableCell>
-                    <TableCell>{shift.endDate ?? '—'}</TableCell>
-                    <TableCell>{shift.actualTripCount}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={shiftColumns}
+              data={shifts}
+              getRowId={(shift) => shift.id}
+              enableRowSelection
+              emptyMessage="لا يوجد بيانات بعد"
+            />
           )}
         </CardContent>
       </Card>
@@ -288,8 +346,16 @@ export function ShiftsPage(): React.JSX.Element {
             <CardTitle>نقلات الوردية {selectedShiftId}</CardTitle>
           </CardHeader>
           <CardContent>
-            {editingTripId && (
-              <div className="mb-6">
+            <Dialog
+              open={editingTripId !== null}
+              onOpenChange={(open) => {
+                if (!open) setEditingTripId(null)
+              }}
+            >
+              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+                <DialogHeader>
+                  <DialogTitle>تعديل النقلة {editingTripId}</DialogTitle>
+                </DialogHeader>
                 <TripForm
                   form={editTripForm}
                   resources={resources}
@@ -298,73 +364,15 @@ export function ShiftsPage(): React.JSX.Element {
                   recipientNameStatus={editRecipientNameStatus}
                   onSubmit={handleUpdateTrip}
                 />
-              </div>
-            )}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>id</TableHead>
-                  <TableHead>تاريخ النقلة</TableHead>
-                  <TableHead>المكان</TableHead>
-                  <TableHead>تكعيب الكسارة</TableHead>
-                  <TableHead>تكعيب العميل</TableHead>
-                  <TableHead>سعر الحجر</TableHead>
-                  <TableHead>سعر النقل</TableHead>
-                  <TableHead>سعر العميل</TableHead>
-                  <TableHead>صورة الإيصال</TableHead>
-                  <TableHead>إجراءات</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shiftTrips.map((trip) => {
-                  const selectedShift = shifts.find((shift) => shift.id === selectedShiftId)
-                  const isClosed = selectedShift?.status === 'منتهية'
-                  return (
-                    <TableRow key={trip.id}>
-                      <TableCell>{trip.id}</TableCell>
-                      <TableCell>{trip.tripDate}</TableCell>
-                      <TableCell>{trip.location ?? '—'}</TableCell>
-                      <TableCell>{trip.crusherCubic}</TableCell>
-                      <TableCell>{trip.clientCubicReported}</TableCell>
-                      <TableCell>{trip.stonePrice}</TableCell>
-                      <TableCell>{trip.transportPrice}</TableCell>
-                      <TableCell>{trip.clientPrice}</TableCell>
-                      <TableCell>
-                        <TripReceiptPhoto
-                          tripId={trip.id}
-                          photoPath={trip.receiptPhotoPath}
-                          onPhotoChange={(photoPath) => handlePhotoChange(trip.id, photoPath)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {isClosed ? (
-                          <span className="text-sm text-muted-foreground">الوردية مقفولة</span>
-                        ) : (
-                          <div className="flex gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => startEditingTrip(trip)}
-                            >
-                              تعديل
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void handleDeleteTrip(trip)}
-                            >
-                              مسح
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
+              </DialogContent>
+            </Dialog>
+            <DataTable
+              columns={tripColumns}
+              data={shiftTrips}
+              getRowId={(trip) => trip.id}
+              enableRowSelection
+              emptyMessage="لا توجد نقلات في الوردية"
+            />
           </CardContent>
         </Card>
       )}
@@ -373,7 +381,7 @@ export function ShiftsPage(): React.JSX.Element {
         <CardHeader>
           <CardTitle>فتح وردية جديدة</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <Select
             value={selectedDriverIdForShift ? String(selectedDriverIdForShift) : ''}
             onValueChange={(value) => setSelectedDriverIdForShift(Number(value))}

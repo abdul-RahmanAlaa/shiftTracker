@@ -91,13 +91,13 @@ export function ImportPage(): React.JSX.Element {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">استيراد بيانات</h1>
       <Card>
         <CardHeader>
           <CardTitle>استيراد بيانات من CSV</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex flex-col gap-4">
           <Button type="button" variant="outline" onClick={handleDownloadTemplate}>
             تحميل نموذج CSV
           </Button>
