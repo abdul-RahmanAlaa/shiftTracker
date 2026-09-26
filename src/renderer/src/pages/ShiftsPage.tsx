@@ -335,14 +335,14 @@ export function ShiftsPage(): React.JSX.Element {
   ]
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col gap-6">
       <h1 className="text-2xl font-semibold">الورديات</h1>
 
-      <Card>
+      <Card className="min-h-0 flex-1">
         <CardHeader>
           <CardTitle>سجل الورديات</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex min-h-0 flex-col">
           {loading ? (
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
           ) : (
@@ -358,11 +358,11 @@ export function ShiftsPage(): React.JSX.Element {
       </Card>
 
       {selectedShiftId && (
-        <Card>
+        <Card className="min-h-0 flex-1">
           <CardHeader>
             <CardTitle>نقلات الوردية {selectedShiftId}</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex min-h-0 flex-col">
             <Dialog
               open={editingTripId !== null}
               onOpenChange={(open) => {

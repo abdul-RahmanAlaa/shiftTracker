@@ -6,6 +6,8 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
+import { useFloatingWindows } from '@/components/FloatingWindowsContext'
+import { LedgerEntryDetailsContent } from '@/components/LedgerEntryDetailsContent'
 import {
   Dialog,
   DialogClose,
@@ -57,6 +59,7 @@ const ledgerSchema = z.object({
 type LedgerFormValues = z.infer<typeof ledgerSchema>
 
 export function LedgerPage(): React.JSX.Element {
+  const { openWindow } = useFloatingWindows()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
@@ -130,11 +133,42 @@ export function LedgerPage(): React.JSX.Element {
         contractors.find((contractor) => contractor.id === entry.contractorId)?.name ?? '-',
       header: 'المقاول'
     },
-    { id: 'notes', accessorFn: (entry) => entry.notes ?? '-', header: 'ملاحظات' }
+    { id: 'notes', accessorFn: (entry) => entry.notes ?? '-', header: 'ملاحظات' },
+    {
+      id: 'actions',
+      header: 'الإجراءات',
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) => (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            openWindow(
+              `ledger-entry-${row.original.id}`,
+              `تفاصيل الحركة ${row.original.id}`,
+              <LedgerEntryDetailsContent
+                entry={row.original}
+                contractorName={
+                  contractors.find((contractor) => contractor.id === row.original.contractorId)?.name ??
+                  undefined
+                }
+                driverName={
+                  drivers.find((driver) => driver.id === row.original.driverId)?.name ?? undefined
+                }
+              />
+            )
+          }
+        >
+          تفاصيل
+        </Button>
+      )
+    }
   ]
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">سجل العهد والدفعات</h1>
         <Dialog
@@ -333,11 +367,11 @@ export function LedgerPage(): React.JSX.Element {
         </Dialog>
       </div>
 
-      <Card>
+      <Card className="min-h-0 flex-1">
         <CardHeader>
           <CardTitle>الحركات</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex min-h-0 flex-col">
           {loading ? (
             <p className="text-sm text-muted-foreground">جاري التحميل...</p>
           ) : (
