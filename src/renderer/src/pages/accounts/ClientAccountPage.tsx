@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { DataTable } from '@/components/DataTable'
 import {
   Dialog,
   DialogClose,
@@ -30,13 +31,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { DataTable } from '@/components/DataTable'
-import {
-  AccountCard,
-  AccountSummary,
-  clientPaymentColumns,
-  type ClientAccount
-} from './AccountTables'
+import { AccountCard, AccountSummary, getClientPaymentColumns, type ClientAccount } from './AccountTables'
 
 type Client = { id: number; name: string }
 const emptyValue = '__none__'
@@ -52,6 +47,7 @@ export function ClientAccountPage(): React.JSX.Element {
   const [selectedClientId, setSelectedClientId] = useState<number>()
   const [account, setAccount] = useState<ClientAccount | null>(null)
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
+  const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null)
   const paymentForm = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentSchema),
     defaultValues: { entryDate: '', amount: undefined, notes: '' }
@@ -87,9 +83,13 @@ export function ClientAccountPage(): React.JSX.Element {
 
   async function handleCreatePayment(values: PaymentFormValues): Promise<void> {
     if (!selectedClientId) return
-    const result = await window.api.createClientPayment({ clientId: selectedClientId, ...values })
+    const result = editingPaymentId
+      ? await window.api.updateClientPayment({ id: editingPaymentId, clientId: selectedClientId, ...values })
+      : await window.api.createClientPayment({ clientId: selectedClientId, ...values })
+
     if (result.ok) {
       paymentForm.reset()
+      setEditingPaymentId(null)
       setIsPaymentDialogOpen(false)
       await loadAccount(selectedClientId)
     } else {
@@ -97,6 +97,28 @@ export function ClientAccountPage(): React.JSX.Element {
         if (error.field in values)
           paymentForm.setError(error.field as keyof PaymentFormValues, { message: error.message })
       })
+    }
+  }
+
+  function startEditingPayment(payment: { id: number; entryDate: string; amount: number; notes: string | null }): void {
+    setEditingPaymentId(payment.id)
+    paymentForm.reset({
+      entryDate: payment.entryDate,
+      amount: payment.amount,
+      notes: payment.notes ?? ''
+    })
+    setIsPaymentDialogOpen(true)
+  }
+
+  async function handleDeletePayment(payment: { id: number }): Promise<void> {
+    if (!confirm(`متأكد إنك عايز تمسح الدفعة رقم ${payment.id}؟`)) return
+    const result = await window.api.deleteClientPayment({ id: payment.id })
+    if (result.ok && selectedClientId) {
+      if (editingPaymentId === payment.id) {
+        setEditingPaymentId(null)
+        paymentForm.reset()
+      }
+      await loadAccount(selectedClientId)
     }
   }
 
@@ -129,7 +151,10 @@ export function ClientAccountPage(): React.JSX.Element {
             ]}
           />
           <DataTable
-            columns={clientPaymentColumns}
+            columns={getClientPaymentColumns({
+              onEdit: startEditingPayment,
+              onDelete: handleDeletePayment
+            })}
             data={account.payments}
             getRowId={(payment) => String(payment.id)}
             enableRowSelection
@@ -139,17 +164,27 @@ export function ClientAccountPage(): React.JSX.Element {
             open={isPaymentDialogOpen}
             onOpenChange={(open) => {
               setIsPaymentDialogOpen(open)
-              if (!open) paymentForm.reset()
+              if (!open) {
+                setEditingPaymentId(null)
+                paymentForm.reset()
+              }
             }}
           >
             <DialogTrigger asChild>
-              <Button type="button" className="w-fit">
+              <Button
+                type="button"
+                className="w-fit"
+                onClick={() => {
+                  setEditingPaymentId(null)
+                  paymentForm.reset()
+                }}
+              >
                 إضافة دفعة
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>إضافة دفعة</DialogTitle>
+                <DialogTitle>{editingPaymentId ? 'تعديل دفعة' : 'إضافة دفعة'}</DialogTitle>
               </DialogHeader>
               <Form {...paymentForm}>
                 <form
@@ -208,7 +243,7 @@ export function ClientAccountPage(): React.JSX.Element {
                     )}
                   />
                   <DialogFooter className="md:col-span-2">
-                    <Button type="submit">تسجيل الدفعة</Button>
+                    <Button type="submit">{editingPaymentId ? 'حفظ التعديل' : 'تسجيل الدفعة'}</Button>
                     <DialogClose asChild>
                       <Button type="button" variant="outline">
                         إلغاء

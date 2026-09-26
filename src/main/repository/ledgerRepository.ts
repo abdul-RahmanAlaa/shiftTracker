@@ -43,6 +43,51 @@ export interface LedgerRow {
   notes: string | null
 }
 
+export function getLedgerById(id: number): LedgerRow | undefined {
+  const db = getDb()
+  return db
+    .prepare(
+      `
+      SELECT id, entry_date as entryDate, driver_id as driverId, movement_type as movementType,
+             amount, shift_id as shiftId, contractor_id as contractorId, notes
+      FROM Ledger
+      WHERE id = ?
+    `
+    )
+    .get(id) as LedgerRow | undefined
+}
+
+export function updateLedger(input: {
+  id: number
+  entryDate: string
+  driverId: number | null
+  movementType: string
+  amount: number
+  shiftId: string | null
+  contractorId: number
+  notes: string | null
+}): void {
+  const db = getDb()
+  db.prepare(
+    `
+    UPDATE Ledger
+    SET entry_date = @entryDate,
+        driver_id = @driverId,
+        movement_type = @movementType,
+        amount = @amount,
+        shift_id = @shiftId,
+        contractor_id = @contractorId,
+        notes = @notes
+    WHERE id = @id
+  `
+  ).run(input)
+}
+
+export function deleteLedgerById(id: number): void {
+  const db = getDb()
+  db.prepare('DELETE FROM Ledger WHERE id = ?').run(id)
+}
+
 export function listLedger(): LedgerRow[] {
   const db = getDb()
   return db

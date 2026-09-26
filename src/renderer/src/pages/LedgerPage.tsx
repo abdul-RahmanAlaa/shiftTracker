@@ -42,7 +42,7 @@ type LedgerRow = Extract<
 >['data'][number]
 type Driver = { id: number; name: string }
 type Contractor = { id: number; name: string }
-type Shift = { id: string }
+type Shift = { id: string; status: string }
 
 const emptyValue = '__none__'
 
@@ -66,17 +66,18 @@ export function LedgerPage(): React.JSX.Element {
   const [entries, setEntries] = useState<LedgerRow[]>([])
   const [loading, setLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [editingEntryId, setEditingEntryId] = useState<number | null>(null)
   const ledgerForm = useForm<LedgerFormValues>({
     resolver: zodResolver(ledgerSchema),
     defaultValues: {
       entryDate: '',
       driverId: undefined,
-      movementType: undefined,
-      amount: undefined,
+      movementType: 'عهدة',
+      amount: 0,
       shiftId: undefined,
       contractorId: undefined,
       notes: ''
-    }
+    } as LedgerFormValues
   })
 
   async function loadEntries(): Promise<void> {
@@ -101,10 +102,50 @@ export function LedgerPage(): React.JSX.Element {
     })
   }, [])
 
-  async function handleCreateEntry(values: LedgerFormValues): Promise<void> {
-    const result = await window.api.createLedgerEntry(values)
+  function getDefaultLedgerValues(): LedgerFormValues {
+    return {
+      entryDate: '',
+      driverId: undefined,
+      movementType: 'عهدة',
+      amount: 0,
+      shiftId: undefined,
+      contractorId: undefined,
+      notes: ''
+    } as LedgerFormValues
+  }
+
+  function isEntryLocked(entry: LedgerRow): boolean {
+    return Boolean(entry.shiftId && shifts.some((shift) => shift.id === entry.shiftId && shift.status === 'منتهية'))
+  }
+
+  function openCreateEntryDialog(): void {
+    setEditingEntryId(null)
+    ledgerForm.reset(getDefaultLedgerValues())
+    setIsCreateDialogOpen(true)
+  }
+
+  function openEditEntryDialog(entry: LedgerRow): void {
+    setEditingEntryId(entry.id)
+    ledgerForm.reset({
+      entryDate: entry.entryDate,
+      driverId: entry.driverId ?? undefined,
+      movementType: entry.movementType as 'عهدة' | 'دفعة' | 'اخرى',
+      amount: Number(entry.amount),
+      shiftId: entry.shiftId ?? undefined,
+      contractorId: entry.contractorId ?? undefined,
+      notes: entry.notes ?? ''
+    } as LedgerFormValues)
+    setIsCreateDialogOpen(true)
+  }
+
+  async function handleSaveEntry(values: LedgerFormValues): Promise<void> {
+    const result = editingEntryId
+      ? await window.api.updateLedgerEntry({ id: editingEntryId, ...values } as any)
+      : await window.api.createLedgerEntry(values as any)
+
     if (result.ok) {
-      ledgerForm.reset()
+      ledgerForm.reset(getDefaultLedgerValues())
+      setEditingEntryId(null)
       setIsCreateDialogOpen(false)
       await loadEntries()
     } else {
@@ -113,6 +154,18 @@ export function LedgerPage(): React.JSX.Element {
           ledgerForm.setError(error.field as keyof LedgerFormValues, { message: error.message })
         }
       })
+    }
+  }
+
+  async function handleDeleteEntry(entry: LedgerRow): Promise<void> {
+    if (!confirm(`متأكد إنك عايز تمسح الحركة رقم ${entry.id}؟`)) return
+    const result = await window.api.deleteLedgerEntry({ id: entry.id })
+    if (result.ok) {
+      if (editingEntryId === entry.id) {
+        setEditingEntryId(null)
+        ledgerForm.reset(getDefaultLedgerValues())
+      }
+      await loadEntries()
     }
   }
 
@@ -139,31 +192,56 @@ export function LedgerPage(): React.JSX.Element {
       header: 'الإجراءات',
       enableSorting: false,
       enableColumnFilter: false,
-      cell: ({ row }) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            openWindow(
-              `ledger-entry-${row.original.id}`,
-              `تفاصيل الحركة ${row.original.id}`,
-              <LedgerEntryDetailsContent
-                entry={row.original}
-                contractorName={
-                  contractors.find((contractor) => contractor.id === row.original.contractorId)?.name ??
-                  undefined
-                }
-                driverName={
-                  drivers.find((driver) => driver.id === row.original.driverId)?.name ?? undefined
-                }
-              />
-            )
-          }
-        >
-          تفاصيل
-        </Button>
-      )
+      cell: ({ row }) => {
+        const entry = row.original
+        const locked = isEntryLocked(entry)
+
+        return (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                openWindow(
+                  `ledger-entry-${entry.id}`,
+                  `تفاصيل الحركة ${entry.id}`,
+                  <LedgerEntryDetailsContent
+                    entry={entry}
+                    contractorName={
+                      contractors.find((contractor) => contractor.id === entry.contractorId)?.name ??
+                      undefined
+                    }
+                    driverName={drivers.find((driver) => driver.id === entry.driverId)?.name ?? undefined}
+                  />
+                )
+              }
+            >
+              تفاصيل
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={locked}
+              title={locked ? 'مرتبطة بوردية مقفولة' : 'تعديل'}
+              onClick={() => openEditEntryDialog(entry)}
+            >
+              تعديل
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={locked}
+              title={locked ? 'مرتبطة بوردية مقفولة' : 'مسح'}
+              onClick={() => void handleDeleteEntry(entry)}
+            >
+              مسح
+            </Button>
+          </div>
+        )
+      }
     }
   ]
 
@@ -175,19 +253,24 @@ export function LedgerPage(): React.JSX.Element {
           open={isCreateDialogOpen}
           onOpenChange={(open) => {
             setIsCreateDialogOpen(open)
-            if (!open) ledgerForm.reset()
+            if (!open) {
+              setEditingEntryId(null)
+              ledgerForm.reset(getDefaultLedgerValues())
+            }
           }}
         >
           <DialogTrigger asChild>
-            <Button type="button">إضافة حركة</Button>
+            <Button type="button" onClick={openCreateEntryDialog}>
+              إضافة حركة
+            </Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>إضافة حركة</DialogTitle>
+              <DialogTitle>{editingEntryId ? 'تعديل حركة' : 'إضافة حركة'}</DialogTitle>
             </DialogHeader>
             <Form {...ledgerForm}>
               <form
-                onSubmit={ledgerForm.handleSubmit(handleCreateEntry)}
+                onSubmit={ledgerForm.handleSubmit(handleSaveEntry)}
                 className="grid gap-4 md:grid-cols-2"
               >
                 <FormField
@@ -354,7 +437,7 @@ export function LedgerPage(): React.JSX.Element {
                   )}
                 />
                 <DialogFooter className="md:col-span-2">
-                  <Button type="submit">إضافة</Button>
+                  <Button type="submit">{editingEntryId ? 'حفظ التعديل' : 'إضافة'}</Button>
                   <DialogClose asChild>
                     <Button type="button" variant="outline">
                       إلغاء

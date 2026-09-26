@@ -24,10 +24,18 @@ import { listVehicles, listOpenShifts, getDriverOpenShift, listShifts } from './
 import { createTrip, updateTrip, deleteTrip } from './use-cases/createTrip'
 import { listTripsByShift, listTripLocations } from './use-cases/listTripData'
 import { listAllTrips } from './use-cases/listAllTripsData'
-import { createLedgerEntry } from './use-cases/createLedgerEntry'
+import {
+  createLedgerEntry,
+  updateLedgerEntry,
+  deleteLedgerEntry
+} from './use-cases/createLedgerEntry'
 import { listLedgerEntries } from './use-cases/listLedgerData'
 import { getContractorAccount, getDriverHistory } from './use-cases/getAccounts'
-import { createClientPayment } from './use-cases/createClientPayment'
+import {
+  createClientPayment,
+  updateClientPayment,
+  deleteClientPayment
+} from './use-cases/createClientPayment'
 import { getClientAccount } from './use-cases/getAccounts'
 import { deleteTripPhoto, getTripPhoto, saveTripPhoto } from './use-cases/tripPhoto'
 import { deleteShiftPhoto, getShiftPhoto, saveShiftPhoto } from './use-cases/shiftPhoto'
@@ -116,10 +124,14 @@ app.whenReady().then(() => {
   ipcMain.handle('crusher:list', () => listCrushers())
   ipcMain.handle('shift:getForDriver', (_event, input) => getDriverOpenShift(input.driverId))
   ipcMain.handle('ledger:create', (_event, input) => createLedgerEntry(input))
+  ipcMain.handle('ledger:update', (_event, input) => updateLedgerEntry(input))
+  ipcMain.handle('ledger:delete', (_event, input) => deleteLedgerEntry(input))
   ipcMain.handle('ledger:list', () => listLedgerEntries())
   ipcMain.handle('account:contractor', (_event, input) => getContractorAccount(input))
   ipcMain.handle('account:driver', (_event, input) => getDriverHistory(input))
   ipcMain.handle('client:payment:create', (_event, input) => createClientPayment(input))
+  ipcMain.handle('client:payment:update', (_event, input) => updateClientPayment(input))
+  ipcMain.handle('client:payment:delete', (_event, input) => deleteClientPayment(input))
   ipcMain.handle('account:client', (_event, input) => getClientAccount(input))
   ipcMain.handle('shift:listAll', () => listShifts())
   ipcMain.handle('trip:update', (_event, input) => updateTrip(input))

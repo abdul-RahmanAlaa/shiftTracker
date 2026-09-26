@@ -68,6 +68,19 @@ export interface ClientPaymentRow {
   notes: string | null
 }
 
+export function getClientPaymentById(id: number): ClientPaymentRow | undefined {
+  const db = getDb()
+  return db
+    .prepare(
+      `
+      SELECT id, entry_date as entryDate, client_id as clientId, amount, notes
+      FROM ClientPayment
+      WHERE id = ?
+    `
+    )
+    .get(id) as ClientPaymentRow | undefined
+}
+
 export function insertClientPayment(input: {
   entryDate: string
   clientId: number
@@ -80,6 +93,31 @@ export function insertClientPayment(input: {
     VALUES (@entryDate, @clientId, @amount, @notes)
   `)
   return stmt.run(input).lastInsertRowid as number
+}
+
+export function updateClientPayment(input: {
+  id: number
+  entryDate: string
+  clientId: number
+  amount: number
+  notes: string | null
+}): void {
+  const db = getDb()
+  db.prepare(
+    `
+    UPDATE ClientPayment
+    SET entry_date = @entryDate,
+        client_id = @clientId,
+        amount = @amount,
+        notes = @notes
+    WHERE id = @id
+  `
+  ).run(input)
+}
+
+export function deleteClientPayment(id: number): void {
+  const db = getDb()
+  db.prepare('DELETE FROM ClientPayment WHERE id = ?').run(id)
 }
 
 export function listClientPayments(clientId: number): ClientPaymentRow[] {

@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ColumnDef } from '@tanstack/react-table'
+import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/DataTable'
 
 export type LedgerRow = Extract<
@@ -16,23 +17,107 @@ export type ClientAccount = Extract<
   { ok: true }
 >['data']
 
-const ledgerColumns: ColumnDef<LedgerRow, unknown>[] = [
-  { accessorKey: 'id', header: 'id' },
-  { accessorKey: 'entryDate', header: 'التاريخ' },
-  { accessorKey: 'movementType', header: 'نوع الحركة' },
-  { accessorKey: 'amount', header: 'المبلغ' },
-  { id: 'shiftId', accessorFn: (entry) => entry.shiftId ?? '-', header: 'الوردية' },
-  { id: 'notes', accessorFn: (entry) => entry.notes ?? '-', header: 'ملاحظات' }
-]
+export function getLedgerColumns({
+  onEditEntry,
+  onDeleteEntry,
+  getIsEntryLocked
+}: {
+  onEditEntry?: (entry: LedgerRow) => void
+  onDeleteEntry?: (entry: LedgerRow) => void
+  getIsEntryLocked?: (entry: LedgerRow) => boolean
+} = {}): ColumnDef<LedgerRow, unknown>[] {
+  const columns: ColumnDef<LedgerRow, unknown>[] = [
+    { accessorKey: 'id', header: 'id' },
+    { accessorKey: 'entryDate', header: 'التاريخ' },
+    { accessorKey: 'movementType', header: 'نوع الحركة' },
+    { accessorKey: 'amount', header: 'المبلغ' },
+    { id: 'shiftId', accessorFn: (entry) => entry.shiftId ?? '-', header: 'الوردية' },
+    { id: 'notes', accessorFn: (entry) => entry.notes ?? '-', header: 'ملاحظات' }
+  ]
+
+  if (onEditEntry || onDeleteEntry) {
+    columns.push({
+      id: 'actions',
+      header: 'الإجراءات',
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) => {
+        const entry = row.original
+        const locked = getIsEntryLocked ? getIsEntryLocked(entry) : false
+
+        return (
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={locked}
+              title={locked ? 'مرتبطة بوردية مقفولة' : 'تعديل'}
+              onClick={() => onEditEntry?.(entry)}
+            >
+              تعديل
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              disabled={locked}
+              title={locked ? 'مرتبطة بوردية مقفولة' : 'مسح'}
+              onClick={() => onDeleteEntry?.(entry)}
+            >
+              مسح
+            </Button>
+          </div>
+        )
+      }
+    })
+  }
+
+  return columns
+}
 
 export type ClientPaymentRow = ClientAccount['payments'][number]
 
-export const clientPaymentColumns: ColumnDef<ClientPaymentRow, unknown>[] = [
-  { accessorKey: 'id', header: 'id' },
-  { accessorKey: 'entryDate', header: 'التاريخ' },
-  { accessorKey: 'amount', header: 'المبلغ' },
-  { id: 'notes', accessorFn: (payment) => payment.notes ?? '-', header: 'ملاحظات' }
-]
+export function getClientPaymentColumns({
+  onEdit,
+  onDelete
+}: {
+  onEdit?: (payment: ClientPaymentRow) => void
+  onDelete?: (payment: ClientPaymentRow) => void
+} = {}): ColumnDef<ClientPaymentRow, unknown>[] {
+  const columns: ColumnDef<ClientPaymentRow, unknown>[] = [
+    { accessorKey: 'id', header: 'id' },
+    { accessorKey: 'entryDate', header: 'التاريخ' },
+    { accessorKey: 'amount', header: 'المبلغ' },
+    { id: 'notes', accessorFn: (payment) => payment.notes ?? '-', header: 'ملاحظات' }
+  ]
+
+  if (onEdit || onDelete) {
+    columns.push({
+      id: 'actions',
+      header: 'الإجراءات',
+      enableSorting: false,
+      enableColumnFilter: false,
+      cell: ({ row }) => (
+        <div className="flex gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => onEdit?.(row.original)}>
+            تعديل
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => onDelete?.(row.original)}
+          >
+            مسح
+          </Button>
+        </div>
+      )
+    })
+  }
+
+  return columns
+}
 
 export function balanceClassName(balance: number): string {
   if (balance > 0) return 'text-lg font-semibold text-green-600'
@@ -59,10 +144,20 @@ export function AccountSummary({
   )
 }
 
-export function LedgerEntriesTable({ entries }: { entries: LedgerRow[] }): React.JSX.Element {
+export function LedgerEntriesTable({
+  entries,
+  onEditEntry,
+  onDeleteEntry,
+  getIsEntryLocked
+}: {
+  entries: LedgerRow[]
+  onEditEntry?: (entry: LedgerRow) => void
+  onDeleteEntry?: (entry: LedgerRow) => void
+  getIsEntryLocked?: (entry: LedgerRow) => boolean
+}): React.JSX.Element {
   return (
     <DataTable
-      columns={ledgerColumns}
+      columns={getLedgerColumns({ onEditEntry, onDeleteEntry, getIsEntryLocked })}
       data={entries}
       getRowId={(entry) => String(entry.id)}
       enableRowSelection

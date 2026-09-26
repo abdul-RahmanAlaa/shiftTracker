@@ -85,6 +85,17 @@ const api = {
     contractorId?: number
     notes?: string
   }) => ipcRenderer.invoke('ledger:create', input),
+  updateLedgerEntry: (input: {
+    id: number
+    entryDate: string
+    driverId?: number
+    movementType: 'عهدة' | 'دفعة' | 'اخرى'
+    amount: number
+    shiftId?: string
+    contractorId?: number
+    notes?: string
+  }) => ipcRenderer.invoke('ledger:update', input),
+  deleteLedgerEntry: (input: { id: number }) => ipcRenderer.invoke('ledger:delete', input),
   listLedgerEntries: () => ipcRenderer.invoke('ledger:list'),
   getContractorAccount: (input: { contractorId: number }) =>
     ipcRenderer.invoke('account:contractor', input),
@@ -96,6 +107,14 @@ const api = {
     amount: number
     notes?: string
   }) => ipcRenderer.invoke('client:payment:create', input),
+  updateClientPayment: (input: {
+    id: number
+    entryDate: string
+    clientId: number
+    amount: number
+    notes?: string
+  }) => ipcRenderer.invoke('client:payment:update', input),
+  deleteClientPayment: (input: { id: number }) => ipcRenderer.invoke('client:payment:delete', input),
   listShifts: () => ipcRenderer.invoke('shift:listAll'),
   updateTrip: (input: {
     id: string

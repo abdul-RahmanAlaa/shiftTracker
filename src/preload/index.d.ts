@@ -329,6 +329,19 @@ interface Api {
     contractorId?: number
     notes?: string
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  updateLedgerEntry: (input: {
+    id: number
+    entryDate: string
+    driverId?: number
+    movementType: 'عهدة' | 'دفعة' | 'اخرى'
+    amount: number
+    shiftId?: string
+    contractorId?: number
+    notes?: string
+  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  deleteLedgerEntry: (input: {
+    id: number
+  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
   listLedgerEntries: () => Promise<UseCaseResult<LedgerRow[]> | FailedUseCaseResult>
   getContractorAccount: (input: {
     contractorId: number
@@ -381,6 +394,16 @@ interface Api {
     clientId: number
     amount: number
     notes?: string
+  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  updateClientPayment: (input: {
+    id: number
+    entryDate: string
+    clientId: number
+    amount: number
+    notes?: string
+  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  deleteClientPayment: (input: {
+    id: number
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
 }
 
