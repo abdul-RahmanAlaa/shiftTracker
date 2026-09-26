@@ -172,7 +172,10 @@ interface Api {
   >
   createContractor: (input: {
     name: string
-  }) => Promise<UseCaseResult<{ id: number; name: string }> | FailedUseCaseResult>
+    phone?: string
+  }) => Promise<
+    UseCaseResult<{ id: number; name: string; phone: string | null }> | FailedUseCaseResult
+  >
   createVehicle: (input: {
     vehicleNo: number
     trailerNo: number
@@ -202,7 +205,7 @@ interface Api {
     | FailedUseCaseResult
   >
   listContractors: () => Promise<
-    UseCaseResult<{ id: number; name: string }[]> | FailedUseCaseResult
+    UseCaseResult<{ id: number; name: string; phone: string | null }[]> | FailedUseCaseResult
   >
   listVehicles: () => Promise<
     | UseCaseResult<
@@ -252,7 +255,10 @@ interface Api {
   updateContractor: (input: {
     id: number
     name: string
-  }) => Promise<UseCaseResult<{ id: number; name: string }> | FailedUseCaseResult>
+    phone?: string
+  }) => Promise<
+    UseCaseResult<{ id: number; name: string; phone: string | null }> | FailedUseCaseResult
+  >
   deleteContractor: (input: {
     id: number
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>

@@ -9,7 +9,8 @@ const api = {
     ipcRenderer.invoke('client:create', input),
   createCrusher: (input: { name: string; initialPrice?: number }) =>
     ipcRenderer.invoke('crusher:create', input),
-  createContractor: (input: { name: string }) => ipcRenderer.invoke('contractor:create', input),
+  createContractor: (input: { name: string; phone?: string }) =>
+    ipcRenderer.invoke('contractor:create', input),
   createVehicle: (input: {
     vehicleNo: number
     trailerNo: number
@@ -33,7 +34,7 @@ const api = {
   updateCrusher: (input: { id: number; name: string; initialPrice?: number }) =>
     ipcRenderer.invoke('crusher:update', input),
   deleteCrusher: (input: { id: number }) => ipcRenderer.invoke('crusher:delete', input),
-  updateContractor: (input: { id: number; name: string }) =>
+  updateContractor: (input: { id: number; name: string; phone?: string }) =>
     ipcRenderer.invoke('contractor:update', input),
   deleteContractor: (input: { id: number }) => ipcRenderer.invoke('contractor:delete', input),
   updateVehicle: (input: {

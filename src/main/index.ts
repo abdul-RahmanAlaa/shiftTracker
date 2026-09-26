@@ -8,7 +8,7 @@ import {
   listContractors,
   updateContractor,
   deleteContractor
-} from './use-cases/simpleLookup'
+} from './use-cases/createContractor'
 import { createDriver, listDrivers, updateDriver, deleteDriver } from './use-cases/createDriver'
 import { createClient, listClients, updateClient, deleteClient } from './use-cases/createClient'
 import {

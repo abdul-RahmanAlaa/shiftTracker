@@ -5,7 +5,8 @@ import { join } from 'path'
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS TransportContractor (
   id    INTEGER PRIMARY KEY AUTOINCREMENT,
-  name  TEXT NOT NULL UNIQUE
+  name  TEXT NOT NULL UNIQUE,
+  phone TEXT
 );
 
 CREATE TABLE IF NOT EXISTS Vehicle (
@@ -137,6 +138,10 @@ const MIGRATION_V3_ADD_RECEIPT_PHOTO = `
 ALTER TABLE Trip ADD COLUMN receipt_photo_path TEXT;
 `
 
+const MIGRATION_V4_ADD_CONTRACTOR_PHONE = `
+ALTER TABLE TransportContractor ADD COLUMN phone TEXT;
+`
+
 let db: Database.Database
 
 export function initDatabase(): Database.Database {
@@ -150,19 +155,27 @@ export function initDatabase(): Database.Database {
 
   if (currentVersion === 0) {
     db.exec(SCHEMA)
-    db.pragma('user_version = 3')
-    console.log('[db] Schema created (fresh install). user_version = 3')
+    db.pragma('user_version = 4')
+    console.log('[db] Schema created (fresh install). user_version = 4')
   } else if (currentVersion === 1) {
     db.exec(MIGRATION_V2_ADD_OPTIONAL_FIELDS)
     db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
-    db.pragma('user_version = 3')
+    db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
+    db.pragma('user_version = 4')
     console.log(
-      '[db] Migrations v1 -> v2 -> v3 applied (optional fields, receipt_photo_path). user_version = 3'
+      '[db] Migrations v1 -> v2 -> v3 -> v4 applied (optional fields, receipt_photo_path, contractor phone). user_version = 4'
     )
   } else if (currentVersion === 2) {
     db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
-    db.pragma('user_version = 3')
-    console.log('[db] Migration v2 -> v3 applied (receipt_photo_path). user_version = 3')
+    db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
+    db.pragma('user_version = 4')
+    console.log(
+      '[db] Migrations v2 -> v3 -> v4 applied (receipt_photo_path, contractor phone). user_version = 4'
+    )
+  } else if (currentVersion === 3) {
+    db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
+    db.pragma('user_version = 4')
+    console.log('[db] Migration v3 -> v4 applied (contractor phone). user_version = 4')
   } else {
     console.log(`[db] Database up to date. user_version = ${currentVersion}`)
   }

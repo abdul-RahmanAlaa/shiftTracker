@@ -44,7 +44,7 @@ export function ClientsSettings(): React.JSX.Element {
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const clientForm = useForm<ClientFormInput>({
-    resolver: zodResolver(clientSchema) as Resolver<ClientFormInput>,
+    resolver: zodResolver(clientSchema, undefined, { raw: true }) as Resolver<ClientFormInput>,
     defaultValues: { name: '', initialPrice: '' }
   })
 
@@ -63,7 +63,22 @@ export function ClientsSettings(): React.JSX.Element {
   }, [])
 
   async function handleSaveClient(values: ClientFormInput): Promise<void> {
-    const parsedValues: ClientFormValues = clientSchema.parse(values)
+    let parsedValues: ClientFormValues
+    try {
+      parsedValues = clientSchema.parse(values)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        error.issues.forEach((issue) => {
+          const field = issue.path[0]
+          if (typeof field === 'string') {
+            clientForm.setError(field as keyof ClientFormInput, { message: issue.message })
+          }
+        })
+        return
+      }
+      throw error
+    }
+
     const result = editingClientId
       ? await window.api.updateClient({ id: editingClientId, ...parsedValues })
       : await window.api.createClient(parsedValues)
@@ -171,7 +186,11 @@ export function ClientsSettings(): React.JSX.Element {
               <DialogTitle>{editingClientId ? 'تعديل عميل' : 'إضافة عميل جديد'}</DialogTitle>
             </DialogHeader>
             <Form {...clientForm}>
-              <form onSubmit={clientForm.handleSubmit(handleSaveClient)} className="grid gap-4">
+              <form
+                noValidate
+                onSubmit={clientForm.handleSubmit(handleSaveClient)}
+                className="grid gap-4"
+              >
                 <FormField
                   control={clientForm.control}
                   name="name"

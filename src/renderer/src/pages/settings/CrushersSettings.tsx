@@ -44,7 +44,7 @@ export function CrushersSettings(): React.JSX.Element {
   const [editingCrusherId, setEditingCrusherId] = useState<number | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const crusherForm = useForm<CrusherFormInput>({
-    resolver: zodResolver(crusherSchema) as Resolver<CrusherFormInput>,
+    resolver: zodResolver(crusherSchema, undefined, { raw: true }) as Resolver<CrusherFormInput>,
     defaultValues: { name: '', initialPrice: '' }
   })
 
@@ -63,7 +63,22 @@ export function CrushersSettings(): React.JSX.Element {
   }, [])
 
   async function handleSaveCrusher(values: CrusherFormInput): Promise<void> {
-    const parsedValues: CrusherFormValues = crusherSchema.parse(values)
+    let parsedValues: CrusherFormValues
+    try {
+      parsedValues = crusherSchema.parse(values)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        error.issues.forEach((issue) => {
+          const field = issue.path[0]
+          if (typeof field === 'string') {
+            crusherForm.setError(field as keyof CrusherFormInput, { message: issue.message })
+          }
+        })
+        return
+      }
+      throw error
+    }
+
     const result = editingCrusherId
       ? await window.api.updateCrusher({ id: editingCrusherId, ...parsedValues })
       : await window.api.createCrusher(parsedValues)
@@ -171,7 +186,11 @@ export function CrushersSettings(): React.JSX.Element {
               <DialogTitle>{editingCrusherId ? 'تعديل كسارة' : 'إضافة كسارة جديدة'}</DialogTitle>
             </DialogHeader>
             <Form {...crusherForm}>
-              <form onSubmit={crusherForm.handleSubmit(handleSaveCrusher)} className="grid gap-4">
+              <form
+                noValidate
+                onSubmit={crusherForm.handleSubmit(handleSaveCrusher)}
+                className="grid gap-4"
+              >
                 <FormField
                   control={crusherForm.control}
                   name="name"

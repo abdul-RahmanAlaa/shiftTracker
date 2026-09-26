@@ -26,11 +26,12 @@ import {
 import { Input } from '@/components/ui/input'
 
 const contractorSchema = z.object({
-  name: z.string().min(1, 'اسم المقاول مطلوب')
+  name: z.string().min(1, 'اسم المقاول مطلوب'),
+  phone: z.string().optional()
 })
 
 type ContractorFormValues = z.infer<typeof contractorSchema>
-type Contractor = { id: number; name: string }
+type Contractor = { id: number; name: string; phone: string | null }
 
 export function ContractorsSettings(): React.JSX.Element {
   const [contractors, setContractors] = useState<Contractor[]>([])
@@ -39,7 +40,7 @@ export function ContractorsSettings(): React.JSX.Element {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const contractorForm = useForm<ContractorFormValues>({
     resolver: zodResolver(contractorSchema),
-    defaultValues: { name: '' }
+    defaultValues: { name: '', phone: '' }
   })
 
   async function loadContractors(): Promise<void> {
@@ -62,12 +63,12 @@ export function ContractorsSettings(): React.JSX.Element {
       : await window.api.createContractor(values)
     if (result.ok) {
       setIsDialogOpen(false)
-      contractorForm.reset()
+      contractorForm.reset({ name: '', phone: '' })
       setEditingContractorId(null)
       await loadContractors()
     } else {
       result.errors.forEach((error) => {
-        if (error.field === 'name') {
+        if (error.field === 'name' || error.field === 'phone') {
           contractorForm.setError(error.field, { message: error.message })
         }
       })
@@ -76,13 +77,13 @@ export function ContractorsSettings(): React.JSX.Element {
 
   function startEditingContractor(contractor: Contractor): void {
     setEditingContractorId(contractor.id)
-    contractorForm.reset({ name: contractor.name })
+    contractorForm.reset({ name: contractor.name, phone: contractor.phone ?? '' })
     setIsDialogOpen(true)
   }
 
   function cancelEditingContractor(): void {
     setEditingContractorId(null)
-    contractorForm.reset()
+    contractorForm.reset({ name: '', phone: '' })
     setIsDialogOpen(false)
   }
 
@@ -99,12 +100,13 @@ export function ContractorsSettings(): React.JSX.Element {
     setIsDialogOpen(open)
     if (!open) {
       setEditingContractorId(null)
-      contractorForm.reset()
+      contractorForm.reset({ name: '', phone: '' })
     }
   }
 
   const columns: ColumnDef<Contractor, unknown>[] = [
     { accessorKey: 'name', header: 'الاسم' },
+    { accessorKey: 'phone', header: 'رقم التليفون', cell: ({ getValue }) => getValue() ?? '-' },
     {
       id: 'actions',
       header: 'إجراءات',
@@ -145,7 +147,7 @@ export function ContractorsSettings(): React.JSX.Element {
               type="button"
               onClick={() => {
                 setEditingContractorId(null)
-                contractorForm.reset()
+                contractorForm.reset({ name: '', phone: '' })
               }}
             >
               إضافة مقاول
@@ -168,6 +170,19 @@ export function ContractorsSettings(): React.JSX.Element {
                       <FormLabel>اسم المقاول</FormLabel>
                       <FormControl>
                         <Input placeholder="اسم المقاول" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={contractorForm.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>رقم التليفون</FormLabel>
+                      <FormControl>
+                        <Input type="text" placeholder="رقم التليفون" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

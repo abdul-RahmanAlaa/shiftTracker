@@ -219,6 +219,7 @@ export function VehiclesSettings(): React.JSX.Element {
             </DialogHeader>
             <Form {...vehicleForm}>
               <form
+                noValidate
                 onSubmit={vehicleForm.handleSubmit(handleSaveVehicle)}
                 className="grid gap-4 md:grid-cols-2"
               >
