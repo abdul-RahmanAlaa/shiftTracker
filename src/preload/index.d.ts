@@ -44,6 +44,32 @@ interface TripRow {
   receiptPhotoPath: string | null
 }
 
+interface TripWithContextRow {
+  id: string
+  shiftId: string
+  driverName: string
+  vehicleNo: number
+  tripDate: string
+  location: string | null
+  crusherName: string
+  crusherCubic: number
+  clientName: string
+  clientCubicReported: number
+  discountQty: number
+  discountReason: string | null
+  effectiveClientCubic: number
+  stonePrice: number
+  transportPrice: number
+  clientPrice: number
+  crusherReceiptStatus: string
+  crusherReceiptNo: number | null
+  recipientNameStatus: string
+  recipientName: string | null
+  clientReceiptNo: string | null
+  receiptPhotoPath: string | null
+  notes: string | null
+}
+
 interface ShiftFullRow {
   id: string
   vehicleNo: number
@@ -267,6 +293,7 @@ interface Api {
     shiftId: string
   }) => Promise<UseCaseResult<TripRow[]> | FailedUseCaseResult>
   listTripLocations: () => Promise<UseCaseResult<string[]> | FailedUseCaseResult>
+  listAllTrips: () => Promise<UseCaseResult<TripWithContextRow[]> | FailedUseCaseResult>
   getDriverOpenShift: (input: {
     driverId: number
   }) => Promise<UseCaseResult<ShiftFullRow | null> | FailedUseCaseResult>

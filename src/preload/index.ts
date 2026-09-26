@@ -66,6 +66,7 @@ const api = {
   }) => ipcRenderer.invoke('trip:create', input),
   listTripsByShift: (input: { shiftId: string }) => ipcRenderer.invoke('trip:listByShift', input),
   listTripLocations: () => ipcRenderer.invoke('trip:listLocations'),
+  listAllTrips: () => ipcRenderer.invoke('trip:listAll'),
   listClients: () => ipcRenderer.invoke('client:list'),
   listCrushers: () => ipcRenderer.invoke('crusher:list'),
   getDriverOpenShift: (input: { driverId: number }) =>

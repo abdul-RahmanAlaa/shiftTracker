@@ -23,6 +23,7 @@ import { closeShift } from './use-cases/closeShift'
 import { listVehicles, listOpenShifts, getDriverOpenShift, listShifts } from './use-cases/listData'
 import { createTrip, updateTrip, deleteTrip } from './use-cases/createTrip'
 import { listTripsByShift, listTripLocations } from './use-cases/listTripData'
+import { listAllTrips } from './use-cases/listAllTripsData'
 import { createLedgerEntry } from './use-cases/createLedgerEntry'
 import { listLedgerEntries } from './use-cases/listLedgerData'
 import { getContractorAccount, getDriverHistory } from './use-cases/getAccounts'
@@ -106,6 +107,7 @@ app.whenReady().then(() => {
   ipcMain.handle('trip:create', (_event, input) => createTrip(input))
   ipcMain.handle('trip:listByShift', (_event, input) => listTripsByShift(input.shiftId))
   ipcMain.handle('trip:listLocations', () => listTripLocations())
+  ipcMain.handle('trip:listAll', () => listAllTrips())
   ipcMain.handle('client:list', () => listClients())
   ipcMain.handle('crusher:list', () => listCrushers())
   ipcMain.handle('shift:getForDriver', (_event, input) => getDriverOpenShift(input.driverId))

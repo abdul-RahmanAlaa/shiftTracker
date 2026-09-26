@@ -1,6 +1,15 @@
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
-import { BookOpen, Calculator, ClipboardList, Settings, Truck, UploadCloud } from 'lucide-react'
+import {
+  BookOpen,
+  Calculator,
+  ClipboardList,
+  List,
+  Settings,
+  Truck,
+  UploadCloud
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FloatingWindowsProvider } from '@/components/FloatingWindowsProvider'
 import { cn } from '@/lib/utils'
 import { AddTripPage } from '@/pages/AddTripPage'
 import { AccountsPage } from '@/pages/AccountsPage'
@@ -8,10 +17,12 @@ import { LedgerPage } from '@/pages/LedgerPage'
 import { ImportPage } from '@/pages/ImportPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ShiftsPage } from '@/pages/ShiftsPage'
+import { AllTripsPage } from '@/pages/AllTripsPage'
 
 const navigationItems = [
   { to: '/', label: 'إضافة نقلة', icon: Truck },
   { to: '/shifts', label: 'الورديات', icon: ClipboardList },
+  { to: '/all-trips', label: 'كل النقلات', icon: List },
   { to: '/ledger', label: 'سجل العهد والدفعات', icon: BookOpen },
   { to: '/accounts', label: 'الحسابات', icon: Calculator },
   { to: '/settings', label: 'بيانات أساسية', icon: Settings },
@@ -59,17 +70,20 @@ function AppLayout(): React.JSX.Element {
 function App(): React.JSX.Element {
   return (
     <HashRouter>
-      <Routes>
-        <Route element={<AppLayout />}>
-          <Route index element={<AddTripPage />} />
-          <Route path="shifts" element={<ShiftsPage />} />
-          <Route path="ledger" element={<LedgerPage />} />
-          <Route path="accounts" element={<AccountsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="import" element={<ImportPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
+      <FloatingWindowsProvider>
+        <Routes>
+          <Route element={<AppLayout />}>
+            <Route index element={<AddTripPage />} />
+            <Route path="shifts" element={<ShiftsPage />} />
+            <Route path="all-trips" element={<AllTripsPage />} />
+            <Route path="ledger" element={<LedgerPage />} />
+            <Route path="accounts" element={<AccountsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
+            <Route path="import" element={<ImportPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </FloatingWindowsProvider>
     </HashRouter>
   )
 }

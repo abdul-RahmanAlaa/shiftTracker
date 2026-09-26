@@ -37,6 +37,7 @@ interface DataTableProps<T> {
   getRowId?: (row: T) => string
   enableRowSelection?: boolean
   sumColumnId?: string
+  initialSorting?: SortingState
   emptyMessage?: string
 }
 
@@ -62,9 +63,10 @@ function DataTable<T>({
   getRowId,
   enableRowSelection = false,
   sumColumnId,
+  initialSorting = [],
   emptyMessage = 'لا يوجد بيانات بعد'
 }: DataTableProps<T>): React.JSX.Element {
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [sorting, setSorting] = useState<SortingState>(initialSorting)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [openFilterId, setOpenFilterId] = useState<string | null>(null)

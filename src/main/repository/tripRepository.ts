@@ -66,6 +66,32 @@ export interface TripRow {
   receiptPhotoPath: string | null
 }
 
+export interface TripWithContextRow {
+  id: string
+  shiftId: string
+  driverName: string
+  vehicleNo: number
+  tripDate: string
+  location: string | null
+  crusherName: string
+  crusherCubic: number
+  clientName: string
+  clientCubicReported: number
+  discountQty: number
+  discountReason: string | null
+  effectiveClientCubic: number
+  stonePrice: number
+  transportPrice: number
+  clientPrice: number
+  crusherReceiptStatus: string
+  crusherReceiptNo: number | null
+  recipientNameStatus: string
+  recipientName: string | null
+  clientReceiptNo: string | null
+  receiptPhotoPath: string | null
+  notes: string | null
+}
+
 export function getNextTripId(): string {
   const db = getDb()
   const row = db
@@ -125,6 +151,46 @@ export function listTripLocations(): string[] {
     .prepare(`SELECT DISTINCT location FROM Trip WHERE location IS NOT NULL ORDER BY location`)
     .all() as { location: string }[]
   return rows.map((r) => r.location)
+}
+
+export function listAllTrips(): TripWithContextRow[] {
+  const db = getDb()
+  return db
+    .prepare(
+      `
+      SELECT
+        t.id,
+        t.shift_id as shiftId,
+        d.name as driverName,
+        s.vehicle_no as vehicleNo,
+        t.trip_date as tripDate,
+        t.location,
+        cr.name as crusherName,
+        t.crusher_cubic as crusherCubic,
+        c.name as clientName,
+        t.client_cubic_reported as clientCubicReported,
+        t.discount_qty as discountQty,
+        t.discount_reason as discountReason,
+        (t.client_cubic_reported - t.discount_qty) as effectiveClientCubic,
+        t.stone_price as stonePrice,
+        t.transport_price as transportPrice,
+        t.client_price as clientPrice,
+        t.crusher_receipt_status as crusherReceiptStatus,
+        t.crusher_receipt_no as crusherReceiptNo,
+        t.recipient_name_status as recipientNameStatus,
+        t.recipient_name as recipientName,
+        t.client_receipt_no as clientReceiptNo,
+        t.receipt_photo_path as receiptPhotoPath,
+        t.notes
+      FROM Trip t
+      JOIN Shift s ON s.id = t.shift_id
+      JOIN Driver d ON d.id = s.driver_id
+      JOIN Crusher cr ON cr.id = t.crusher_id
+      JOIN Client c ON c.id = t.client_id
+      ORDER BY t.trip_date ASC, t.id ASC
+    `
+    )
+    .all() as TripWithContextRow[]
 }
 
 export function getTripById(id: string): TripRow | undefined {
