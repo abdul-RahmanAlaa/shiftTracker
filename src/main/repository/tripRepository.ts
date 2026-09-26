@@ -10,7 +10,7 @@ interface InsertTripInput {
   discountReason: string | null
   location: string | null
   crusherId: number
-  stonePrice: number
+  stonePrice: number | null
   crusherReceiptStatus: string
   crusherReceiptNo: number | null
   clientId: number
@@ -53,7 +53,7 @@ export interface TripRow {
   discountReason: string | null
   location: string | null
   crusherId: number
-  stonePrice: number
+  stonePrice: number | null
   crusherReceiptStatus: string
   crusherReceiptNo: number | null
   clientId: number
@@ -80,7 +80,7 @@ export interface TripWithContextRow {
   discountQty: number
   discountReason: string | null
   effectiveClientCubic: number
-  stonePrice: number
+  stonePrice: number | null
   transportPrice: number
   clientPrice: number
   crusherReceiptStatus: string

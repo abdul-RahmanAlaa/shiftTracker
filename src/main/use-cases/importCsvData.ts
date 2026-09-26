@@ -4,7 +4,7 @@ import { getDb } from '../db'
 import { getClientIdByName } from '../repository/clientRepository'
 import { getCrusherIdByName } from '../repository/crusherRepository'
 import { getDriverIdByName } from '../repository/driverRepository'
-import { insertHistoricalShift, getNextShiftId } from '../repository/shiftRepository'
+import { insertImportedShift, getNextShiftId } from '../repository/shiftRepository'
 import { getNextTripId, insertTrip } from '../repository/tripRepository'
 import { vehicleExists } from '../repository/vehicleRepository'
 
@@ -28,7 +28,7 @@ interface ValidatedRow {
   driverId: number
   vehicleNo: number
   shiftStartDate: string
-  shiftEndDate: string
+  shiftEndDate: string | null
   shiftCrusherCubicDefault: number
   shiftClientCubicDefault: number
   tripDate: string
@@ -38,7 +38,7 @@ interface ValidatedRow {
   discountReason: string | null
   location: string | null
   crusherId: number
-  stonePrice: number
+  stonePrice: number | null
   crusherReceiptStatus: string
   crusherReceiptNo: number | null
   clientId: number
@@ -201,7 +201,7 @@ export function importCsvData(input: { csvText: string }): ImportResult {
       'client_cubic_reported',
       errors
     )
-    const stonePrice = parseNumber(raw.stone_price, row, 'stone_price', errors)
+    const stonePrice = parseOptionalNumber(raw.stone_price, row, 'stone_price', errors) ?? null
     const transportPrice = parseNumber(raw.transport_price, row, 'transport_price', errors)
     const clientPrice = parseNumber(raw.client_price, row, 'client_price', errors)
     const discountQty = parseOptionalNumber(raw.discount_qty, row, 'discount_qty', errors) ?? 0
@@ -255,7 +255,10 @@ export function importCsvData(input: { csvText: string }): ImportResult {
     }
 
     const shiftStartDate = validateDate(raw.shift_start_date, row, 'shift_start_date', errors)
-    const shiftEndDate = validateDate(raw.shift_end_date, row, 'shift_end_date', errors)
+    const rawShiftEndDate = text(raw.shift_end_date)
+    const shiftEndDate = rawShiftEndDate
+      ? validateDate(rawShiftEndDate, row, 'shift_end_date', errors)
+      : null
     const tripDate = validateDate(raw.trip_date, row, 'trip_date', errors)
 
     if (
@@ -267,7 +270,6 @@ export function importCsvData(input: { csvText: string }): ImportResult {
       shiftClientCubicDefault !== undefined &&
       crusherCubic !== undefined &&
       clientCubicReported !== undefined &&
-      stonePrice !== undefined &&
       transportPrice !== undefined &&
       clientPrice !== undefined
     ) {
@@ -346,7 +348,7 @@ export function importCsvData(input: { csvText: string }): ImportResult {
       groups.forEach((rows) => {
         const first = rows[0]
         const shiftId = getNextShiftId()
-        insertHistoricalShift({
+        insertImportedShift({
           id: shiftId,
           vehicleNo: first.vehicleNo,
           driverId: first.driverId,

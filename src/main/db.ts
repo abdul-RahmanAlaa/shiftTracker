@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS Trip (
   discount_reason         TEXT,
   location                TEXT,
   crusher_id              INTEGER NOT NULL REFERENCES Crusher(id),
-  stone_price             REAL NOT NULL,
+  stone_price             REAL,
   crusher_receipt_status  TEXT NOT NULL CHECK (crusher_receipt_status IN ('قيمة','مفيش (متأكد)','مش معروف')),
   crusher_receipt_no      INTEGER,
   client_id               INTEGER NOT NULL REFERENCES Client(id),
@@ -142,7 +142,88 @@ const MIGRATION_V4_ADD_CONTRACTOR_PHONE = `
 ALTER TABLE TransportContractor ADD COLUMN phone TEXT;
 `
 
+const MIGRATION_V5_ALLOW_NULL_STONE_PRICE = `
+DROP VIEW IF EXISTS ShiftStats;
+DROP VIEW IF EXISTS TripAccounting;
+
+ALTER TABLE Trip RENAME TO Trip_v4;
+
+CREATE TABLE Trip (
+  id                      TEXT PRIMARY KEY,
+  shift_id                TEXT NOT NULL REFERENCES Shift(id),
+  trip_date               TEXT NOT NULL,
+  crusher_cubic           REAL NOT NULL,
+  client_cubic_reported   REAL NOT NULL,
+  discount_qty            REAL NOT NULL DEFAULT 0,
+  discount_reason         TEXT,
+  location                TEXT,
+  crusher_id              INTEGER NOT NULL REFERENCES Crusher(id),
+  stone_price             REAL,
+  crusher_receipt_status  TEXT NOT NULL CHECK (crusher_receipt_status IN ('قيمة','مفيش (متأكد)','مش معروف')),
+  crusher_receipt_no      INTEGER,
+  client_id               INTEGER NOT NULL REFERENCES Client(id),
+  transport_price         REAL NOT NULL,
+  client_price            REAL NOT NULL,
+  recipient_name_status   TEXT NOT NULL DEFAULT 'مش واضح' CHECK (recipient_name_status IN ('قيمة','مش واضح')),
+  recipient_name          TEXT,
+  client_receipt_no       TEXT,
+  notes                   TEXT,
+  receipt_photo_path      TEXT,
+  CHECK (
+    (crusher_receipt_status = 'قيمة' AND crusher_receipt_no IS NOT NULL)
+    OR (crusher_receipt_status <> 'قيمة' AND crusher_receipt_no IS NULL)
+  ),
+  CHECK (
+    (recipient_name_status = 'قيمة' AND recipient_name IS NOT NULL)
+    OR (recipient_name_status = 'مش واضح' AND recipient_name IS NULL)
+  )
+);
+
+INSERT INTO Trip (
+  id, shift_id, trip_date, crusher_cubic, client_cubic_reported, discount_qty,
+  discount_reason, location, crusher_id, stone_price, crusher_receipt_status,
+  crusher_receipt_no, client_id, transport_price, client_price,
+  recipient_name_status, recipient_name, client_receipt_no, notes, receipt_photo_path
+)
+SELECT
+  id, shift_id, trip_date, crusher_cubic, client_cubic_reported, discount_qty,
+  discount_reason, location, crusher_id, stone_price, crusher_receipt_status,
+  crusher_receipt_no, client_id, transport_price, client_price,
+  recipient_name_status, recipient_name, client_receipt_no, notes, receipt_photo_path
+FROM Trip_v4;
+
+DROP TABLE Trip_v4;
+
+CREATE UNIQUE INDEX idx_trip_crusher_receipt
+ON Trip (crusher_id, crusher_receipt_no)
+WHERE crusher_receipt_no IS NOT NULL;
+
+CREATE VIEW ShiftStats AS
+SELECT
+  s.id AS shift_id,
+  COUNT(t.id) AS actual_trip_count,
+  s.reported_trip_count,
+  (s.reported_trip_count IS NOT NULL
+   AND s.reported_trip_count <> COUNT(t.id)) AS has_count_mismatch
+FROM Shift s
+LEFT JOIN Trip t ON t.shift_id = s.id
+GROUP BY s.id;
+
+CREATE VIEW TripAccounting AS
+SELECT
+  id,
+  crusher_cubic * stone_price AS crusher_amount,
+  crusher_cubic * transport_price AS transport_amount,
+  (client_cubic_reported - discount_qty) AS effective_client_cubic,
+  (client_cubic_reported - discount_qty) * client_price AS client_amount
+FROM Trip;
+`
+
 let db: Database.Database
+
+function migrateToV5(): void {
+  db.transaction(() => db.exec(MIGRATION_V5_ALLOW_NULL_STONE_PRICE))()
+}
 
 export function initDatabase(): Database.Database {
   const dbPath = join(app.getPath('userData'), 'shift-tracker.db')
@@ -155,27 +236,36 @@ export function initDatabase(): Database.Database {
 
   if (currentVersion === 0) {
     db.exec(SCHEMA)
-    db.pragma('user_version = 4')
-    console.log('[db] Schema created (fresh install). user_version = 4')
+    db.pragma('user_version = 5')
+    console.log('[db] Schema created (fresh install). user_version = 5')
   } else if (currentVersion === 1) {
     db.exec(MIGRATION_V2_ADD_OPTIONAL_FIELDS)
     db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
     db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
-    db.pragma('user_version = 4')
+    migrateToV5()
+    db.pragma('user_version = 5')
     console.log(
-      '[db] Migrations v1 -> v2 -> v3 -> v4 applied (optional fields, receipt_photo_path, contractor phone). user_version = 4'
+      '[db] Migrations v1 -> v2 -> v3 -> v4 -> v5 applied (optional fields, receipt_photo_path, contractor phone, nullable stone price). user_version = 5'
     )
   } else if (currentVersion === 2) {
     db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
     db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
-    db.pragma('user_version = 4')
+    migrateToV5()
+    db.pragma('user_version = 5')
     console.log(
-      '[db] Migrations v2 -> v3 -> v4 applied (receipt_photo_path, contractor phone). user_version = 4'
+      '[db] Migrations v2 -> v3 -> v4 -> v5 applied (receipt_photo_path, contractor phone, nullable stone price). user_version = 5'
     )
   } else if (currentVersion === 3) {
     db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
-    db.pragma('user_version = 4')
-    console.log('[db] Migration v3 -> v4 applied (contractor phone). user_version = 4')
+    migrateToV5()
+    db.pragma('user_version = 5')
+    console.log(
+      '[db] Migrations v3 -> v4 -> v5 applied (contractor phone, nullable stone price). user_version = 5'
+    )
+  } else if (currentVersion === 4) {
+    migrateToV5()
+    db.pragma('user_version = 5')
+    console.log('[db] Migration v4 -> v5 applied (nullable stone price). user_version = 5')
   } else {
     console.log(`[db] Database up to date. user_version = ${currentVersion}`)
   }

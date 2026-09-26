@@ -156,7 +156,7 @@ export function ShiftsPage(): React.JSX.Element {
       discountReason: trip.discountReason ?? '',
       location: trip.location ?? '',
       crusherId: trip.crusherId,
-      stonePrice: trip.stonePrice,
+      stonePrice: trip.stonePrice ?? undefined,
       crusherReceiptStatus: trip.crusherReceiptStatus as TripValues['crusherReceiptStatus'],
       crusherReceiptNo: trip.crusherReceiptNo ?? undefined,
       clientId: trip.clientId,
