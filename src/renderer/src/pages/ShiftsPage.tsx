@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
-import { TripReceiptPhoto } from '@/components/TripReceiptPhoto'
+import { ReceiptPhoto } from '@/components/ReceiptPhoto'
 import { DataTable } from '@/components/DataTable'
 import type { CreateShiftValues } from '@/components/CreateShiftForm'
 import { DatePicker } from '@/components/ui/date-picker'
@@ -36,6 +36,7 @@ type ShiftListRow = {
   status: string
   startDate: string
   endDate: string | null
+  closingPhotoPath: string | null
   actualTripCount: number
 }
 
@@ -193,6 +194,14 @@ export function ShiftsPage(): React.JSX.Element {
     )
   }
 
+  function handleClosingPhotoChange(shiftId: string, photoPath: string | null): void {
+    setShifts((previous) =>
+      previous.map((shift) =>
+        shift.id === shiftId ? { ...shift, closingPhotoPath: photoPath } : shift
+      )
+    )
+  }
+
   async function handleCreateShift(values: CreateShiftValues): Promise<boolean> {
     if (!selectedDriverIdForShift) return false
     const result = await window.api.createShift({
@@ -227,6 +236,8 @@ export function ShiftsPage(): React.JSX.Element {
 
   const selectedShift = shifts.find((shift) => shift.id === selectedShiftId)
   const isSelectedShiftClosed = selectedShift?.status === 'منتهية'
+  const shiftToClose = shifts.find((shift) => shift.id === closeShiftId)
+  const hasClosingPhoto = Boolean(shiftToClose?.closingPhotoPath?.trim())
 
   const shiftColumns: ColumnDef<ShiftListRow, unknown>[] = [
     {
@@ -279,10 +290,16 @@ export function ShiftsPage(): React.JSX.Element {
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
-        <TripReceiptPhoto
-          tripId={row.original.id}
+        <ReceiptPhoto
+          entityKind="trip"
+          entityId={row.original.id}
           photoPath={row.original.receiptPhotoPath}
           onPhotoChange={(photoPath) => handlePhotoChange(row.original.id, photoPath)}
+          savePhoto={(entityId, imageBase64) =>
+            window.api.saveTripPhoto({ tripId: entityId, imageBase64 })
+          }
+          deletePhoto={(entityId) => window.api.deleteTripPhoto({ tripId: entityId })}
+          getPhoto={(photoPath) => window.api.getTripPhoto({ photoPath })}
         />
       )
     },
@@ -428,7 +445,36 @@ export function ShiftsPage(): React.JSX.Element {
               </SelectContent>
             </Select>
             <DatePicker value={endDate} onChange={setEndDate} placeholder="اختر تاريخ القفل" />
-            <Button type="submit">قفل الوردية</Button>
+            {shiftToClose && (
+              <div className="flex flex-col gap-2 md:col-span-2">
+                <p className="text-sm font-medium">ورقة تقفيل الوردية</p>
+                <ReceiptPhoto
+                  entityKind="shift"
+                  entityId={shiftToClose.id}
+                  photoPath={shiftToClose.closingPhotoPath}
+                  onPhotoChange={(photoPath) =>
+                    handleClosingPhotoChange(shiftToClose.id, photoPath)
+                  }
+                  savePhoto={(entityId, imageBase64) =>
+                    window.api.saveShiftPhoto({ shiftId: entityId, imageBase64 })
+                  }
+                  deletePhoto={(entityId) => window.api.deleteShiftPhoto({ shiftId: entityId })}
+                  getPhoto={(photoPath) => window.api.getShiftPhoto({ photoPath })}
+                />
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+              <Button
+                type="submit"
+                disabled={!closeShiftId || !endDate || !hasClosingPhoto}
+                title={!hasClosingPhoto ? 'لازم ترفع صورة ورقة التقفيل الأول' : undefined}
+              >
+                قفل الوردية
+              </Button>
+              {!hasClosingPhoto && closeShiftId && (
+                <p className="text-sm text-muted-foreground">لازم ترفع صورة ورقة التقفيل الأول</p>
+              )}
+            </div>
           </form>
         </CardContent>
       </Card>

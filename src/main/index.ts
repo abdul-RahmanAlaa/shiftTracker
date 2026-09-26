@@ -30,6 +30,7 @@ import { getContractorAccount, getDriverHistory } from './use-cases/getAccounts'
 import { createClientPayment } from './use-cases/createClientPayment'
 import { getClientAccount } from './use-cases/getAccounts'
 import { deleteTripPhoto, getTripPhoto, saveTripPhoto } from './use-cases/tripPhoto'
+import { deleteShiftPhoto, getShiftPhoto, saveShiftPhoto } from './use-cases/shiftPhoto'
 import { importCsvData } from './use-cases/importCsvData'
 
 function createWindow(): void {
@@ -90,6 +91,9 @@ app.whenReady().then(() => {
   ipcMain.handle('vehicle:create', (_event, input) => createVehicle(input))
   ipcMain.handle('shift:create', (_event, input) => createShift(input))
   ipcMain.handle('shift:close', (_event, input) => closeShift(input))
+  ipcMain.handle('shift:savePhoto', (_event, input) => saveShiftPhoto(input))
+  ipcMain.handle('shift:deletePhoto', (_event, input) => deleteShiftPhoto(input))
+  ipcMain.handle('shift:getPhoto', (_event, input) => getShiftPhoto(input))
   ipcMain.handle('driver:list', () => listDrivers())
   ipcMain.handle('contractor:list', () => listContractors())
   ipcMain.handle('vehicle:list', () => listVehicles())

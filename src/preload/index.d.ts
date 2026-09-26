@@ -130,6 +130,7 @@ interface ShiftListRow {
   status: string
   startDate: string
   endDate: string | null
+  closingPhotoPath: string | null
   actualTripCount: number
 }
 
@@ -200,6 +201,16 @@ interface Api {
     shiftId: string
     endDate: string
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
+  saveShiftPhoto: (input: {
+    shiftId: string
+    imageBase64: string
+  }) => Promise<UseCaseResult<{ path: string }> | FailedUseCaseResult>
+  deleteShiftPhoto: (input: {
+    shiftId: string
+  }) => Promise<UseCaseResult<{ shiftId: string }> | FailedUseCaseResult>
+  getShiftPhoto: (input: {
+    photoPath: string
+  }) => Promise<UseCaseResult<{ dataUri: string | null }> | FailedUseCaseResult>
   listDrivers: () => Promise<
     | UseCaseResult<{ id: number; name: string; phone1: string | null; phone2: string | null }[]>
     | FailedUseCaseResult

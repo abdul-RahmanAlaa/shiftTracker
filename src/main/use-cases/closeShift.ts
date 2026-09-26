@@ -23,6 +23,12 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
   if (shift.status === 'منتهية') {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة بالفعل' }] }
   }
+  if (!shift.closingPhotoPath?.trim()) {
+    return {
+      ok: false,
+      errors: [{ field: 'closingPhotoPath', message: 'لازم ترفع صورة ورقة تقفيل الوردية الأول' }]
+    }
+  }
 
   const stats = getShiftStats(input.shiftId)
   if (stats?.has_count_mismatch) {

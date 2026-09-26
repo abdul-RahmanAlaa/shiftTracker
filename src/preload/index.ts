@@ -21,6 +21,10 @@ const api = {
   createShift: (input: CreateShiftInput) => ipcRenderer.invoke('shift:create', input),
   closeShift: (input: { shiftId: string; endDate: string }) =>
     ipcRenderer.invoke('shift:close', input),
+  saveShiftPhoto: (input: { shiftId: string; imageBase64: string }) =>
+    ipcRenderer.invoke('shift:savePhoto', input),
+  deleteShiftPhoto: (input: { shiftId: string }) => ipcRenderer.invoke('shift:deletePhoto', input),
+  getShiftPhoto: (input: { photoPath: string }) => ipcRenderer.invoke('shift:getPhoto', input),
   listDrivers: () => ipcRenderer.invoke('driver:list'),
   listContractors: () => ipcRenderer.invoke('contractor:list'),
   listVehicles: () => ipcRenderer.invoke('vehicle:list'),

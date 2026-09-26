@@ -72,12 +72,19 @@ export function insertImportedShift(input: {
 interface ShiftRow {
   id: string
   status: string
+  closingPhotoPath: string | null
 }
 
 export function getShiftById(shiftId: string): ShiftRow | undefined {
   const db = getDb()
-  return db.prepare('SELECT id, status FROM Shift WHERE id = ?').get(shiftId) as
-    ShiftRow | undefined
+  return db
+    .prepare('SELECT id, status, closing_photo_path as closingPhotoPath FROM Shift WHERE id = ?')
+    .get(shiftId) as ShiftRow | undefined
+}
+
+export function updateShiftClosingPhotoPath(shiftId: string, photoPath: string | null): void {
+  const db = getDb()
+  db.prepare('UPDATE Shift SET closing_photo_path = ? WHERE id = ?').run(photoPath, shiftId)
 }
 
 interface ShiftStatsRow {
@@ -141,6 +148,7 @@ export interface ShiftListRow {
   status: string
   startDate: string
   endDate: string | null
+  closingPhotoPath: string | null
   actualTripCount: number
 }
 
@@ -154,6 +162,7 @@ export function listAllShifts(): ShiftListRow[] {
         s.crusher_cubic_default as crusherCubicDefault,
         s.client_cubic_default as clientCubicDefault, s.status,
         s.start_date as startDate, s.end_date as endDate,
+        s.closing_photo_path as closingPhotoPath,
         (SELECT COUNT(*) FROM Trip t WHERE t.shift_id = s.id) as actualTripCount
       FROM Shift s
       JOIN Driver d ON d.id = s.driver_id

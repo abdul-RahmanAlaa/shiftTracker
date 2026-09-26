@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS Shift (
   client_cubic_default    REAL NOT NULL,
   start_date              TEXT NOT NULL,
   end_date                TEXT,
+  closing_photo_path      TEXT,
   status                  TEXT NOT NULL CHECK (status IN ('مفتوحة','منتهية')),
   reported_destination    TEXT,
   reported_trip_count     INTEGER,
@@ -219,7 +220,15 @@ SELECT
 FROM Trip;
 `
 
+const MIGRATION_V6_ADD_SHIFT_CLOSING_PHOTO = `
+ALTER TABLE Shift ADD COLUMN closing_photo_path TEXT;
+`
+
 let db: Database.Database
+
+function migrateToV6(): void {
+  db.transaction(() => db.exec(MIGRATION_V6_ADD_SHIFT_CLOSING_PHOTO))()
+}
 
 function migrateToV5(): void {
   db.transaction(() => db.exec(MIGRATION_V5_ALLOW_NULL_STONE_PRICE))()
@@ -236,36 +245,46 @@ export function initDatabase(): Database.Database {
 
   if (currentVersion === 0) {
     db.exec(SCHEMA)
-    db.pragma('user_version = 5')
-    console.log('[db] Schema created (fresh install). user_version = 5')
+    db.pragma('user_version = 6')
+    console.log('[db] Schema created (fresh install). user_version = 6')
   } else if (currentVersion === 1) {
     db.exec(MIGRATION_V2_ADD_OPTIONAL_FIELDS)
     db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
     db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
     migrateToV5()
-    db.pragma('user_version = 5')
+    migrateToV6()
+    db.pragma('user_version = 6')
     console.log(
-      '[db] Migrations v1 -> v2 -> v3 -> v4 -> v5 applied (optional fields, receipt_photo_path, contractor phone, nullable stone price). user_version = 5'
+      '[db] Migrations v1 -> v2 -> v3 -> v4 -> v5 -> v6 applied (optional fields, receipt_photo_path, contractor phone, nullable stone price, shift closing photo). user_version = 6'
     )
   } else if (currentVersion === 2) {
     db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
     db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
     migrateToV5()
-    db.pragma('user_version = 5')
+    migrateToV6()
+    db.pragma('user_version = 6')
     console.log(
-      '[db] Migrations v2 -> v3 -> v4 -> v5 applied (receipt_photo_path, contractor phone, nullable stone price). user_version = 5'
+      '[db] Migrations v2 -> v3 -> v4 -> v5 -> v6 applied (receipt_photo_path, contractor phone, nullable stone price, shift closing photo). user_version = 6'
     )
   } else if (currentVersion === 3) {
     db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
     migrateToV5()
-    db.pragma('user_version = 5')
+    migrateToV6()
+    db.pragma('user_version = 6')
     console.log(
-      '[db] Migrations v3 -> v4 -> v5 applied (contractor phone, nullable stone price). user_version = 5'
+      '[db] Migrations v3 -> v4 -> v5 -> v6 applied (contractor phone, nullable stone price, shift closing photo). user_version = 6'
     )
   } else if (currentVersion === 4) {
     migrateToV5()
-    db.pragma('user_version = 5')
-    console.log('[db] Migration v4 -> v5 applied (nullable stone price). user_version = 5')
+    migrateToV6()
+    db.pragma('user_version = 6')
+    console.log(
+      '[db] Migrations v4 -> v5 -> v6 applied (nullable stone price, shift closing photo). user_version = 6'
+    )
+  } else if (currentVersion === 5) {
+    migrateToV6()
+    db.pragma('user_version = 6')
+    console.log('[db] Migration v5 -> v6 applied (shift closing photo). user_version = 6')
   } else {
     console.log(`[db] Database up to date. user_version = ${currentVersion}`)
   }

@@ -1,4 +1,4 @@
-import { deletePhotoForTrip, readPhotoAsDataUri, savePhotoForTrip } from '../photoStorage'
+import { deletePhoto, readPhotoAsDataUri, savePhoto } from '../photoStorage'
 import { getTripById, updateTripPhotoPath } from '../repository/tripRepository'
 
 type UseCaseResult<T> =
@@ -18,7 +18,7 @@ export function saveTripPhoto(input: {
   if (!trip) {
     return { ok: false, errors: [{ field: 'tripId', message: 'النقلة دي مش موجودة' }] }
   }
-  const path = savePhotoForTrip(input.tripId, input.imageBase64)
+  const path = savePhoto('trip', input.tripId, input.imageBase64)
   updateTripPhotoPath(input.tripId, path)
   return { ok: true, data: { path } }
 }
@@ -27,7 +27,7 @@ export function deleteTripPhoto(input: { tripId: string }): UseCaseResult<{ trip
   if (!input.tripId?.trim()) {
     return { ok: false, errors: [{ field: 'tripId', message: 'النقلة مطلوبة' }] }
   }
-  deletePhotoForTrip(input.tripId)
+  deletePhoto('trip', input.tripId)
   updateTripPhotoPath(input.tripId, null)
   return { ok: true, data: { tripId: input.tripId } }
 }

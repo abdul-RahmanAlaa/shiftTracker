@@ -11,10 +11,18 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 
-interface TripReceiptPhotoProps {
-  tripId: string
+type EntityKind = 'trip' | 'shift'
+type PhotoResult<T> =
+  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
+
+interface ReceiptPhotoProps {
+  entityKind: EntityKind
+  entityId: string
   photoPath: string | null
   onPhotoChange: (newPath: string | null) => void
+  savePhoto: (entityId: string, imageBase64: string) => Promise<PhotoResult<{ path: string }>>
+  deletePhoto: (entityId: string) => Promise<PhotoResult<unknown>>
+  getPhoto: (photoPath: string) => Promise<PhotoResult<{ dataUri: string | null }>>
 }
 
 function createImage(source: string): Promise<HTMLImageElement> {
@@ -97,11 +105,15 @@ async function createCroppedImage(
   return outputCanvas.toDataURL('image/jpeg', 0.85)
 }
 
-export function TripReceiptPhoto({
-  tripId,
+export function ReceiptPhoto({
+  entityKind,
+  entityId,
   photoPath,
-  onPhotoChange
-}: TripReceiptPhotoProps): React.JSX.Element {
+  onPhotoChange,
+  savePhoto,
+  deletePhoto,
+  getPhoto
+}: ReceiptPhotoProps): React.JSX.Element {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cachedPathRef = useRef<string | null>(null)
   const cachedDataUriRef = useRef<string | null>(null)
@@ -116,6 +128,8 @@ export function TripReceiptPhoto({
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+
+  const photoLabel = entityKind === 'trip' ? 'إيصال النقلة' : 'ورقة تقفيل الوردية'
 
   useEffect(() => {
     let cancelled = false
@@ -140,7 +154,7 @@ export function TripReceiptPhoto({
     }
 
     setIsLoading(true)
-    void window.api.getTripPhoto({ photoPath }).then((result) => {
+    void getPhoto(photoPath).then((result) => {
       if (cancelled) return
       const dataUri = result.ok ? result.data.dataUri : null
       cachedPathRef.current = photoPath
@@ -152,7 +166,7 @@ export function TripReceiptPhoto({
     return () => {
       cancelled = true
     }
-  }, [photoPath])
+  }, [getPhoto, photoPath])
 
   function openFilePicker(): void {
     fileInputRef.current?.click()
@@ -194,7 +208,7 @@ export function TripReceiptPhoto({
     try {
       const dataUri = await createCroppedImage(imageToCrop, croppedAreaPixels, rotation)
       const imageBase64 = dataUri.replace(/^data:image\/jpeg;base64,/, '')
-      const result = await window.api.saveTripPhoto({ tripId, imageBase64 })
+      const result = await savePhoto(entityId, imageBase64)
       if (!result.ok) {
         setSaveError(result.errors.map((error) => error.message).join(', '))
         return
@@ -212,8 +226,8 @@ export function TripReceiptPhoto({
   }
 
   async function handleDelete(): Promise<void> {
-    if (!confirm('متأكد إنك عايز تمسح صورة الإيصال؟')) return
-    const result = await window.api.deleteTripPhoto({ tripId })
+    if (!confirm(`متأكد إنك عايز تمسح ${photoLabel}؟`)) return
+    const result = await deletePhoto(entityId)
     if (!result.ok) return
     cachedPathRef.current = null
     cachedDataUriRef.current = null
@@ -232,7 +246,7 @@ export function TripReceiptPhoto({
       />
       {!photoPath ? (
         <Button type="button" variant="outline" size="sm" onClick={openFilePicker}>
-          رفع صورة إيصال
+          رفع صورة {photoLabel}
         </Button>
       ) : (
         <>
@@ -243,13 +257,9 @@ export function TripReceiptPhoto({
               type="button"
               className="overflow-hidden rounded-md border"
               onClick={() => setIsPreviewDialogOpen(true)}
-              aria-label="معاينة صورة الإيصال"
+              aria-label={`معاينة ${photoLabel}`}
             >
-              <img
-                src={thumbnailDataUri}
-                alt="صورة إيصال النقلة"
-                className="h-16 w-16 object-cover"
-              />
+              <img src={thumbnailDataUri} alt={photoLabel} className="h-16 w-16 object-cover" />
             </button>
           ) : (
             <span className="text-sm text-muted-foreground">الصورة غير متاحة</span>
@@ -266,12 +276,12 @@ export function TripReceiptPhoto({
       <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>صورة إيصال النقلة</DialogTitle>
+            <DialogTitle>{photoLabel}</DialogTitle>
           </DialogHeader>
           {thumbnailDataUri && (
             <img
               src={thumbnailDataUri}
-              alt="صورة إيصال النقلة بالحجم الكامل"
+              alt={`${photoLabel} بالحجم الكامل`}
               className="max-h-[75vh] w-full object-contain"
             />
           )}
@@ -281,7 +291,7 @@ export function TripReceiptPhoto({
       <Dialog open={isCropDialogOpen} onOpenChange={(open) => !open && closeCropDialog()}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>تعديل صورة الإيصال</DialogTitle>
+            <DialogTitle>تعديل {photoLabel}</DialogTitle>
           </DialogHeader>
           {imageToCrop && (
             <>
