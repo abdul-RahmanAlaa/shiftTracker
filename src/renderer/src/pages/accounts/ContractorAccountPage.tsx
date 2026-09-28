@@ -76,13 +76,15 @@ export function ContractorAccountPage(): React.JSX.Element {
   })
 
   useEffect(() => {
-    void Promise.all([window.api.listContractors(), window.api.listDrivers(), window.api.listShifts()]).then(
-      ([contractorsResult, driversResult, shiftsResult]) => {
-        if (contractorsResult.ok) setContractors(contractorsResult.data)
-        if (driversResult.ok) setDrivers(driversResult.data)
-        if (shiftsResult.ok) setShifts(shiftsResult.data)
-      }
-    )
+    void Promise.all([
+      window.api.listContractors(),
+      window.api.listDrivers(),
+      window.api.listShifts()
+    ]).then(([contractorsResult, driversResult, shiftsResult]) => {
+      if (contractorsResult.ok) setContractors(contractorsResult.data)
+      if (driversResult.ok) setDrivers(driversResult.data)
+      if (shiftsResult.ok) setShifts(shiftsResult.data)
+    })
   }, [])
 
   async function handleChange(value: string): Promise<void> {
@@ -102,7 +104,10 @@ export function ContractorAccountPage(): React.JSX.Element {
   }
 
   function isEntryLocked(entry: LedgerRow): boolean {
-    return Boolean(entry.shiftId && shifts.some((shift) => shift.id === entry.shiftId && shift.status === 'منتهية'))
+    return Boolean(
+      entry.shiftId &&
+      shifts.some((shift) => shift.id === entry.shiftId && shift.status === 'منتهية')
+    )
   }
 
   function openEditEntryDialog(entry: LedgerRow): void {
@@ -211,7 +216,10 @@ export function ContractorAccountPage(): React.JSX.Element {
                 <DialogTitle>تعديل حركة</DialogTitle>
               </DialogHeader>
               <Form {...ledgerForm}>
-                <form onSubmit={ledgerForm.handleSubmit(handleSaveEntry)} className="grid gap-4 md:grid-cols-2">
+                <form
+                  onSubmit={ledgerForm.handleSubmit(handleSaveEntry)}
+                  className="grid gap-4 md:grid-cols-2"
+                >
                   <FormField
                     control={ledgerForm.control}
                     name="entryDate"

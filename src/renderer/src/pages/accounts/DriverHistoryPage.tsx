@@ -98,7 +98,10 @@ export function DriverHistoryPage(): React.JSX.Element {
   }
 
   function isEntryLocked(entry: LedgerRow): boolean {
-    return Boolean(entry.shiftId && shifts.some((shift) => shift.id === entry.shiftId && shift.status === 'منتهية'))
+    return Boolean(
+      entry.shiftId &&
+      shifts.some((shift) => shift.id === entry.shiftId && shift.status === 'منتهية')
+    )
   }
 
   function openEditEntryDialog(entry: LedgerRow): void {
@@ -200,7 +203,10 @@ export function DriverHistoryPage(): React.JSX.Element {
                 <DialogTitle>تعديل حركة</DialogTitle>
               </DialogHeader>
               <Form {...ledgerForm}>
-                <form onSubmit={ledgerForm.handleSubmit(handleSaveEntry)} className="grid gap-4 md:grid-cols-2">
+                <form
+                  onSubmit={ledgerForm.handleSubmit(handleSaveEntry)}
+                  className="grid gap-4 md:grid-cols-2"
+                >
                   <FormField
                     control={ledgerForm.control}
                     name="entryDate"

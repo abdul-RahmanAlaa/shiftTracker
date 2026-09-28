@@ -115,7 +115,10 @@ export function LedgerPage(): React.JSX.Element {
   }
 
   function isEntryLocked(entry: LedgerRow): boolean {
-    return Boolean(entry.shiftId && shifts.some((shift) => shift.id === entry.shiftId && shift.status === 'منتهية'))
+    return Boolean(
+      entry.shiftId &&
+      shifts.some((shift) => shift.id === entry.shiftId && shift.status === 'منتهية')
+    )
   }
 
   function openCreateEntryDialog(): void {
@@ -144,7 +147,9 @@ export function LedgerPage(): React.JSX.Element {
           id: editingEntryId,
           ...values
         } satisfies Parameters<typeof window.api.updateLedgerEntry>[0])
-      : await window.api.createLedgerEntry(values satisfies Parameters<typeof window.api.createLedgerEntry>[0])
+      : await window.api.createLedgerEntry(
+          values satisfies Parameters<typeof window.api.createLedgerEntry>[0]
+        )
 
     if (result.ok) {
       ledgerForm.reset(getDefaultLedgerValues())
@@ -212,10 +217,12 @@ export function LedgerPage(): React.JSX.Element {
                   <LedgerEntryDetailsContent
                     entry={entry}
                     contractorName={
-                      contractors.find((contractor) => contractor.id === entry.contractorId)?.name ??
-                      undefined
+                      contractors.find((contractor) => contractor.id === entry.contractorId)
+                        ?.name ?? undefined
                     }
-                    driverName={drivers.find((driver) => driver.id === entry.driverId)?.name ?? undefined}
+                    driverName={
+                      drivers.find((driver) => driver.id === entry.driverId)?.name ?? undefined
+                    }
                   />
                 )
               }

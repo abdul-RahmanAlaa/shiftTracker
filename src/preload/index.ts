@@ -114,7 +114,8 @@ const api = {
     amount: number
     notes?: string
   }) => ipcRenderer.invoke('client:payment:update', input),
-  deleteClientPayment: (input: { id: number }) => ipcRenderer.invoke('client:payment:delete', input),
+  deleteClientPayment: (input: { id: number }) =>
+    ipcRenderer.invoke('client:payment:delete', input),
   listShifts: () => ipcRenderer.invoke('shift:listAll'),
   updateTrip: (input: {
     id: string

@@ -31,7 +31,12 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { AccountCard, AccountSummary, getClientPaymentColumns, type ClientAccount } from './AccountTables'
+import {
+  AccountCard,
+  AccountSummary,
+  getClientPaymentColumns,
+  type ClientAccount
+} from './AccountTables'
 
 type Client = { id: number; name: string }
 const emptyValue = '__none__'
@@ -84,7 +89,11 @@ export function ClientAccountPage(): React.JSX.Element {
   async function handleCreatePayment(values: PaymentFormValues): Promise<void> {
     if (!selectedClientId) return
     const result = editingPaymentId
-      ? await window.api.updateClientPayment({ id: editingPaymentId, clientId: selectedClientId, ...values })
+      ? await window.api.updateClientPayment({
+          id: editingPaymentId,
+          clientId: selectedClientId,
+          ...values
+        })
       : await window.api.createClientPayment({ clientId: selectedClientId, ...values })
 
     if (result.ok) {
@@ -100,7 +109,12 @@ export function ClientAccountPage(): React.JSX.Element {
     }
   }
 
-  function startEditingPayment(payment: { id: number; entryDate: string; amount: number; notes: string | null }): void {
+  function startEditingPayment(payment: {
+    id: number
+    entryDate: string
+    amount: number
+    notes: string | null
+  }): void {
     setEditingPaymentId(payment.id)
     paymentForm.reset({
       entryDate: payment.entryDate,
@@ -243,7 +257,9 @@ export function ClientAccountPage(): React.JSX.Element {
                     )}
                   />
                   <DialogFooter className="md:col-span-2">
-                    <Button type="submit">{editingPaymentId ? 'حفظ التعديل' : 'تسجيل الدفعة'}</Button>
+                    <Button type="submit">
+                      {editingPaymentId ? 'حفظ التعديل' : 'تسجيل الدفعة'}
+                    </Button>
                     <DialogClose asChild>
                       <Button type="button" variant="outline">
                         إلغاء

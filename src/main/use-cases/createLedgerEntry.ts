@@ -53,7 +53,9 @@ export function createLedgerEntry(input: CreateLedgerInput): UseCaseResult<{ id:
   const errors = validateLedgerInput(input)
   if (errors.length > 0) return { ok: false, errors }
 
-  const contractorId = input.shiftId ? getShiftContractorId(input.shiftId) ?? input.contractorId : input.contractorId
+  const contractorId = input.shiftId
+    ? (getShiftContractorId(input.shiftId) ?? input.contractorId)
+    : input.contractorId
 
   if (!contractorId) {
     return {
@@ -104,8 +106,8 @@ export function updateLedgerEntry(input: UpdateLedgerEntryInput): UseCaseResult<
   }
 
   const contractorId = input.shiftId
-    ? getShiftContractorId(input.shiftId) ?? input.contractorId ?? existingEntry.contractorId
-    : input.contractorId ?? existingEntry.contractorId
+    ? (getShiftContractorId(input.shiftId) ?? input.contractorId ?? existingEntry.contractorId)
+    : (input.contractorId ?? existingEntry.contractorId)
 
   if (!contractorId) {
     return {
