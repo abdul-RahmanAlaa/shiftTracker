@@ -117,7 +117,10 @@ export function DriverHistoryPage(): React.JSX.Element {
 
   async function handleSaveEntry(values: LedgerFormValues): Promise<void> {
     if (!editingEntry) return
-    const result = await window.api.updateLedgerEntry({ id: editingEntry.id, ...values } as any)
+    const result = await window.api.updateLedgerEntry({
+      id: editingEntry.id,
+      ...values
+    } satisfies Parameters<typeof window.api.updateLedgerEntry>[0])
     if (result.ok) {
       setIsEditDialogOpen(false)
       setEditingEntry(null)

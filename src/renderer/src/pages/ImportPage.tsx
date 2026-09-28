@@ -1,19 +1,26 @@
 import { useState } from 'react'
+import type { ColumnDef } from '@tanstack/react-table'
 import { UploadCloud } from 'lucide-react'
+import { DataTable } from '@/components/DataTable'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
 
 type ImportError = { row: number; field: string; message: string }
+
+const importErrorColumns: ColumnDef<ImportError, unknown>[] = [
+  {
+    id: 'row',
+    accessorFn: (error) => (error.row === 0 ? 'عام' : error.row),
+    header: 'رقم السطر'
+  },
+  {
+    id: 'message',
+    accessorFn: (error) => `${error.field}: ${error.message}`,
+    header: 'الخطأ'
+  }
+]
 
 const importCsvHeaders =
   'old_shift_no,driver_name,vehicle_no,shift_start_date,shift_end_date,shift_crusher_cubic_default,shift_client_cubic_default,trip_date,crusher_cubic,client_cubic_reported,discount_qty,discount_reason,location,crusher_name,stone_price,crusher_receipt_status,crusher_receipt_no,client_name,transport_price,client_price,recipient_name_status,recipient_name,client_receipt_no,notes'
@@ -126,24 +133,12 @@ export function ImportPage(): React.JSX.Element {
             <CardTitle>أخطاء الاستيراد</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>رقم السطر</TableHead>
-                  <TableHead>الخطأ</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {errors.map((error, index) => (
-                  <TableRow key={`${error.row}-${error.field}-${index}`}>
-                    <TableCell>{error.row === 0 ? 'عام' : error.row}</TableCell>
-                    <TableCell>
-                      {error.field}: {error.message}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <DataTable
+              columns={importErrorColumns}
+              data={errors}
+              getRowId={(error) => `${error.row}-${error.field}`}
+              emptyMessage="لا توجد أخطاء"
+            />
           </CardContent>
         </Card>
       )}

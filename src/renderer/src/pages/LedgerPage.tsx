@@ -140,8 +140,11 @@ export function LedgerPage(): React.JSX.Element {
 
   async function handleSaveEntry(values: LedgerFormValues): Promise<void> {
     const result = editingEntryId
-      ? await window.api.updateLedgerEntry({ id: editingEntryId, ...values } as any)
-      : await window.api.createLedgerEntry(values as any)
+      ? await window.api.updateLedgerEntry({
+          id: editingEntryId,
+          ...values
+        } satisfies Parameters<typeof window.api.updateLedgerEntry>[0])
+      : await window.api.createLedgerEntry(values satisfies Parameters<typeof window.api.createLedgerEntry>[0])
 
     if (result.ok) {
       ledgerForm.reset(getDefaultLedgerValues())
