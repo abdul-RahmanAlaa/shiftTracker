@@ -2,16 +2,18 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import { AllMovementsPage } from '@/pages/accounts/AllMovementsPage'
 import { ClientAccountPage } from '@/pages/accounts/ClientAccountPage'
 import { ContractorAccountPage } from '@/pages/accounts/ContractorAccountPage'
 import { DriverHistoryPage } from '@/pages/accounts/DriverHistoryPage'
 
-type AccountsSection = 'contractor' | 'driver' | 'client'
+type AccountsSection = 'contractor' | 'driver' | 'client' | 'all-movements'
 
 const accountsItems: { id: AccountsSection; label: string }[] = [
   { id: 'contractor', label: 'حساب المقاول' },
   { id: 'driver', label: 'سجل السائق' },
-  { id: 'client', label: 'حساب العميل' }
+  { id: 'client', label: 'حساب العميل' },
+  { id: 'all-movements', label: 'كل الحركات' }
 ]
 
 export function AccountsPage(): React.JSX.Element {
@@ -45,6 +47,7 @@ export function AccountsPage(): React.JSX.Element {
           {activeSection === 'contractor' && <ContractorAccountPage />}
           {activeSection === 'driver' && <DriverHistoryPage />}
           {activeSection === 'client' && <ClientAccountPage />}
+          {activeSection === 'all-movements' && <AllMovementsPage />}
         </div>
       </div>
     </div>

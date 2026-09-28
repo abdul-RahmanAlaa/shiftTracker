@@ -58,7 +58,7 @@ const ledgerSchema = z.object({
 
 type LedgerFormValues = z.infer<typeof ledgerSchema>
 
-export function LedgerPage(): React.JSX.Element {
+export function AllMovementsPage(): React.JSX.Element {
   const { openWindow } = useFloatingWindows()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [contractors, setContractors] = useState<Contractor[]>([])
