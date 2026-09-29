@@ -224,6 +224,69 @@ const MIGRATION_V6_ADD_SHIFT_CLOSING_PHOTO = `
 ALTER TABLE Shift ADD COLUMN closing_photo_path TEXT;
 `
 
+const MIGRATION_V7_FIX_SHIFT_STATUS_CHECK = `
+PRAGMA foreign_keys=OFF;
+
+CREATE TABLE Shift_new (
+  id                      TEXT PRIMARY KEY,
+  vehicle_no              INTEGER NOT NULL REFERENCES Vehicle(vehicle_no),
+  driver_id               INTEGER NOT NULL REFERENCES Driver(id),
+  crusher_cubic_default   REAL NOT NULL,
+  client_cubic_default    REAL NOT NULL,
+  start_date              TEXT NOT NULL,
+  end_date                TEXT,
+  closing_photo_path      TEXT,
+  status                  TEXT NOT NULL CHECK (status IN ('مفتوحة','منتهية')),
+  reported_destination    TEXT,
+  reported_trip_count     INTEGER,
+  notes                   TEXT
+);
+
+INSERT INTO Shift_new (
+  id, vehicle_no, driver_id, crusher_cubic_default, client_cubic_default,
+  start_date, end_date, closing_photo_path, status, reported_destination,
+  reported_trip_count, notes
+)
+SELECT
+  id, vehicle_no, driver_id, crusher_cubic_default, client_cubic_default,
+  start_date, end_date, closing_photo_path,
+  CASE status
+    WHEN 'OPEN' THEN 'مفتوحة'
+    WHEN 'CLOSED' THEN 'منتهية'
+    ELSE status
+  END,
+  reported_destination, reported_trip_count, notes
+FROM Shift;
+
+DROP TABLE Shift;
+
+ALTER TABLE Shift_new RENAME TO Shift;
+
+DROP VIEW IF EXISTS ShiftStats;
+
+CREATE VIEW ShiftStats AS
+SELECT
+  s.id AS shift_id,
+  COUNT(t.id) AS actual_trip_count,
+  s.reported_trip_count,
+  (s.reported_trip_count IS NOT NULL
+   AND s.reported_trip_count <> COUNT(t.id)) AS has_count_mismatch
+FROM Shift s
+LEFT JOIN Trip t ON t.shift_id = s.id
+GROUP BY s.id;
+
+PRAGMA foreign_keys=ON;
+`
+
+function migrateToV7(): void {
+  db.exec(MIGRATION_V7_FIX_SHIFT_STATUS_CHECK)
+  const violations = db.pragma('foreign_key_check') as unknown[]
+  if (violations.length > 0) {
+    console.error('[db] migrateToV7: foreign key violations detected after rebuild:', violations)
+    throw new Error('migrateToV7 produced foreign key violations, aborting')
+  }
+}
+
 let db: Database.Database
 
 function migrateToV6(): void {
@@ -245,46 +308,57 @@ export function initDatabase(): Database.Database {
 
   if (currentVersion === 0) {
     db.exec(SCHEMA)
-    db.pragma('user_version = 6')
-    console.log('[db] Schema created (fresh install). user_version = 6')
+    db.pragma('user_version = 7')
+    console.log('[db] Schema created (fresh install). user_version = 7')
   } else if (currentVersion === 1) {
     db.exec(MIGRATION_V2_ADD_OPTIONAL_FIELDS)
     db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
     db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
     migrateToV5()
     migrateToV6()
-    db.pragma('user_version = 6')
+    migrateToV7()
+    db.pragma('user_version = 7')
     console.log(
-      '[db] Migrations v1 -> v2 -> v3 -> v4 -> v5 -> v6 applied (optional fields, receipt_photo_path, contractor phone, nullable stone price, shift closing photo). user_version = 6'
+      '[db] Migrations v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 applied (optional fields, receipt_photo_path, contractor phone, nullable stone price, shift closing photo, shift status CHECK fix). user_version = 7'
     )
   } else if (currentVersion === 2) {
     db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
     db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
     migrateToV5()
     migrateToV6()
-    db.pragma('user_version = 6')
+    migrateToV7()
+    db.pragma('user_version = 7')
     console.log(
-      '[db] Migrations v2 -> v3 -> v4 -> v5 -> v6 applied (receipt_photo_path, contractor phone, nullable stone price, shift closing photo). user_version = 6'
+      '[db] Migrations v2 -> v3 -> v4 -> v5 -> v6 -> v7 applied (receipt_photo_path, contractor phone, nullable stone price, shift closing photo, shift status CHECK fix). user_version = 7'
     )
   } else if (currentVersion === 3) {
     db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
     migrateToV5()
     migrateToV6()
-    db.pragma('user_version = 6')
+    migrateToV7()
+    db.pragma('user_version = 7')
     console.log(
-      '[db] Migrations v3 -> v4 -> v5 -> v6 applied (contractor phone, nullable stone price, shift closing photo). user_version = 6'
+      '[db] Migrations v3 -> v4 -> v5 -> v6 -> v7 applied (contractor phone, nullable stone price, shift closing photo, shift status CHECK fix). user_version = 7'
     )
   } else if (currentVersion === 4) {
     migrateToV5()
     migrateToV6()
-    db.pragma('user_version = 6')
+    migrateToV7()
+    db.pragma('user_version = 7')
     console.log(
-      '[db] Migrations v4 -> v5 -> v6 applied (nullable stone price, shift closing photo). user_version = 6'
+      '[db] Migrations v4 -> v5 -> v6 -> v7 applied (nullable stone price, shift closing photo, shift status CHECK fix). user_version = 7'
     )
   } else if (currentVersion === 5) {
     migrateToV6()
-    db.pragma('user_version = 6')
-    console.log('[db] Migration v5 -> v6 applied (shift closing photo). user_version = 6')
+    migrateToV7()
+    db.pragma('user_version = 7')
+    console.log(
+      '[db] Migrations v5 -> v6 -> v7 applied (shift closing photo, shift status CHECK fix). user_version = 7'
+    )
+  } else if (currentVersion === 6) {
+    migrateToV7()
+    db.pragma('user_version = 7')
+    console.log('[db] Migration v6 -> v7 applied (shift status CHECK fix). user_version = 7')
   } else {
     console.log(`[db] Database up to date. user_version = ${currentVersion}`)
   }
