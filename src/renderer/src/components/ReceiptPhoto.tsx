@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import i18n from 'i18next'
+import { useTranslation } from 'react-i18next'
 import Cropper, { type Area } from 'react-easy-crop'
 import { RotateCcw, RotateCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -58,7 +60,7 @@ async function createCroppedImage(
   const rotatedSize = getRotatedSize(image.naturalWidth, image.naturalHeight, rotation)
   const rotatedCanvas = document.createElement('canvas')
   const rotatedContext = rotatedCanvas.getContext('2d')
-  if (!rotatedContext) throw new Error('تعذر تجهيز الصورة')
+  if (!rotatedContext) throw new Error(i18n.t('receiptPhoto.errors.prepareImage'))
 
   rotatedCanvas.width = Math.round(rotatedSize.width)
   rotatedCanvas.height = Math.round(rotatedSize.height)
@@ -68,7 +70,7 @@ async function createCroppedImage(
 
   const croppedCanvas = document.createElement('canvas')
   const croppedContext = croppedCanvas.getContext('2d')
-  if (!croppedContext) throw new Error('تعذر قص الصورة')
+  if (!croppedContext) throw new Error(i18n.t('receiptPhoto.errors.cropImage'))
 
   croppedCanvas.width = Math.round(crop.width)
   croppedCanvas.height = Math.round(crop.height)
@@ -89,7 +91,7 @@ async function createCroppedImage(
   outputCanvas.width = Math.max(1, Math.round(croppedCanvas.width * scale))
   outputCanvas.height = Math.max(1, Math.round(croppedCanvas.height * scale))
   const outputContext = outputCanvas.getContext('2d')
-  if (!outputContext) throw new Error('تعذر تصدير الصورة')
+  if (!outputContext) throw new Error(i18n.t('receiptPhoto.errors.exportImage'))
   outputContext.drawImage(
     croppedCanvas,
     0,
@@ -114,6 +116,7 @@ export function ReceiptPhoto({
   deletePhoto,
   getPhoto
 }: ReceiptPhotoProps): React.JSX.Element {
+  const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const cachedPathRef = useRef<string | null>(null)
   const cachedDataUriRef = useRef<string | null>(null)
@@ -129,7 +132,9 @@ export function ReceiptPhoto({
   const [saveError, setSaveError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
-  const photoLabel = entityKind === 'trip' ? 'إيصال النقلة' : 'ورقة تقفيل الوردية'
+  const photoLabel = t(
+    entityKind === 'trip' ? 'receiptPhoto.labels.trip' : 'receiptPhoto.labels.shift'
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -219,14 +224,14 @@ export function ReceiptPhoto({
       onPhotoChange(result.data.path)
       closeCropDialog()
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'تعذر حفظ الصورة')
+      setSaveError(error instanceof Error ? error.message : t('receiptPhoto.errors.saveImage'))
     } finally {
       setIsSaving(false)
     }
   }
 
   async function handleDelete(): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح ${photoLabel}؟`)) return
+    if (!confirm(t('receiptPhoto.confirmDelete', { label: photoLabel }))) return
     const result = await deletePhoto(entityId)
     if (!result.ok) return
     cachedPathRef.current = null
@@ -246,29 +251,29 @@ export function ReceiptPhoto({
       />
       {!photoPath ? (
         <Button type="button" variant="outline" size="sm" onClick={openFilePicker}>
-          رفع صورة {photoLabel}
+          {t('receiptPhoto.upload', { label: photoLabel })}
         </Button>
       ) : (
         <>
           {isLoading ? (
-            <span className="text-sm text-muted-foreground">جاري التحميل...</span>
+            <span className="text-sm text-muted-foreground">{t('common.loading')}</span>
           ) : thumbnailDataUri ? (
             <button
               type="button"
               className="overflow-hidden rounded-md border"
               onClick={() => setIsPreviewDialogOpen(true)}
-              aria-label={`معاينة ${photoLabel}`}
+              aria-label={t('receiptPhoto.preview', { label: photoLabel })}
             >
               <img src={thumbnailDataUri} alt={photoLabel} className="h-16 w-16 object-cover" />
             </button>
           ) : (
-            <span className="text-sm text-muted-foreground">الصورة غير متاحة</span>
+            <span className="text-sm text-muted-foreground">{t('receiptPhoto.unavailable')}</span>
           )}
           <Button type="button" variant="outline" size="sm" onClick={openFilePicker}>
-            تغيير
+            {t('receiptPhoto.change')}
           </Button>
           <Button type="button" variant="destructive" size="sm" onClick={() => void handleDelete()}>
-            مسح
+            {t('common.delete')}
           </Button>
         </>
       )}
@@ -281,7 +286,7 @@ export function ReceiptPhoto({
           {thumbnailDataUri && (
             <img
               src={thumbnailDataUri}
-              alt={`${photoLabel} بالحجم الكامل`}
+              alt={t('receiptPhoto.fullImageAlt', { label: photoLabel })}
               className="max-h-[75vh] w-full object-contain"
             />
           )}
@@ -291,7 +296,7 @@ export function ReceiptPhoto({
       <Dialog open={isCropDialogOpen} onOpenChange={(open) => !open && closeCropDialog()}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>تعديل {photoLabel}</DialogTitle>
+            <DialogTitle>{t('receiptPhoto.editTitle', { label: photoLabel })}</DialogTitle>
           </DialogHeader>
           {imageToCrop && (
             <>
@@ -309,7 +314,7 @@ export function ReceiptPhoto({
                 />
               </div>
               <label className="grid gap-2 text-sm">
-                التكبير
+                {t('receiptPhoto.zoom')}
                 <input
                   type="range"
                   min="1"
@@ -326,7 +331,7 @@ export function ReceiptPhoto({
                   onClick={() => setRotation((value) => value - 90)}
                 >
                   <RotateCcw className="h-4 w-4" />
-                  تدوير لليسار
+                  {t('receiptPhoto.rotateLeft')}
                 </Button>
                 <Button
                   type="button"
@@ -334,7 +339,7 @@ export function ReceiptPhoto({
                   onClick={() => setRotation((value) => value + 90)}
                 >
                   <RotateCw className="h-4 w-4" />
-                  تدوير لليمين
+                  {t('receiptPhoto.rotateRight')}
                 </Button>
               </div>
               {saveError && <p className="text-sm text-destructive">{saveError}</p>}
@@ -343,7 +348,7 @@ export function ReceiptPhoto({
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" onClick={closeCropDialog}>
-                إلغاء
+                {t('common.cancel')}
               </Button>
             </DialogClose>
             <Button
@@ -351,7 +356,7 @@ export function ReceiptPhoto({
               onClick={() => void handleSave()}
               disabled={isSaving || !croppedAreaPixels}
             >
-              {isSaving ? 'جاري الحفظ...' : 'حفظ'}
+              {isSaving ? t('receiptPhoto.saving') : t('receiptPhoto.save')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import i18n from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -33,10 +35,13 @@ import {
 } from '@/components/ui/select'
 
 const vehicleSchema = z.object({
-  vehicleNo: z.number().int().positive('رقم السيارة مطلوب'),
-  trailerNo: z.number().int().positive('رقم المقطورة يجب أن يكون رقمًا موجبًا'),
-  contractorId: z.number().int().positive('المقاول مطلوب'),
-  defaultCubic: z.number().nonnegative('التكعيب الافتراضي لازم يكون رقم موجب').optional(),
+  vehicleNo: z.number().int().positive(i18n.t('vehiclesSettings.validation.vehicleNoRequired')),
+  trailerNo: z.number().int().positive(i18n.t('vehiclesSettings.validation.trailerNoRequired')),
+  contractorId: z.number().int().positive(i18n.t('vehiclesSettings.validation.contractorRequired')),
+  defaultCubic: z
+    .number()
+    .nonnegative(i18n.t('vehiclesSettings.validation.defaultCubicRequired'))
+    .optional(),
   ownerName: z.string().optional()
 })
 
@@ -50,6 +55,7 @@ type Vehicle = {
 }
 
 export function VehiclesSettings(): React.JSX.Element {
+  const { t } = useTranslation()
   const [contractors, setContractors] = useState<{ id: number; name: string }[]>([])
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
   const [loading, setLoading] = useState(true)
@@ -130,7 +136,7 @@ export function VehiclesSettings(): React.JSX.Element {
   }
 
   async function handleDeleteVehicle(vehicleNo: number): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح العربية ${vehicleNo}؟`)) return
+    if (!confirm(t('vehiclesSettings.deleteConfirmation', { vehicleNo }))) return
     const result = await window.api.deleteVehicle({ vehicleNo })
     if (result.ok) {
       if (editingVehicleNo === vehicleNo) cancelEditingVehicle()
@@ -147,27 +153,31 @@ export function VehiclesSettings(): React.JSX.Element {
   }
 
   const columns: ColumnDef<Vehicle, unknown>[] = [
-    { accessorKey: 'vehicleNo', header: 'رقم السيارة' },
-    { accessorKey: 'trailerNo', header: 'رقم المقطورة', cell: ({ getValue }) => getValue() ?? '-' },
+    { accessorKey: 'vehicleNo', header: t('vehiclesSettings.fields.vehicleNo') },
+    {
+      accessorKey: 'trailerNo',
+      header: t('vehiclesSettings.fields.trailerNo'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
+    },
     {
       id: 'contractorName',
       accessorFn: (vehicle) =>
         contractors.find((contractor) => contractor.id === vehicle.contractorId)?.name ?? '-',
-      header: 'المقاول'
+      header: t('ledgerEntryForm.fields.contractor')
     },
     {
       accessorKey: 'defaultCubic',
-      header: 'التكعيب الافتراضي',
-      cell: ({ getValue }) => getValue() ?? '-'
+      header: t('vehiclesSettings.fields.defaultCubic'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
     },
     {
       accessorKey: 'ownerName',
-      header: 'صاحب السيارة',
-      cell: ({ getValue }) => getValue() ?? '-'
+      header: t('vehiclesSettings.fields.ownerName'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
     },
     {
       id: 'actions',
-      header: 'إجراءات',
+      header: t('common.columns.actions'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
@@ -178,7 +188,7 @@ export function VehiclesSettings(): React.JSX.Element {
             size="sm"
             onClick={() => startEditingVehicle(row.original)}
           >
-            تعديل
+            {t('common.edit')}
           </Button>
           <Button
             type="button"
@@ -186,7 +196,7 @@ export function VehiclesSettings(): React.JSX.Element {
             size="sm"
             onClick={() => void handleDeleteVehicle(row.original.vehicleNo)}
           >
-            مسح
+            {t('common.delete')}
           </Button>
         </div>
       )
@@ -196,7 +206,7 @@ export function VehiclesSettings(): React.JSX.Element {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>العربيات</CardTitle>
+        <CardTitle>{t('vehiclesSettings.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
@@ -208,13 +218,15 @@ export function VehiclesSettings(): React.JSX.Element {
                 vehicleForm.reset()
               }}
             >
-              إضافة عربية
+              {t('vehiclesSettings.addButton')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>
-                {editingVehicleNo !== null ? 'تعديل عربية' : 'إضافة عربية جديدة'}
+                {editingVehicleNo !== null
+                  ? t('vehiclesSettings.editTitle')
+                  : t('vehiclesSettings.addTitle')}
               </DialogTitle>
             </DialogHeader>
             <Form {...vehicleForm}>
@@ -228,11 +240,11 @@ export function VehiclesSettings(): React.JSX.Element {
                   name="vehicleNo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>رقم السيارة</FormLabel>
+                      <FormLabel>{t('vehiclesSettings.fields.vehicleNo')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          placeholder="رقم السيارة"
+                          placeholder={t('vehiclesSettings.fields.vehicleNo')}
                           disabled={editingVehicleNo !== null}
                           value={field.value ?? ''}
                           onChange={(event) =>
@@ -251,11 +263,11 @@ export function VehiclesSettings(): React.JSX.Element {
                   name="trailerNo"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>رقم المقطورة</FormLabel>
+                      <FormLabel>{t('vehiclesSettings.fields.trailerNo')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          placeholder="رقم المقطورة"
+                          placeholder={t('vehiclesSettings.fields.trailerNo')}
                           value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(
@@ -273,14 +285,16 @@ export function VehiclesSettings(): React.JSX.Element {
                   name="contractorId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>المقاول</FormLabel>
+                      <FormLabel>{t('ledgerEntryForm.fields.contractor')}</FormLabel>
                       <Select
                         value={field.value ? String(field.value) : ''}
                         onValueChange={(value) => field.onChange(Number(value))}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="اختر المقاول" />
+                            <SelectValue
+                              placeholder={t('ledgerEntryForm.placeholders.contractor')}
+                            />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -300,11 +314,11 @@ export function VehiclesSettings(): React.JSX.Element {
                   name="defaultCubic"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>التكعيب الافتراضي</FormLabel>
+                      <FormLabel>{t('vehiclesSettings.fields.defaultCubic')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
-                          placeholder="التكعيب الافتراضي"
+                          placeholder={t('vehiclesSettings.fields.defaultCubic')}
                           value={field.value ?? ''}
                           onChange={(event) =>
                             field.onChange(
@@ -322,9 +336,9 @@ export function VehiclesSettings(): React.JSX.Element {
                   name="ownerName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>صاحب السيارة</FormLabel>
+                      <FormLabel>{t('vehiclesSettings.fields.ownerName')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="صاحب السيارة" {...field} />
+                        <Input placeholder={t('vehiclesSettings.fields.ownerName')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -332,11 +346,13 @@ export function VehiclesSettings(): React.JSX.Element {
                 />
                 <DialogFooter className="md:col-span-2">
                   <Button type="submit">
-                    {editingVehicleNo !== null ? 'حفظ التعديل' : 'إضافة'}
+                    {editingVehicleNo !== null
+                      ? t('contractorsSettings.saveEdit')
+                      : t('contractorsSettings.addSubmit')}
                   </Button>
                   <DialogClose asChild>
                     <Button type="button" variant="outline" onClick={cancelEditingVehicle}>
-                      إلغاء
+                      {t('common.cancel')}
                     </Button>
                   </DialogClose>
                 </DialogFooter>
@@ -346,7 +362,7 @@ export function VehiclesSettings(): React.JSX.Element {
         </Dialog>
         <div className="mt-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
             <DataTable
               columns={columns}

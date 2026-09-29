@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 import {
   flexRender,
@@ -30,6 +31,8 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+
+const emptyFilterValue = '-'
 
 interface DataTableProps<T> {
   columns: ColumnDef<T, unknown>[]
@@ -64,8 +67,10 @@ function DataTable<T>({
   enableRowSelection = false,
   sumColumnId,
   initialSorting = [],
-  emptyMessage = 'لا يوجد بيانات بعد'
+  emptyMessage
 }: DataTableProps<T>): React.JSX.Element {
+  const { t } = useTranslation()
+  const resolvedEmptyMessage = emptyMessage ?? t('dataTable.emptyMessage')
   const [sorting, setSorting] = useState<SortingState>(initialSorting)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
@@ -74,7 +79,7 @@ function DataTable<T>({
   const includesSome: FilterFn<T> = (row, columnId, filterValue) => {
     const selectedValues = Array.isArray(filterValue) ? filterValue.map(String) : []
     if (selectedValues.length === 0) return true
-    return selectedValues.includes(String(row.getValue(columnId) ?? '-'))
+    return selectedValues.includes(String(row.getValue(columnId) ?? emptyFilterValue))
   }
   includesSome.autoRemove = (value) => !Array.isArray(value) || value.length === 0
 
@@ -87,7 +92,9 @@ function DataTable<T>({
 
       const values = data.map((row, index) => {
         const value = getColumnValue(column, row, index)
-        return value === null || value === undefined || value === '' ? '-' : String(value)
+        return value === null || value === undefined || value === ''
+          ? emptyFilterValue
+          : String(value)
       })
       valuesByColumnId.set(columnId, Array.from(new Set(values)).sort())
     })
@@ -118,7 +125,7 @@ function DataTable<T>({
   })
 
   if (data.length === 0) {
-    return <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+    return <p className="text-sm text-muted-foreground">{resolvedEmptyMessage}</p>
   }
 
   const selectedRows = enableRowSelection ? table.getSelectedRowModel().rows : []
@@ -149,7 +156,7 @@ function DataTable<T>({
               {enableRowSelection && (
                 <TableHead>
                   <Checkbox
-                    aria-label="تحديد كل الصفوف"
+                    aria-label={t('dataTable.selectAllRows')}
                     checked={
                       table.getIsAllRowsSelected()
                         ? true
@@ -206,7 +213,7 @@ function DataTable<T>({
                                 onClick={() => header.column.toggleSorting(false)}
                               >
                                 <ArrowUp className="h-3.5 w-3.5" />
-                                ترتيب تصاعدي
+                                {t('dataTable.sortAscending')}
                               </Button>
                               <Button
                                 type="button"
@@ -218,7 +225,7 @@ function DataTable<T>({
                                 onClick={() => header.column.toggleSorting(true)}
                               >
                                 <ArrowDown className="h-3.5 w-3.5" />
-                                ترتيب تنازلي
+                                {t('dataTable.sortDescending')}
                               </Button>
                             </div>
                           )}
@@ -227,9 +234,9 @@ function DataTable<T>({
                           )}
                           {header.column.getCanFilter() && (
                             <>
-                              <CommandInput placeholder="ابحث في القيم..." />
+                              <CommandInput placeholder={t('dataTable.searchValues')} />
                               <CommandList>
-                                <CommandEmpty>لا توجد قيم</CommandEmpty>
+                                <CommandEmpty>{t('dataTable.noValues')}</CommandEmpty>
                                 {distinctValuesByColumnId.get(header.column.id)?.map((value) => {
                                   const selectedValues =
                                     (header.column.getFilterValue() as string[] | undefined) ?? []
@@ -248,7 +255,7 @@ function DataTable<T>({
                                         aria-hidden="true"
                                         onClick={(event) => event.stopPropagation()}
                                       />
-                                      {value}
+                                      {value === emptyFilterValue ? t('common.emptyCell') : value}
                                     </CommandItem>
                                   )
                                 })}
@@ -265,7 +272,7 @@ function DataTable<T>({
                                 className="m-1 h-8 w-[calc(100%-0.5rem)]"
                                 onClick={() => clearColumnFilter(header.column.id)}
                               >
-                                مسح الفلتر
+                                {t('dataTable.clearFilter')}
                               </Button>
                             )}
                         </Command>
@@ -292,7 +299,7 @@ function DataTable<T>({
                 {enableRowSelection && (
                   <TableCell>
                     <Checkbox
-                      aria-label="تحديد الصف"
+                      aria-label={t('dataTable.selectRow')}
                       checked={row.getIsSelected()}
                       onCheckedChange={(value) => row.toggleSelected(!!value)}
                     />
@@ -310,8 +317,8 @@ function DataTable<T>({
       </Table>
       {enableRowSelection && sumColumnId && selectedRows.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-4 border-t pt-3 text-sm text-muted-foreground">
-          <span>عدد الصفوف المحددة: {selectedRows.length}</span>
-          <span>الإجمالي: {selectedSum}</span>
+          <span>{t('dataTable.selectedRows', { count: selectedRows.length })}</span>
+          <span>{t('dataTable.total', { sum: selectedSum })}</span>
         </div>
       )}
     </div>

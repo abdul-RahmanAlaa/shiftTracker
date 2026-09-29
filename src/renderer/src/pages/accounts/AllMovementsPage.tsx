@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
@@ -29,6 +30,7 @@ type Contractor = { id: number; name: string }
 type Shift = { id: string; status: string }
 
 export function AllMovementsPage(): React.JSX.Element {
+  const { t } = useTranslation()
   const { openWindow } = useFloatingWindows()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [contractors, setContractors] = useState<Contractor[]>([])
@@ -138,7 +140,7 @@ export function AllMovementsPage(): React.JSX.Element {
   }
 
   async function handleDeleteEntry(entry: LedgerRow): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح الحركة رقم ${entry.id}؟`)) return
+    if (!confirm(t('allMovements.deleteConfirmation', { id: entry.id }))) return
     const result = await window.api.deleteLedgerEntry({ id: entry.id })
     if (result.ok) {
       if (editingEntryId === entry.id) {
@@ -150,26 +152,36 @@ export function AllMovementsPage(): React.JSX.Element {
   }
 
   const columns: ColumnDef<LedgerRow, unknown>[] = [
-    { accessorKey: 'id', header: 'id' },
-    { accessorKey: 'entryDate', header: 'التاريخ' },
+    { accessorKey: 'id', header: t('common.columns.id') },
+    { accessorKey: 'entryDate', header: t('common.columns.date') },
     {
       id: 'driverName',
-      accessorFn: (entry) => drivers.find((driver) => driver.id === entry.driverId)?.name ?? '-',
-      header: 'السائق'
+      accessorFn: (entry) =>
+        drivers.find((driver) => driver.id === entry.driverId)?.name ?? t('common.emptyCell'),
+      header: t('ledgerEntryForm.fields.driver')
     },
-    { accessorKey: 'movementType', header: 'نوع الحركة' },
-    { accessorKey: 'amount', header: 'المبلغ' },
-    { id: 'shiftId', accessorFn: (entry) => entry.shiftId ?? '-', header: 'الوردية' },
+    { accessorKey: 'movementType', header: t('ledgerEntryForm.fields.movementType') },
+    { accessorKey: 'amount', header: t('common.columns.amount') },
+    {
+      id: 'shiftId',
+      accessorFn: (entry) => entry.shiftId ?? t('common.emptyCell'),
+      header: t('common.columns.shift')
+    },
     {
       id: 'contractorName',
       accessorFn: (entry) =>
-        contractors.find((contractor) => contractor.id === entry.contractorId)?.name ?? '-',
-      header: 'المقاول'
+        contractors.find((contractor) => contractor.id === entry.contractorId)?.name ??
+        t('common.emptyCell'),
+      header: t('ledgerEntryForm.fields.contractor')
     },
-    { id: 'notes', accessorFn: (entry) => entry.notes ?? '-', header: 'ملاحظات' },
+    {
+      id: 'notes',
+      accessorFn: (entry) => entry.notes ?? t('common.emptyCell'),
+      header: t('common.columns.notes')
+    },
     {
       id: 'actions',
-      header: 'الإجراءات',
+      header: t('common.columns.actions'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => {
@@ -185,7 +197,7 @@ export function AllMovementsPage(): React.JSX.Element {
               onClick={() =>
                 openWindow(
                   `ledger-entry-${entry.id}`,
-                  `تفاصيل الحركة ${entry.id}`,
+                  t('allMovements.detailsTitle', { id: entry.id }),
                   <LedgerEntryDetailsContent
                     entry={entry}
                     contractorName={
@@ -199,27 +211,27 @@ export function AllMovementsPage(): React.JSX.Element {
                 )
               }
             >
-              تفاصيل
+              {t('common.details')}
             </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={locked}
-              title={locked ? 'مرتبطة بوردية مقفولة' : 'تعديل'}
+              title={locked ? t('common.lockedShift') : t('common.edit')}
               onClick={() => openEditEntryDialog(entry)}
             >
-              تعديل
+              {t('common.edit')}
             </Button>
             <Button
               type="button"
               variant="destructive"
               size="sm"
               disabled={locked}
-              title={locked ? 'مرتبطة بوردية مقفولة' : 'مسح'}
+              title={locked ? t('common.lockedShift') : t('common.delete')}
               onClick={() => void handleDeleteEntry(entry)}
             >
-              مسح
+              {t('common.delete')}
             </Button>
           </div>
         )
@@ -230,7 +242,7 @@ export function AllMovementsPage(): React.JSX.Element {
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">سجل العهد والدفعات</h1>
+        <h1 className="text-2xl font-semibold">{t('allMovements.title')}</h1>
         <Dialog
           open={isCreateDialogOpen}
           onOpenChange={(open) => {
@@ -243,12 +255,14 @@ export function AllMovementsPage(): React.JSX.Element {
         >
           <DialogTrigger asChild>
             <Button type="button" onClick={openCreateEntryDialog}>
-              إضافة حركة
+              {t('allMovements.addMovement')}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
             <DialogHeader>
-              <DialogTitle>{editingEntryId ? 'تعديل حركة' : 'إضافة حركة'}</DialogTitle>
+              <DialogTitle>
+                {editingEntryId ? t('allMovements.editTitle') : t('allMovements.addMovement')}
+              </DialogTitle>
             </DialogHeader>
             <LedgerEntryForm
               form={ledgerForm}
@@ -256,7 +270,11 @@ export function AllMovementsPage(): React.JSX.Element {
               drivers={drivers}
               contractors={contractors}
               shifts={shifts}
-              submitLabel={editingEntryId ? 'حفظ التعديل' : 'إضافة'}
+              submitLabel={
+                editingEntryId
+                  ? t('contractorsSettings.saveEdit')
+                  : t('contractorsSettings.addSubmit')
+              }
             />
           </DialogContent>
         </Dialog>
@@ -264,11 +282,11 @@ export function AllMovementsPage(): React.JSX.Element {
 
       <Card className="min-h-0 flex-1">
         <CardHeader>
-          <CardTitle>الحركات</CardTitle>
+          <CardTitle>{t('allMovements.entriesTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-col">
           {loading ? (
-            <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
             <DataTable
               columns={columns}

@@ -1,6 +1,7 @@
 {
   "common": {
     "close": "إغلاق",
+    "details": "تفاصيل",
     "cancel": "إلغاء",
     "edit": "تعديل",
     "delete": "مسح",
@@ -146,7 +147,8 @@
     },
     "placeholders": {
       "date": "اختر تاريخ الحركة",
-      "contractor": "اختر المقاول"
+      "contractor": "اختر المقاول",
+      "movementType": "اختر نوع الحركة"
     },
     "none": {
       "driver": "بدون سائق",
@@ -188,5 +190,73 @@
     "validation": {
       "dateRequired": "تاريخ الدفعة مطلوب"
     }
+  },
+  "allMovements": {
+    "title": "سجل العهد والدفعات",
+    "addMovement": "إضافة حركة",
+    "editTitle": "تعديل حركة",
+    "entriesTitle": "الحركات",
+    "detailsTitle": "تفاصيل الحركة {{id}}",
+    "deleteConfirmation": "متأكد إنك عايز تمسح الحركة رقم {{id}}؟"
+  },
+  "receiptPhoto": {
+    "labels": {
+      "trip": "إيصال النقلة",
+      "shift": "ورقة تقفيل الوردية"
+    },
+    "upload": "رفع صورة {{label}}",
+    "confirmDelete": "متأكد إنك عايز تمسح {{label}}؟",
+    "preview": "معاينة {{label}}",
+    "unavailable": "الصورة غير متاحة",
+    "change": "تغيير",
+    "editTitle": "تعديل {{label}}",
+    "fullImageAlt": "{{label}} بالحجم الكامل",
+    "zoom": "التكبير",
+    "rotateLeft": "تدوير لليسار",
+    "rotateRight": "تدوير لليمين",
+    "saving": "جاري الحفظ...",
+    "save": "حفظ",
+    "errors": {
+      "prepareImage": "تعذر تجهيز الصورة",
+      "cropImage": "تعذر قص الصورة",
+      "exportImage": "تعذر تصدير الصورة",
+      "saveImage": "تعذر حفظ الصورة"
+    }
+  },
+  "vehiclesSettings": {
+    "title": "العربيات",
+    "addButton": "إضافة عربية",
+    "addTitle": "إضافة عربية جديدة",
+    "editTitle": "تعديل عربية",
+    "deleteConfirmation": "متأكد إنك عايز تمسح العربية {{vehicleNo}}؟",
+    "fields": {
+      "vehicleNo": "رقم السيارة",
+      "trailerNo": "رقم المقطورة",
+      "defaultCubic": "التكعيب الافتراضي",
+      "ownerName": "صاحب السيارة"
+    },
+    "validation": {
+      "vehicleNoRequired": "رقم السيارة مطلوب",
+      "trailerNoRequired": "رقم المقطورة يجب أن يكون رقمًا موجبًا",
+      "contractorRequired": "المقاول مطلوب",
+      "defaultCubicRequired": "التكعيب الافتراضي لازم يكون رقم موجب"
+    }
+  },
+  "dataTable": {
+    "emptyMessage": "لا يوجد بيانات بعد",
+    "selectAllRows": "تحديد كل الصفوف",
+    "sortAscending": "ترتيب تصاعدي",
+    "sortDescending": "ترتيب تنازلي",
+    "searchValues": "ابحث في القيم...",
+    "noValues": "لا توجد قيم",
+    "clearFilter": "مسح الفلتر",
+    "selectRow": "تحديد الصف",
+    "selectedRows": "عدد الصفوف المحددة: {{count}}",
+    "total": "الإجمالي: {{sum}}"
+  },
+  "driverHistory": {
+    "title": "سجل السائق",
+    "selectDriver": "اختر السائق",
+    "selectDriverHint": "اختر سائق عشان تشوف الحساب"
   }
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import {
   LedgerEntryForm,
@@ -42,6 +43,7 @@ type Shift = { id: string; status: string }
 const emptyValue = '__none__'
 
 export function DriverHistoryPage(): React.JSX.Element {
+  const { t } = useTranslation()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [selectedDriverId, setSelectedDriverId] = useState<number>()
@@ -157,7 +159,7 @@ export function DriverHistoryPage(): React.JSX.Element {
   }
 
   async function handleDeleteEntry(entry: LedgerRow): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح الحركة رقم ${entry.id}؟`)) return
+    if (!confirm(t('allMovements.deleteConfirmation', { id: entry.id }))) return
     const result = await window.api.deleteLedgerEntry({ id: entry.id })
     if (result.ok && selectedDriverId) {
       await handleChange(String(selectedDriverId))
@@ -165,16 +167,16 @@ export function DriverHistoryPage(): React.JSX.Element {
   }
 
   return (
-    <AccountCard title="سجل السائق">
+    <AccountCard title={t('driverHistory.title')}>
       <Select
         value={selectedDriverId ? String(selectedDriverId) : emptyValue}
         onValueChange={(value) => void handleChange(value)}
       >
         <SelectTrigger>
-          <SelectValue placeholder="اختر السائق" />
+          <SelectValue placeholder={t('driverHistory.selectDriver')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={emptyValue}>اختر السائق</SelectItem>
+          <SelectItem value={emptyValue}>{t('driverHistory.selectDriver')}</SelectItem>
           {drivers.map((driver) => (
             <SelectItem key={driver.id} value={String(driver.id)}>
               {driver.name}
@@ -197,12 +199,12 @@ export function DriverHistoryPage(): React.JSX.Element {
             >
               <DialogTrigger asChild>
                 <Button type="button" onClick={openCreateEntryDialog}>
-                  إضافة حركة
+                  {t('allMovements.addMovement')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
                 <DialogHeader>
-                  <DialogTitle>إضافة حركة</DialogTitle>
+                  <DialogTitle>{t('allMovements.addMovement')}</DialogTitle>
                 </DialogHeader>
                 <LedgerEntryForm
                   form={ledgerForm}
@@ -212,7 +214,7 @@ export function DriverHistoryPage(): React.JSX.Element {
                   shifts={shifts}
                   lockedDriverId={selectedDriverId}
                   requireContractorId
-                  submitLabel="إضافة"
+                  submitLabel={t('contractorsSettings.addSubmit')}
                 />
               </DialogContent>
             </Dialog>
@@ -243,7 +245,7 @@ export function DriverHistoryPage(): React.JSX.Element {
           >
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
-                <DialogTitle>تعديل حركة</DialogTitle>
+                <DialogTitle>{t('allMovements.editTitle')}</DialogTitle>
               </DialogHeader>
               <Form {...ledgerForm}>
                 <form
@@ -255,12 +257,12 @@ export function DriverHistoryPage(): React.JSX.Element {
                     name="entryDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>تاريخ الحركة</FormLabel>
+                        <FormLabel>{t('ledgerEntryForm.fields.date')}</FormLabel>
                         <FormControl>
                           <DatePicker
                             value={field.value}
                             onChange={field.onChange}
-                            placeholder="اختر تاريخ الحركة"
+                            placeholder={t('ledgerEntryForm.placeholders.date')}
                           />
                         </FormControl>
                         <FormMessage />
@@ -272,17 +274,25 @@ export function DriverHistoryPage(): React.JSX.Element {
                     name="movementType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>نوع الحركة</FormLabel>
+                        <FormLabel>{t('ledgerEntryForm.fields.movementType')}</FormLabel>
                         <Select value={field.value ?? ''} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="اختر نوع الحركة" />
+                              <SelectValue
+                                placeholder={t('ledgerEntryForm.placeholders.movementType')}
+                              />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="عهدة">عهدة</SelectItem>
-                            <SelectItem value="دفعة">دفعة</SelectItem>
-                            <SelectItem value="اخرى">اخرى</SelectItem>
+                            <SelectItem value="عهدة">
+                              {t('ledgerEntryForm.movementTypes.custody')}
+                            </SelectItem>
+                            <SelectItem value="دفعة">
+                              {t('ledgerEntryForm.movementTypes.payment')}
+                            </SelectItem>
+                            <SelectItem value="اخرى">
+                              {t('ledgerEntryForm.movementTypes.other')}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -294,7 +304,7 @@ export function DriverHistoryPage(): React.JSX.Element {
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>المبلغ</FormLabel>
+                        <FormLabel>{t('common.columns.amount')}</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -315,7 +325,7 @@ export function DriverHistoryPage(): React.JSX.Element {
                     name="driverId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>السائق</FormLabel>
+                        <FormLabel>{t('ledgerEntryForm.fields.driver')}</FormLabel>
                         <Select
                           value={field.value ? String(field.value) : emptyValue}
                           onValueChange={(value) =>
@@ -324,11 +334,13 @@ export function DriverHistoryPage(): React.JSX.Element {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="بدون سائق" />
+                              <SelectValue placeholder={t('ledgerEntryForm.none.driver')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={emptyValue}>بدون سائق</SelectItem>
+                            <SelectItem value={emptyValue}>
+                              {t('ledgerEntryForm.none.driver')}
+                            </SelectItem>
                             {drivers.map((driver) => (
                               <SelectItem key={driver.id} value={String(driver.id)}>
                                 {driver.name}
@@ -345,7 +357,7 @@ export function DriverHistoryPage(): React.JSX.Element {
                     name="shiftId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>الوردية</FormLabel>
+                        <FormLabel>{t('ledgerEntryForm.fields.shift')}</FormLabel>
                         <Select
                           value={field.value ?? emptyValue}
                           onValueChange={(value) =>
@@ -354,11 +366,13 @@ export function DriverHistoryPage(): React.JSX.Element {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="بدون وردية" />
+                              <SelectValue placeholder={t('ledgerEntryForm.none.shift')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={emptyValue}>بدون وردية</SelectItem>
+                            <SelectItem value={emptyValue}>
+                              {t('ledgerEntryForm.none.shift')}
+                            </SelectItem>
                             {shifts.map((shift) => (
                               <SelectItem key={shift.id} value={shift.id}>
                                 {shift.id}
@@ -375,7 +389,7 @@ export function DriverHistoryPage(): React.JSX.Element {
                     name="contractorId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>المقاول</FormLabel>
+                        <FormLabel>{t('ledgerEntryForm.fields.contractor')}</FormLabel>
                         <Select
                           value={field.value ? String(field.value) : emptyValue}
                           onValueChange={(value) =>
@@ -384,11 +398,15 @@ export function DriverHistoryPage(): React.JSX.Element {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="اختر المقاول" />
+                              <SelectValue
+                                placeholder={t('ledgerEntryForm.placeholders.contractor')}
+                              />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={emptyValue}>اختر المقاول</SelectItem>
+                            <SelectItem value={emptyValue}>
+                              {t('ledgerEntryForm.placeholders.contractor')}
+                            </SelectItem>
                             {contractors.map((contractor) => (
                               <SelectItem key={contractor.id} value={String(contractor.id)}>
                                 {contractor.name}
@@ -405,7 +423,7 @@ export function DriverHistoryPage(): React.JSX.Element {
                     name="notes"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel>ملاحظات</FormLabel>
+                        <FormLabel>{t('common.columns.notes')}</FormLabel>
                         <FormControl>
                           <Textarea {...field} />
                         </FormControl>
@@ -414,10 +432,10 @@ export function DriverHistoryPage(): React.JSX.Element {
                     )}
                   />
                   <DialogFooter className="md:col-span-2">
-                    <Button type="submit">حفظ التعديل</Button>
+                    <Button type="submit">{t('contractorsSettings.saveEdit')}</Button>
                     <DialogClose asChild>
                       <Button type="button" variant="outline">
-                        إلغاء
+                        {t('common.cancel')}
                       </Button>
                     </DialogClose>
                   </DialogFooter>
@@ -427,7 +445,7 @@ export function DriverHistoryPage(): React.JSX.Element {
           </Dialog>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">اختر سائق عشان تشوف الحساب</p>
+        <p className="text-sm text-muted-foreground">{t('driverHistory.selectDriverHint')}</p>
       )}
     </AccountCard>
   )
