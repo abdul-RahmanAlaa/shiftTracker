@@ -78,7 +78,7 @@ export const tripSchema = z
     clientId: z.number().int().positive(i18n.t('tripForm.validation.clientRequired')),
     transportPrice: z.number().nonnegative(i18n.t('tripForm.validation.transportPriceRequired')),
     clientPrice: z.number().nonnegative(i18n.t('tripForm.validation.clientPriceRequired')),
-    recipientNameStatus: z.enum(['قيمة', 'مش واضح']),
+    recipientNameStatus: z.enum(['PROVIDED', 'UNCLEAR']),
     recipientName: z.string().optional(),
     clientReceiptNo: z.string().optional(),
     notes: z.string().optional()
@@ -91,7 +91,7 @@ export const tripSchema = z
         message: i18n.t('tripForm.validation.crusherReceiptNumberRequired')
       })
     }
-    if (values.recipientNameStatus === 'قيمة' && !values.recipientName?.trim()) {
+    if (values.recipientNameStatus === 'PROVIDED' && !values.recipientName?.trim()) {
       context.addIssue({
         code: 'custom',
         path: ['recipientName'],
@@ -185,7 +185,7 @@ export function AddTripPage(): React.JSX.Element {
       clientId: undefined,
       transportPrice: undefined,
       clientPrice: undefined,
-      recipientNameStatus: 'مش واضح',
+      recipientNameStatus: 'UNCLEAR',
       recipientName: '',
       clientReceiptNo: '',
       notes: ''
@@ -658,8 +658,8 @@ export function TripForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="قيمة">{t('tripForm.receiptStatuses.value')}</SelectItem>
-                      <SelectItem value="مش واضح">
+                      <SelectItem value="PROVIDED">{t('tripForm.receiptStatuses.value')}</SelectItem>
+                      <SelectItem value="UNCLEAR">
                         {t('tripForm.recipientNameStatuses.unclear')}
                       </SelectItem>
                     </SelectContent>
@@ -668,7 +668,7 @@ export function TripForm({
                 </FormItem>
               )}
             />
-            {recipientNameStatus === 'قيمة' && (
+            {recipientNameStatus === 'PROVIDED' && (
               <FormField
                 control={form.control}
                 name="recipientName"

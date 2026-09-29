@@ -87,7 +87,7 @@ export function ShiftsPage(): React.JSX.Element {
       clientId: undefined,
       transportPrice: undefined,
       clientPrice: undefined,
-      recipientNameStatus: 'مش واضح',
+      recipientNameStatus: 'UNCLEAR',
       recipientName: '',
       clientReceiptNo: '',
       notes: ''

@@ -32,7 +32,7 @@ export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JS
         ? t('tripForm.receiptStatuses.noReceiptConfirmed')
         : t('tripForm.receiptStatuses.unknown')
   const recipientNameStatus =
-    trip.recipientNameStatus === 'قيمة'
+    trip.recipientNameStatus === 'PROVIDED'
       ? t('tripForm.receiptStatuses.value')
       : t('tripForm.recipientNameStatuses.unclear')
   const details: [string, string | number | null][] = [
