@@ -154,12 +154,12 @@ src/renderer/src/
 - حساب السائق = سجل عهدة بس. حساب المقاول والعميل = أرصدة حقيقية
 - `old_shift_no` في CSV للتجميع فقط، مش بيتخزن كـ id. الورديات المستوردة بتتحفظ "مفتوحة"
 
-## دين تقني معروف (من جرد الكود الأخير)
+## دين تقني معروف
 
-- `npm run lint` بيفشل: 4 errors حقيقية + ~1615 warning أغلبها Prettier بسبب CRLF (ملفات Windows) مع إعداد `endOfLine: lf` في `.prettierrc.yaml`. الحل الغالب: توحيد نهايات الأسطر (`.gitattributes` أو `prettier --write`) وإصلاح الـ 4 errors.
-- `as any` موجودة في `AllMovementsPage.tsx` و`ContractorAccountPage.tsx` و`DriverHistoryPage.tsx`، وده مخالف لقاعدة "ممنوع any أبدًا".
-- `ImportPage.tsx` لسه فيها `<Table>` يدوي لأخطاء الاستيراد (الباقي كله DataTable).
-- مفيش CSV export حقيقي، فيه بس تنزيل نموذج الاستيراد.
+- ✅ اتصلح: `.gitattributes` بقى `* text=auto eol=lf` (كان `core.autocrlf=true` على Windows بيعارض `endOfLine: lf` بتاع Prettier). `npm run lint` بقى 0 errors و0 warnings بعد آخر تنظيف.
+- ✅ اتصلح: الـ`as any` في `AllMovementsPage.tsx` و`ContractorAccountPage.tsx` و`DriverHistoryPage.tsx` اتشالت، بدّلناها بـ `Parameters<typeof window.api.updateLedgerEntry>[0]` / `Parameters<typeof window.api.createLedgerEntry>[0]`.
+- ✅ اتصلح: `ImportPage.tsx` بقت بتستخدم `DataTable` بدل الـ`<Table>` اليدوي لأخطاء الاستيراد.
+- ⏳ لسه باقي: مفيش CSV export حقيقي، فيه بس تنزيل نموذج الاستيراد.
 
 ## آخر جرد شامل للكود
-تم جرد كامل للـ backend والـ preload والـ renderer. الـ backend والـ preload متطابقين مع بعض بدون أي دالة يتيمة. الجزء المفقود الوحيد الآن في الـ renderer هو تنفيذ السكرول الداخلي، بينما `LedgerEntryForm.tsx` وزرار "إضافة حركة" في صفحتي المقاول والسائق ما زالوا محجوزين للقرار المستقل بعد الدمج.
+تم جرد كامل للـ backend والـ preload والـ renderer، وبعده اتعمل تنظيف lint/typecheck كامل، ودُمجت Ledger جوه AccountsPage. الحالة الحالية: الـ backend والـ preload متطابقين بدون أي دالة يتيمة، الـ lint والـ typecheck نضاف بالكامل (0 errors/0 warnings)، والـ Ledger بقت قسم "كل الحركات" جوه Accounts. الباقي: السكرول الداخلي (ملك المستخدم، مش تاسك Copilot)، و`LedgerEntryForm.tsx` وزرار "إضافة حركة" في صفحتي المقاول والسائق (محجوزين لقرار مستقل)، وصفحات الورديات المستقلة، وCSV export.
