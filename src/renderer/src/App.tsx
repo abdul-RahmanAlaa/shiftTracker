@@ -1,4 +1,5 @@
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Calculator, ClipboardList, List, Settings, Truck, UploadCloud } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FloatingWindowsProvider } from '@/components/FloatingWindowsProvider'
@@ -11,23 +12,25 @@ import { ShiftsPage } from '@/pages/ShiftsPage'
 import { AllTripsPage } from '@/pages/AllTripsPage'
 
 const navigationItems = [
-  { to: '/', label: 'إضافة نقلة', icon: Truck },
-  { to: '/shifts', label: 'الورديات', icon: ClipboardList },
-  { to: '/all-trips', label: 'كل النقلات', icon: List },
-  { to: '/accounts', label: 'الحسابات', icon: Calculator },
-  { to: '/settings', label: 'بيانات أساسية', icon: Settings },
-  { to: '/import', label: 'استيراد بيانات', icon: UploadCloud }
+  { to: '/', label: 'addTrip.title', icon: Truck },
+  { to: '/shifts', label: 'shifts.title', icon: ClipboardList },
+  { to: '/all-trips', label: 'allTrips.title', icon: List },
+  { to: '/accounts', label: 'accountsPage.title', icon: Calculator },
+  { to: '/settings', label: 'settingsPage.title', icon: Settings },
+  { to: '/import', label: 'importPage.title', icon: UploadCloud }
 ]
 
 function AppLayout(): React.JSX.Element {
+  const { t } = useTranslation()
+
   return (
     <div className="app-shell" dir="rtl">
       <header className="app-navbar">
         <div className="app-navbar-brand">
-          <p className="text-lg font-semibold text-foreground">Shift Tracker</p>
-          <p className="mt-1 text-sm text-muted-foreground">إدارة النقل والورديات</p>
+          <p className="text-lg font-semibold text-foreground">{t('app.name')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('app.subtitle')}</p>
         </div>
-        <nav className="app-navbar-nav" aria-label="التنقل الرئيسي">
+        <nav className="app-navbar-nav" aria-label={t('app.navigationLabel')}>
           {navigationItems.map(({ to, label, icon: Icon }) => (
             <Button key={to} asChild variant="ghost" className="w-auto justify-start gap-2">
               <NavLink
@@ -41,7 +44,7 @@ function AppLayout(): React.JSX.Element {
                 }
               >
                 <Icon className="h-4 w-4" />
-                <span>{label}</span>
+                <span>{t(label)}</span>
               </NavLink>
             </Button>
           ))}

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 type LedgerEntryDetailsRow = Extract<
   Awaited<ReturnType<typeof window.api.listLedgerEntries>>,
   { ok: true }
@@ -14,15 +16,22 @@ export function LedgerEntryDetailsContent({
   contractorName,
   driverName
 }: LedgerEntryDetailsContentProps): React.JSX.Element {
+  const { t } = useTranslation()
+  const movementType =
+    entry.movementType === 'عهدة'
+      ? t('ledgerEntryForm.movementTypes.custody')
+      : entry.movementType === 'دفعة'
+        ? t('ledgerEntryForm.movementTypes.payment')
+        : t('ledgerEntryForm.movementTypes.other')
   const details: [string, string | number | null][] = [
-    ['رقم الحركة', entry.id],
-    ['التاريخ', entry.entryDate],
-    ['نوع الحركة', entry.movementType],
-    ['المبلغ', entry.amount],
-    ['المقاول', contractorName ?? '—'],
-    ['السائق', driverName ?? '—'],
-    ['الوردية', entry.shiftId ?? '—'],
-    ['ملاحظات', entry.notes ?? '—']
+    [t('ledgerEntryDetails.movementNumber'), entry.id],
+    [t('ledgerEntryDetails.date'), entry.entryDate],
+    [t('ledgerEntryDetails.movementType'), movementType],
+    [t('ledgerEntryDetails.amount'), entry.amount],
+    [t('ledgerEntryDetails.contractor'), contractorName ?? t('common.emDash')],
+    [t('ledgerEntryDetails.driver'), driverName ?? t('common.emDash')],
+    [t('ledgerEntryDetails.shift'), entry.shiftId ?? t('common.emDash')],
+    [t('ledgerEntryDetails.notes'), entry.notes ?? t('common.emDash')]
   ]
 
   return (
@@ -31,7 +40,7 @@ export function LedgerEntryDetailsContent({
         {details.map(([label, value]) => (
           <div key={label} className="min-w-0 border-b border-border/60 pb-2">
             <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="mt-1 wrap-break-word text-sm">{value ?? '—'}</dd>
+            <dd className="mt-1 wrap-break-word text-sm">{value ?? t('common.emDash')}</dd>
           </div>
         ))}
       </dl>

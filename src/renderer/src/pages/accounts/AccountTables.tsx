@@ -72,7 +72,7 @@ export function getLedgerColumns({
               variant="destructive"
               size="sm"
               disabled={locked}
-              title={locked ? 'مرتبطة بوردية مقفولة' : 'مسح'}
+              title={locked ? t('common.lockedShift') : t('common.delete')}
               onClick={() => onDeleteEntry?.(entry)}
             >
               {t('common.delete')}

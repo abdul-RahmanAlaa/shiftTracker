@@ -1,23 +1,23 @@
 # TODO — تطبيق إدارة ورديات نقل السن
 
-آخر تحديث: بدء مبادرة i18n وإضافة الإعداد الأساسي للـ renderer.
+آخر تحديث: إكمال استخراج النصوص الظاهرة من ملفات renderer في قائمة i18n.
 
 ## 🚩 أولوية قصوى: Full i18n migration — إزالة كل النصوص المضمّنة
 
 1. [x] Scope audit (read-only، ضمن التاسك دي)
 2. [x] Install and configure i18next + react-i18next (renderer only، ضمن التاسك دي؛ لغة ثابتة `ar` ومن غير language detector)
-3. [ ] Extract renderer strings into translation files، صفحة/قسم واحد في كل تاسك (تسكات مستقبلية)
+3. [x] Extract renderer strings into translation files، صفحة/قسم واحد في كل تاسك؛ اكتمل استخراج الملفات المدرجة في القائمة، والـ Arabic regex الباقي في المصدر قيم enum/status ثابتة.
 4. [ ] Backend enum/status value rewrite to English + translation layer للعرض (تاسك مستقبلي، Claude ينفذه)
 
 ### Renderer extraction checklist (file size, smallest first)
 
-- [ ] `LedgerEntryDetailsContent.tsx` (1,276 bytes)
-- [ ] `date-picker.tsx` (1,737 bytes)
-- [ ] `AccountsPage.tsx` (2,250 bytes)
-- [ ] `AllTripsPage.tsx` (2,357 bytes)
-- [ ] `SettingsPage.tsx` (2,441 bytes)
-- [ ] `TripDetailsContent.tsx` (3,051 bytes)
-- [ ] `App.tsx` (3,108 bytes)
+- [x] `LedgerEntryDetailsContent.tsx` (1,276 bytes)
+- [x] `date-picker.tsx` (1,737 bytes)
+- [x] `AccountsPage.tsx` (2,250 bytes)
+- [x] `AllTripsPage.tsx` (2,357 bytes)
+- [x] `SettingsPage.tsx` (2,441 bytes)
+- [x] `TripDetailsContent.tsx` (3,051 bytes)
+- [x] `App.tsx` (3,108 bytes)
 - [x] `dialog.tsx` (3,308 bytes)
 - [x] `FloatingWindow.tsx` (3,477 bytes)
 - [x] `AccountTables.tsx` (5,314 bytes)

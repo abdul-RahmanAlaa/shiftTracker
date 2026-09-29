@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
@@ -10,22 +11,23 @@ import { DriverHistoryPage } from '@/pages/accounts/DriverHistoryPage'
 type AccountsSection = 'contractor' | 'driver' | 'client' | 'all-movements'
 
 const accountsItems: { id: AccountsSection; label: string }[] = [
-  { id: 'contractor', label: 'حساب المقاول' },
-  { id: 'driver', label: 'سجل السائق' },
-  { id: 'client', label: 'حساب العميل' },
-  { id: 'all-movements', label: 'كل الحركات' }
+  { id: 'contractor', label: 'accountsPage.sections.contractor' },
+  { id: 'driver', label: 'accountsPage.sections.driver' },
+  { id: 'client', label: 'accountsPage.sections.client' },
+  { id: 'all-movements', label: 'accountsPage.sections.allMovements' }
 ]
 
 export function AccountsPage(): React.JSX.Element {
+  const { t } = useTranslation()
   const [activeSection, setActiveSection] = useState<AccountsSection>('contractor')
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">الحسابات</h1>
+      <h1 className="text-2xl font-semibold">{t('accountsPage.title')}</h1>
       <div className="settings-layout">
         <Card className="settings-menu">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">الحسابات</CardTitle>
+            <CardTitle className="text-base">{t('accountsPage.title')}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-1">
             {accountsItems.map((item) => (
@@ -38,7 +40,7 @@ export function AccountsPage(): React.JSX.Element {
                 )}
                 onClick={() => setActiveSection(item.id)}
               >
-                {item.label}
+                {t(item.label)}
               </Button>
             ))}
           </CardContent>

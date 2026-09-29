@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/DataTable'
@@ -14,18 +15,19 @@ export function AllTripsPage(): React.JSX.Element {
   const [trips, setTrips] = useState<AllTripsRow[]>([])
   const [loading, setLoading] = useState(true)
   const { openWindow } = useFloatingWindows()
+  const { t } = useTranslation()
 
   const columns: ColumnDef<AllTripsRow, unknown>[] = [
-    { accessorKey: 'tripDate', header: 'التاريخ' },
-    { accessorKey: 'shiftId', header: 'الوردية' },
-    { accessorKey: 'driverName', header: 'السائق' },
-    { accessorKey: 'vehicleNo', header: 'رقم العربية' },
-    { accessorKey: 'crusherName', header: 'الكسارة' },
-    { accessorKey: 'clientName', header: 'العميل' },
-    { accessorKey: 'effectiveClientCubic', header: 'الصافي' },
+    { accessorKey: 'tripDate', header: t('common.columns.date') },
+    { accessorKey: 'shiftId', header: t('common.columns.shift') },
+    { accessorKey: 'driverName', header: t('ledgerEntryForm.fields.driver') },
+    { accessorKey: 'vehicleNo', header: t('vehiclesSettings.fields.vehicleNo') },
+    { accessorKey: 'crusherName', header: t('tripForm.fields.crusher') },
+    { accessorKey: 'clientName', header: t('tripForm.fields.client') },
+    { accessorKey: 'effectiveClientCubic', header: t('allTrips.columns.net') },
     {
       id: 'actions',
-      header: 'الإجراءات',
+      header: t('common.columns.actions'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
@@ -36,12 +38,12 @@ export function AllTripsPage(): React.JSX.Element {
           onClick={() =>
             openWindow(
               row.original.id,
-              `تفاصيل النقلة ${row.original.id}`,
+              t('allTrips.detailsTitle', { id: row.original.id }),
               <TripDetailsContent trip={row.original} />
             )
           }
         >
-          تفاصيل
+          {t('common.details')}
         </Button>
       )
     }
@@ -56,9 +58,9 @@ export function AllTripsPage(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">كل النقلات</h1>
+      <h1 className="text-2xl font-semibold">{t('allTrips.title')}</h1>
       {loading ? (
-        <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
       ) : (
         <DataTable
           columns={columns}

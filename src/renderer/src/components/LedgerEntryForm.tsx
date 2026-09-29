@@ -119,7 +119,7 @@ export function LedgerEntryForm({
               <Select value={field.value ?? ''} onValueChange={field.onChange}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="اختر نوع الحركة" />
+                    <SelectValue placeholder={t('ledgerEntryForm.placeholders.movementType')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>

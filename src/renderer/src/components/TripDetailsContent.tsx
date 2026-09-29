@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 type TripDetailsRow = Extract<
   Awaited<ReturnType<typeof window.api.listAllTrips>>,
@@ -6,6 +7,7 @@ type TripDetailsRow = Extract<
 >['data'][number]
 
 export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JSX.Element {
+  const { t } = useTranslation()
   const [photoDataUri, setPhotoDataUri] = useState<string | null>(null)
   const [photoLoading, setPhotoLoading] = useState(Boolean(trip.receiptPhotoPath))
 
@@ -23,28 +25,38 @@ export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JS
     }
   }, [trip.receiptPhotoPath])
 
+  const crusherReceiptStatus =
+    trip.crusherReceiptStatus === 'قيمة'
+      ? t('tripForm.receiptStatuses.value')
+      : trip.crusherReceiptStatus === 'مفيش (متأكد)'
+        ? t('tripForm.receiptStatuses.noReceiptConfirmed')
+        : t('tripForm.receiptStatuses.unknown')
+  const recipientNameStatus =
+    trip.recipientNameStatus === 'قيمة'
+      ? t('tripForm.receiptStatuses.value')
+      : t('tripForm.recipientNameStatuses.unclear')
   const details: [string, string | number | null][] = [
-    ['رقم النقلة', trip.id],
-    ['الوردية', trip.shiftId],
-    ['التاريخ', trip.tripDate],
-    ['السائق', trip.driverName],
-    ['رقم العربية', trip.vehicleNo],
-    ['تكعيب الكسارة', trip.crusherCubic],
-    ['تكعيب العميل المُبلّغ', trip.clientCubicReported],
-    ['كمية الخصم', trip.discountQty],
-    ['سبب الخصم', trip.discountReason],
-    ['المكان', trip.location],
-    ['الكسارة', trip.crusherName],
-    ['العميل', trip.clientName],
-    ['سعر الحجر', trip.stonePrice],
-    ['سعر النقل', trip.transportPrice],
-    ['سعر العميل', trip.clientPrice],
-    ['حالة إيصال الكسارة', trip.crusherReceiptStatus],
-    ['رقم إيصال الكسارة', trip.crusherReceiptNo],
-    ['حالة اسم المستلم', trip.recipientNameStatus],
-    ['اسم المستلم', trip.recipientName],
-    ['رقم إيصال العميل', trip.clientReceiptNo],
-    ['ملاحظات', trip.notes]
+    [t('tripDetails.fields.tripNumber'), trip.id],
+    [t('common.columns.shift'), trip.shiftId],
+    [t('common.columns.date'), trip.tripDate],
+    [t('ledgerEntryForm.fields.driver'), trip.driverName],
+    [t('vehiclesSettings.fields.vehicleNo'), trip.vehicleNo],
+    [t('tripForm.fields.crusherCubic'), trip.crusherCubic],
+    [t('tripDetails.fields.clientCubicReported'), trip.clientCubicReported],
+    [t('tripDetails.fields.discountQuantity'), trip.discountQty],
+    [t('tripForm.fields.discountReason'), trip.discountReason],
+    [t('tripForm.fields.location'), trip.location],
+    [t('tripForm.fields.crusher'), trip.crusherName],
+    [t('tripForm.fields.client'), trip.clientName],
+    [t('tripForm.fields.stonePrice'), trip.stonePrice],
+    [t('tripForm.fields.transportPrice'), trip.transportPrice],
+    [t('tripForm.fields.clientPrice'), trip.clientPrice],
+    [t('tripForm.fields.crusherReceiptStatus'), crusherReceiptStatus],
+    [t('tripForm.fields.crusherReceiptNumber'), trip.crusherReceiptNo],
+    [t('tripForm.fields.recipientNameStatus'), recipientNameStatus],
+    [t('tripForm.fields.recipientName'), trip.recipientName],
+    [t('tripForm.fields.clientReceiptNumber'), trip.clientReceiptNo],
+    [t('common.columns.notes'), trip.notes]
   ]
 
   return (
@@ -53,23 +65,25 @@ export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JS
         {details.map(([label, value]) => (
           <div key={label} className="min-w-0 border-b border-border/60 pb-2">
             <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="mt-1 wrap-break-word text-sm">{value ?? '—'}</dd>
+            <dd className="mt-1 wrap-break-word text-sm">{value ?? t('common.emDash')}</dd>
           </div>
         ))}
       </dl>
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">صورة الإيصال</h3>
+        <h3 className="text-sm font-medium">{t('shifts.columns.receiptPhoto')}</h3>
         {photoLoading ? (
-          <p className="text-sm text-muted-foreground">جاري تحميل الصورة...</p>
+          <p className="text-sm text-muted-foreground">{t('tripDetails.imageLoading')}</p>
         ) : photoDataUri ? (
           <img
             src={photoDataUri}
-            alt={`صورة إيصال النقلة ${trip.id}`}
+            alt={t('tripDetails.receiptImageAlt', { id: trip.id })}
             className="max-h-80 max-w-full rounded-sm border border-border object-contain"
           />
         ) : (
           <p className="text-sm text-muted-foreground">
-            {trip.receiptPhotoPath ? 'الصورة غير متاحة' : 'لا يوجد إيصال مصوّر'}
+            {trip.receiptPhotoPath
+              ? t('receiptPhoto.unavailable')
+              : t('tripDetails.noReceiptImage')}
           </p>
         )}
       </section>

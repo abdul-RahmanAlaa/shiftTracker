@@ -2,6 +2,7 @@ import { format, parse } from 'date-fns'
 import { arEG } from 'date-fns/locale'
 import { CalendarIcon } from 'lucide-react'
 import { arSA as arSADayPicker } from 'react-day-picker/locale'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -10,7 +11,7 @@ import { cn } from '@/lib/utils'
 export function DatePicker({
   value,
   onChange,
-  placeholder = 'اختر تاريخًا',
+  placeholder,
   disabled = false
 }: {
   value?: string
@@ -18,6 +19,8 @@ export function DatePicker({
   placeholder?: string
   disabled?: boolean
 }): React.JSX.Element {
+  const { t } = useTranslation()
+  const datePlaceholder = placeholder ?? t('common.datePickerDefault')
   const selectedDate = value ? parse(value, 'yyyy-MM-dd', new Date()) : undefined
 
   return (
@@ -34,7 +37,7 @@ export function DatePicker({
             !selectedDate && 'text-muted-foreground'
           )}
         >
-          {selectedDate ? format(selectedDate, 'PPP', { locale: arEG }) : placeholder}
+          {selectedDate ? format(selectedDate, 'PPP', { locale: arEG }) : datePlaceholder}
           <CalendarIcon className="h-4 w-4" />
         </Button>
       </PopoverTrigger>

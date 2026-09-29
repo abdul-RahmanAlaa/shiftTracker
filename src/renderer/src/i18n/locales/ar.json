@@ -6,8 +6,10 @@
     "edit": "تعديل",
     "delete": "مسح",
     "loading": "جاري التحميل...",
+    "datePickerDefault": "اختر تاريخًا",
     "emptyCell": "-",
     "notAvailable": "-",
+    "emDash": "—",
     "emDash": "—",
     "defaultPrice": "السعر الافتراضي",
     "lockedShift": "مرتبطة بوردية مقفولة",
@@ -362,5 +364,56 @@
       "created": "✅ نقلة اتضافت: {{id}}",
       "failed": "❌ نقلة: {{errors}}"
     }
+  },
+  "ledgerEntryDetails": {
+    "movementNumber": "رقم الحركة",
+    "date": "التاريخ",
+    "movementType": "نوع الحركة",
+    "amount": "المبلغ",
+    "contractor": "المقاول",
+    "driver": "السائق",
+    "shift": "الوردية",
+    "notes": "ملاحظات"
+  },
+  "accountsPage": {
+    "title": "الحسابات",
+    "sections": {
+      "contractor": "حساب المقاول",
+      "driver": "سجل السائق",
+      "client": "حساب العميل",
+      "allMovements": "كل الحركات"
+    }
+  },
+  "allTrips": {
+    "title": "كل النقلات",
+    "detailsTitle": "تفاصيل النقلة {{id}}",
+    "columns": {
+      "net": "الصافي"
+    }
+  },
+  "settingsPage": {
+    "title": "بيانات أساسية",
+    "sections": {
+      "vehicles": "العربيات",
+      "drivers": "السائقون",
+      "contractors": "المقاولون",
+      "crushers": "الكسارات",
+      "clients": "العملاء"
+    }
+  },
+  "tripDetails": {
+    "fields": {
+      "tripNumber": "رقم النقلة",
+      "clientCubicReported": "تكعيب العميل المُبلّغ",
+      "discountQuantity": "كمية الخصم"
+    },
+    "imageLoading": "جاري تحميل الصورة...",
+    "receiptImageAlt": "صورة إيصال النقلة {{id}}",
+    "noReceiptImage": "لا يوجد إيصال مصوّر"
+  },
+  "app": {
+    "name": "Shift Tracker",
+    "subtitle": "إدارة النقل والورديات",
+    "navigationLabel": "التنقل الرئيسي"
   }
 }
