@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import i18n from 'i18next'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
@@ -26,19 +27,28 @@ export function getLedgerColumns({
   onDeleteEntry?: (entry: LedgerRow) => void
   getIsEntryLocked?: (entry: LedgerRow) => boolean
 } = {}): ColumnDef<LedgerRow, unknown>[] {
+  const t = i18n.t
   const columns: ColumnDef<LedgerRow, unknown>[] = [
-    { accessorKey: 'id', header: 'id' },
-    { accessorKey: 'entryDate', header: 'التاريخ' },
-    { accessorKey: 'movementType', header: 'نوع الحركة' },
-    { accessorKey: 'amount', header: 'المبلغ' },
-    { id: 'shiftId', accessorFn: (entry) => entry.shiftId ?? '-', header: 'الوردية' },
-    { id: 'notes', accessorFn: (entry) => entry.notes ?? '-', header: 'ملاحظات' }
+    { accessorKey: 'id', header: t('common.columns.id') },
+    { accessorKey: 'entryDate', header: t('common.columns.date') },
+    { accessorKey: 'movementType', header: t('common.columns.movementType') },
+    { accessorKey: 'amount', header: t('common.columns.amount') },
+    {
+      id: 'shiftId',
+      accessorFn: (entry) => entry.shiftId ?? t('common.emptyCell'),
+      header: t('common.columns.shift')
+    },
+    {
+      id: 'notes',
+      accessorFn: (entry) => entry.notes ?? t('common.emptyCell'),
+      header: t('common.columns.notes')
+    }
   ]
 
   if (onEditEntry || onDeleteEntry) {
     columns.push({
       id: 'actions',
-      header: 'الإجراءات',
+      header: t('common.columns.actions'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => {
@@ -52,10 +62,10 @@ export function getLedgerColumns({
               variant="outline"
               size="sm"
               disabled={locked}
-              title={locked ? 'مرتبطة بوردية مقفولة' : 'تعديل'}
+              title={locked ? t('common.lockedShift') : t('common.edit')}
               onClick={() => onEditEntry?.(entry)}
             >
-              تعديل
+              {t('common.edit')}
             </Button>
             <Button
               type="button"
@@ -65,7 +75,7 @@ export function getLedgerColumns({
               title={locked ? 'مرتبطة بوردية مقفولة' : 'مسح'}
               onClick={() => onDeleteEntry?.(entry)}
             >
-              مسح
+              {t('common.delete')}
             </Button>
           </div>
         )
@@ -85,23 +95,28 @@ export function getClientPaymentColumns({
   onEdit?: (payment: ClientPaymentRow) => void
   onDelete?: (payment: ClientPaymentRow) => void
 } = {}): ColumnDef<ClientPaymentRow, unknown>[] {
+  const t = i18n.t
   const columns: ColumnDef<ClientPaymentRow, unknown>[] = [
-    { accessorKey: 'id', header: 'id' },
-    { accessorKey: 'entryDate', header: 'التاريخ' },
-    { accessorKey: 'amount', header: 'المبلغ' },
-    { id: 'notes', accessorFn: (payment) => payment.notes ?? '-', header: 'ملاحظات' }
+    { accessorKey: 'id', header: t('common.columns.id') },
+    { accessorKey: 'entryDate', header: t('common.columns.date') },
+    { accessorKey: 'amount', header: t('common.columns.amount') },
+    {
+      id: 'notes',
+      accessorFn: (payment) => payment.notes ?? t('common.emptyCell'),
+      header: t('common.columns.notes')
+    }
   ]
 
   if (onEdit || onDelete) {
     columns.push({
       id: 'actions',
-      header: 'الإجراءات',
+      header: t('common.columns.actions'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
         <div className="flex gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => onEdit?.(row.original)}>
-            تعديل
+            {t('common.edit')}
           </Button>
           <Button
             type="button"
@@ -109,7 +124,7 @@ export function getClientPaymentColumns({
             size="sm"
             onClick={() => onDelete?.(row.original)}
           >
-            مسح
+            {t('common.delete')}
           </Button>
         </div>
       )

@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import i18n from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -26,7 +28,7 @@ import {
 import { Input } from '@/components/ui/input'
 
 const contractorSchema = z.object({
-  name: z.string().min(1, 'اسم المقاول مطلوب'),
+  name: z.string().min(1, i18n.t('contractorsSettings.validation.nameRequired')),
   phone: z.string().optional()
 })
 
@@ -34,6 +36,7 @@ type ContractorFormValues = z.infer<typeof contractorSchema>
 type Contractor = { id: number; name: string; phone: string | null }
 
 export function ContractorsSettings(): React.JSX.Element {
+  const { t } = useTranslation()
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [loading, setLoading] = useState(true)
   const [editingContractorId, setEditingContractorId] = useState<number | null>(null)
@@ -88,7 +91,7 @@ export function ContractorsSettings(): React.JSX.Element {
   }
 
   async function handleDeleteContractor(contractor: Contractor): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح المقاول ${contractor.name}؟`)) return
+    if (!confirm(t('contractorsSettings.deleteConfirmation', { name: contractor.name }))) return
     const result = await window.api.deleteContractor({ id: contractor.id })
     if (result.ok) {
       if (editingContractorId === contractor.id) cancelEditingContractor()
@@ -105,11 +108,15 @@ export function ContractorsSettings(): React.JSX.Element {
   }
 
   const columns: ColumnDef<Contractor, unknown>[] = [
-    { accessorKey: 'name', header: 'الاسم' },
-    { accessorKey: 'phone', header: 'رقم التليفون', cell: ({ getValue }) => getValue() ?? '-' },
+    { accessorKey: 'name', header: t('common.columns.name') },
+    {
+      accessorKey: 'phone',
+      header: t('contractorsSettings.phoneNumber'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
+    },
     {
       id: 'actions',
-      header: 'إجراءات',
+      header: t('common.columns.actions'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
@@ -120,7 +127,7 @@ export function ContractorsSettings(): React.JSX.Element {
             size="sm"
             onClick={() => startEditingContractor(row.original)}
           >
-            تعديل
+            {t('common.edit')}
           </Button>
           <Button
             type="button"
@@ -128,7 +135,7 @@ export function ContractorsSettings(): React.JSX.Element {
             size="sm"
             onClick={() => void handleDeleteContractor(row.original)}
           >
-            مسح
+            {t('common.delete')}
           </Button>
         </div>
       )
@@ -138,7 +145,7 @@ export function ContractorsSettings(): React.JSX.Element {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>المقاولون</CardTitle>
+        <CardTitle>{t('contractorsSettings.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
@@ -150,12 +157,16 @@ export function ContractorsSettings(): React.JSX.Element {
                 contractorForm.reset({ name: '', phone: '' })
               }}
             >
-              إضافة مقاول
+              {t('contractorsSettings.addButton')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingContractorId ? 'تعديل مقاول' : 'إضافة مقاول جديد'}</DialogTitle>
+              <DialogTitle>
+                {editingContractorId
+                  ? t('contractorsSettings.editTitle')
+                  : t('contractorsSettings.addTitle')}
+              </DialogTitle>
             </DialogHeader>
             <Form {...contractorForm}>
               <form
@@ -167,9 +178,9 @@ export function ContractorsSettings(): React.JSX.Element {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>اسم المقاول</FormLabel>
+                      <FormLabel>{t('contractorsSettings.fields.name')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="اسم المقاول" {...field} />
+                        <Input placeholder={t('contractorsSettings.fields.name')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -180,19 +191,27 @@ export function ContractorsSettings(): React.JSX.Element {
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>رقم التليفون</FormLabel>
+                      <FormLabel>{t('contractorsSettings.phoneNumber')}</FormLabel>
                       <FormControl>
-                        <Input type="text" placeholder="رقم التليفون" {...field} />
+                        <Input
+                          type="text"
+                          placeholder={t('contractorsSettings.phoneNumber')}
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <DialogFooter>
-                  <Button type="submit">{editingContractorId ? 'حفظ التعديل' : 'إضافة'}</Button>
+                  <Button type="submit">
+                    {editingContractorId
+                      ? t('contractorsSettings.saveEdit')
+                      : t('contractorsSettings.addSubmit')}
+                  </Button>
                   <DialogClose asChild>
                     <Button type="button" variant="outline" onClick={cancelEditingContractor}>
-                      إلغاء
+                      {t('common.cancel')}
                     </Button>
                   </DialogClose>
                 </DialogFooter>
@@ -202,7 +221,7 @@ export function ContractorsSettings(): React.JSX.Element {
         </Dialog>
         <div className="mt-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
             <DataTable
               columns={columns}

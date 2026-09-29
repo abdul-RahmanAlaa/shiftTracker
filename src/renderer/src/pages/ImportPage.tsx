@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import i18n from 'i18next'
+import { useTranslation } from 'react-i18next'
 import type { ColumnDef } from '@tanstack/react-table'
 import { UploadCloud } from 'lucide-react'
 import { DataTable } from '@/components/DataTable'
@@ -9,27 +11,23 @@ import { Input } from '@/components/ui/input'
 
 type ImportError = { row: number; field: string; message: string }
 
+const t = i18n.t
+
 const importErrorColumns: ColumnDef<ImportError, unknown>[] = [
   {
     id: 'row',
-    accessorFn: (error) => (error.row === 0 ? 'عام' : error.row),
-    header: 'رقم السطر'
+    accessorFn: (error) => (error.row === 0 ? t('importPage.errors.general') : error.row),
+    header: t('importPage.errors.rowNumber')
   },
   {
     id: 'message',
     accessorFn: (error) => `${error.field}: ${error.message}`,
-    header: 'الخطأ'
+    header: t('importPage.errors.error')
   }
 ]
 
-const importCsvHeaders =
-  'old_shift_no,driver_name,vehicle_no,shift_start_date,shift_end_date,shift_crusher_cubic_default,shift_client_cubic_default,trip_date,crusher_cubic,client_cubic_reported,discount_qty,discount_reason,location,crusher_name,stone_price,crusher_receipt_status,crusher_receipt_no,client_name,transport_price,client_price,recipient_name_status,recipient_name,client_receipt_no,notes'
-const importCsvDescription =
-  'احذف هذا السطر قبل الرفع, اسم السائق, رقم العربية, تاريخ بداية الوردية, تاريخ نهاية الوردية, تكعيب الكسارة الافتراضي للوردية, تكعيب العميل الافتراضي للوردية, تاريخ النقلة, تكعيب الكسارة, تكعيب العميل, كمية الخصم, سبب الخصم, المكان, اسم الكسارة, سعر الحجر, حالة إيصال الكسارة (قيمة/مفيش (متأكد)/مش معروف), رقم إيصال الكسارة, اسم العميل, سعر النقل, سعر العميل, حالة اسم المستلم (قيمة/مش واضح), اسم المستلم, رقم إيصال العميل, ملاحظات'
-const importCsvExample =
-  'SH-OLD-1,أحمد محمد,1645,2026-01-01,2026-01-05,25,24,2026-01-02,25,24,0,,الكسارة الرئيسية,اسم كسارة تجريبي,150,قيمة,1001,اسم عميل تجريبي,80,200,مش واضح,,,ملاحظة تجريبية'
-
 export function ImportPage(): React.JSX.Element {
+  const { t } = useTranslation()
   const [csvText, setCsvText] = useState('')
   const [fileName, setFileName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -40,12 +38,12 @@ export function ImportPage(): React.JSX.Element {
   const [fileError, setFileError] = useState<string | null>(null)
 
   function handleDownloadTemplate(): void {
-    const csvText = `\uFEFF${importCsvHeaders}\n${importCsvDescription}\n${importCsvExample}\n`
+    const csvText = `\uFEFF${t('importPage.csv.headers')}\n${t('importPage.csv.description')}\n${t('importPage.csv.example')}\n`
     const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'نموذج_استيراد.csv'
+    link.download = t('importPage.csv.templateFileName')
     document.body.appendChild(link)
     link.click()
     link.remove()
@@ -64,15 +62,15 @@ export function ImportPage(): React.JSX.Element {
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === 'string') setCsvText(reader.result)
-      else setFileError('تعذر قراءة الملف')
+      else setFileError(t('importPage.errors.readFile'))
     }
-    reader.onerror = () => setFileError('تعذر قراءة الملف')
+    reader.onerror = () => setFileError(t('importPage.errors.readFile'))
     reader.readAsText(file)
   }
 
   async function handleImport(): Promise<void> {
     if (!csvText) {
-      setFileError('اختار ملف CSV الأول')
+      setFileError(t('importPage.errors.selectFileFirst'))
       return
     }
     setIsLoading(true)
@@ -91,7 +89,7 @@ export function ImportPage(): React.JSX.Element {
         )
       }
     } catch (error) {
-      setFileError(error instanceof Error ? error.message : 'حدث خطأ أثناء الاستيراد')
+      setFileError(error instanceof Error ? error.message : t('importPage.errors.importFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -99,29 +97,36 @@ export function ImportPage(): React.JSX.Element {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">استيراد بيانات</h1>
+      <h1 className="text-2xl font-semibold">{t('importPage.title')}</h1>
       <Card>
         <CardHeader>
-          <CardTitle>استيراد بيانات من CSV</CardTitle>
+          <CardTitle>{t('importPage.cardTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Button type="button" variant="outline" onClick={handleDownloadTemplate}>
-            تحميل نموذج CSV
+            {t('importPage.downloadTemplate')}
           </Button>
           <Input type="file" accept=".csv" onChange={handleFileChange} />
-          {fileName && <p className="text-sm text-muted-foreground">الملف المختار: {fileName}</p>}
+          {fileName && (
+            <p className="text-sm text-muted-foreground">
+              {t('importPage.selectedFile', { fileName })}
+            </p>
+          )}
           <Button
             type="button"
             onClick={() => void handleImport()}
             disabled={isLoading || !csvText}
           >
             <UploadCloud className="h-4 w-4" />
-            {isLoading ? 'جاري الاستيراد...' : 'استيراد'}
+            {isLoading ? t('importPage.importing') : t('importPage.submit')}
           </Button>
           {fileError && <p className="text-sm text-destructive">{fileError}</p>}
           {summary && (
             <Badge className="bg-green-600 text-white hover:bg-green-600">
-              تم استيراد {summary.shiftsCreated} وردية و{summary.tripsCreated} نقلة بنجاح
+              {t('importPage.successSummary', {
+                shifts: summary.shiftsCreated,
+                trips: summary.tripsCreated
+              })}
             </Badge>
           )}
         </CardContent>
@@ -130,14 +135,14 @@ export function ImportPage(): React.JSX.Element {
       {errors.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>أخطاء الاستيراد</CardTitle>
+            <CardTitle>{t('importPage.errors.title')}</CardTitle>
           </CardHeader>
           <CardContent>
             <DataTable
               columns={importErrorColumns}
               data={errors}
               getRowId={(error) => `${error.row}-${error.field}`}
-              emptyMessage="لا توجد أخطاء"
+              emptyMessage={t('importPage.errors.empty')}
             />
           </CardContent>
         </Card>

@@ -1,5 +1,97 @@
 {
-	"common": {
-		"close": "إغلاق"
-	}
+  "common": {
+    "close": "إغلاق",
+    "cancel": "إلغاء",
+    "edit": "تعديل",
+    "delete": "مسح",
+    "loading": "جاري التحميل...",
+    "emptyCell": "-",
+    "notAvailable": "-",
+    "edit": "تعديل",
+    "delete": "مسح",
+    "cancel": "إلغاء",
+    "lockedShift": "مرتبطة بوردية مقفولة",
+    "columns": {
+      "id": "id",
+      "name": "الاسم",
+      "date": "التاريخ",
+      "movementType": "نوع الحركة",
+      "amount": "المبلغ",
+      "shift": "الوردية",
+      "notes": "ملاحظات",
+      "actions": "الإجراءات"
+    }
+  },
+  "floatingWindow": {
+    "minimizeAriaLabel": "تصغير النافذة",
+    "minimize": "تصغير",
+    "restoreAriaLabel": "استعادة النافذة",
+    "maximizeAriaLabel": "تكبير النافذة",
+    "restore": "استعادة",
+    "maximize": "تكبير",
+    "closeAriaLabel": "إغلاق النافذة"
+  },
+  "createShift": {
+    "title": "فتح وردية جديدة",
+    "submit": "فتح الوردية",
+    "fields": {
+      "vehicle": "السيارة",
+      "crusherCubic": "تكعيب الكسارة",
+      "clientCubic": "تكعيب العميل",
+      "startDate": "تاريخ البداية *",
+      "destination": "الوجهة",
+      "tripCount": "عدد النقلات"
+    },
+    "placeholders": {
+      "vehicle": "اختار السيارة",
+      "startDate": "اختر تاريخ البداية"
+    },
+    "validation": {
+      "vehicleRequired": "السيارة مطلوبة",
+      "crusherCubicRequired": "تكعيب الكسارة مطلوب",
+      "clientCubicRequired": "تكعيب العميل مطلوب",
+      "startDateRequired": "تاريخ البداية مطلوب"
+    }
+  },
+  "importPage": {
+    "title": "استيراد بيانات",
+    "cardTitle": "استيراد بيانات من CSV",
+    "downloadTemplate": "تحميل نموذج CSV",
+    "selectedFile": "الملف المختار: {{fileName}}",
+    "importing": "جاري الاستيراد...",
+    "submit": "استيراد",
+    "successSummary": "تم استيراد {{shifts}} وردية و{{trips}} نقلة بنجاح",
+    "csv": {
+      "headers": "old_shift_no,driver_name,vehicle_no,shift_start_date,shift_end_date,shift_crusher_cubic_default,shift_client_cubic_default,trip_date,crusher_cubic,client_cubic_reported,discount_qty,discount_reason,location,crusher_name,stone_price,crusher_receipt_status,crusher_receipt_no,client_name,transport_price,client_price,recipient_name_status,recipient_name,client_receipt_no,notes",
+      "description": "احذف هذا السطر قبل الرفع, اسم السائق, رقم العربية, تاريخ بداية الوردية, تاريخ نهاية الوردية, تكعيب الكسارة الافتراضي للوردية, تكعيب العميل الافتراضي للوردية, تاريخ النقلة, تكعيب الكسارة, تكعيب العميل, كمية الخصم, سبب الخصم, المكان, اسم الكسارة, سعر الحجر, حالة إيصال الكسارة (قيمة/مفيش (متأكد)/مش معروف), رقم إيصال الكسارة, اسم العميل, سعر النقل, سعر العميل, حالة اسم المستلم (قيمة/مش واضح), اسم المستلم, رقم إيصال العميل, ملاحظات",
+      "example": "SH-OLD-1,أحمد محمد,1645,2026-01-01,2026-01-05,25,24,2026-01-02,25,24,0,,الكسارة الرئيسية,اسم كسارة تجريبي,150,قيمة,1001,اسم عميل تجريبي,80,200,مش واضح,,,ملاحظة تجريبية",
+      "templateFileName": "نموذج_استيراد.csv"
+    },
+    "errors": {
+      "general": "عام",
+      "rowNumber": "رقم السطر",
+      "error": "الخطأ",
+      "readFile": "تعذر قراءة الملف",
+      "selectFileFirst": "اختار ملف CSV الأول",
+      "importFailed": "حدث خطأ أثناء الاستيراد",
+      "title": "أخطاء الاستيراد",
+      "empty": "لا توجد أخطاء"
+    }
+  },
+  "contractorsSettings": {
+    "title": "المقاولون",
+    "addButton": "إضافة مقاول",
+    "addTitle": "إضافة مقاول جديد",
+    "editTitle": "تعديل مقاول",
+    "saveEdit": "حفظ التعديل",
+    "addSubmit": "إضافة",
+    "phoneNumber": "رقم التليفون",
+    "deleteConfirmation": "متأكد إنك عايز تمسح المقاول {{name}}؟",
+    "fields": {
+      "name": "اسم المقاول"
+    },
+    "validation": {
+      "nameRequired": "اسم المقاول مطلوب"
+    }
+  }
 }

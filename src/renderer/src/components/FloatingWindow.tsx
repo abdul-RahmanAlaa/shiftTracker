@@ -1,5 +1,6 @@
 import { Minus, Minimize2, Square, X } from 'lucide-react'
 import { Rnd } from 'react-rnd'
+import { useTranslation } from 'react-i18next'
 
 interface FloatingWindowProps {
   title: string
@@ -30,6 +31,8 @@ export function FloatingWindow({
   onSizeChange,
   children
 }: FloatingWindowProps): React.JSX.Element {
+  const { t } = useTranslation()
+
   return (
     <Rnd
       dragHandleClassName="floating-window-titlebar"
@@ -60,8 +63,8 @@ export function FloatingWindow({
               type="button"
               className="flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               onClick={onMinimize}
-              aria-label="تصغير النافذة"
-              title="تصغير"
+              aria-label={t('floatingWindow.minimizeAriaLabel')}
+              title={t('floatingWindow.minimize')}
             >
               <Minus className="h-4 w-4" />
             </button>
@@ -69,8 +72,12 @@ export function FloatingWindow({
               type="button"
               className="flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               onClick={onToggleMaximize}
-              aria-label={isMaximized ? 'استعادة النافذة' : 'تكبير النافذة'}
-              title={isMaximized ? 'استعادة' : 'تكبير'}
+              aria-label={
+                isMaximized
+                  ? t('floatingWindow.restoreAriaLabel')
+                  : t('floatingWindow.maximizeAriaLabel')
+              }
+              title={isMaximized ? t('floatingWindow.restore') : t('floatingWindow.maximize')}
             >
               {isMaximized ? (
                 <Minimize2 className="h-3.5 w-3.5" />
@@ -82,8 +89,8 @@ export function FloatingWindow({
               type="button"
               className="flex h-6 w-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-red-600 hover:text-white"
               onClick={onClose}
-              aria-label="إغلاق النافذة"
-              title="إغلاق"
+              aria-label={t('floatingWindow.closeAriaLabel')}
+              title={t('common.close')}
             >
               <X className="h-4 w-4" />
             </button>
