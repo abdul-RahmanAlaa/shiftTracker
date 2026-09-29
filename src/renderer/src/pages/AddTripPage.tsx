@@ -2,6 +2,8 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, ChevronsUpDown } from 'lucide-react'
+import i18n from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
@@ -59,19 +61,23 @@ export type ResourceState = {
 
 export const tripSchema = z
   .object({
-    tripDate: z.string().min(1, 'تاريخ النقلة مطلوب'),
-    crusherCubic: z.number().nonnegative('تكعيب الكسارة مطلوب'),
-    clientCubicReported: z.number().nonnegative('تكعيب العميل مطلوب'),
+    tripDate: z.string().min(1, i18n.t('tripForm.validation.tripDateRequired')),
+    crusherCubic: z.number().nonnegative(i18n.t('tripForm.validation.crusherCubicRequired')),
+    clientCubicReported: z.number().nonnegative(i18n.t('tripForm.validation.clientCubicRequired')),
     discountQty: z.number().nonnegative().optional(),
     discountReason: z.string().optional(),
     location: z.string().optional(),
-    crusherId: z.number().int().positive('الكسارة مطلوبة'),
-    stonePrice: z.number().nonnegative('سعر الحجر مطلوب'),
+    crusherId: z.number().int().positive(i18n.t('tripForm.validation.crusherRequired')),
+    stonePrice: z.number().nonnegative(i18n.t('tripForm.validation.stonePriceRequired')),
     crusherReceiptStatus: z.enum(['قيمة', 'مفيش (متأكد)', 'مش معروف']),
-    crusherReceiptNo: z.number().int().positive('رقم إيصال الكسارة مطلوب').optional(),
-    clientId: z.number().int().positive('العميل مطلوب'),
-    transportPrice: z.number().nonnegative('سعر النقل مطلوب'),
-    clientPrice: z.number().nonnegative('سعر العميل مطلوب'),
+    crusherReceiptNo: z
+      .number()
+      .int()
+      .positive(i18n.t('tripForm.validation.crusherReceiptNumberRequired'))
+      .optional(),
+    clientId: z.number().int().positive(i18n.t('tripForm.validation.clientRequired')),
+    transportPrice: z.number().nonnegative(i18n.t('tripForm.validation.transportPriceRequired')),
+    clientPrice: z.number().nonnegative(i18n.t('tripForm.validation.clientPriceRequired')),
     recipientNameStatus: z.enum(['قيمة', 'مش واضح']),
     recipientName: z.string().optional(),
     clientReceiptNo: z.string().optional(),
@@ -82,11 +88,15 @@ export const tripSchema = z
       context.addIssue({
         code: 'custom',
         path: ['crusherReceiptNo'],
-        message: 'رقم إيصال الكسارة مطلوب'
+        message: i18n.t('tripForm.validation.crusherReceiptNumberRequired')
       })
     }
     if (values.recipientNameStatus === 'قيمة' && !values.recipientName?.trim()) {
-      context.addIssue({ code: 'custom', path: ['recipientName'], message: 'اسم المستلم مطلوب' })
+      context.addIssue({
+        code: 'custom',
+        path: ['recipientName'],
+        message: i18n.t('tripForm.validation.recipientNameRequired')
+      })
     }
   })
 
@@ -132,6 +142,7 @@ export function NumberField({
 }
 
 export function AddTripPage(): React.JSX.Element {
+  const { t } = useTranslation()
   const [resources, setResources] = useState<ResourceState>({
     drivers: [],
     vehicles: [],
@@ -249,8 +260,8 @@ export function AddTripPage(): React.JSX.Element {
     if (!openShift) return
     const result = await window.api.createTrip({ shiftId: openShift.id, ...values })
     const message = result.ok
-      ? `✅ نقلة اتضافت: ${result.data?.id}`
-      : `❌ نقلة: ${result.errors?.map((x) => x.message).join(', ')}`
+      ? t('addTrip.logs.created', { id: result.data?.id })
+      : t('addTrip.logs.failed', { errors: result.errors?.map((x) => x.message).join(', ') })
     setTripLog((previous) => [message, ...previous])
     if (result.ok) {
       tripForm.reset({
@@ -274,13 +285,13 @@ export function AddTripPage(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-6" dir="rtl">
       <div>
-        <h1 className="text-2xl font-semibold">إضافة نقلة</h1>
-        <p className="mt-1 text-sm text-muted-foreground">اختار السائق ثم أدخل بيانات النقلة</p>
+        <h1 className="text-2xl font-semibold">{t('addTrip.title')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('addTrip.subtitle')}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>الخطوة 1: اختيار السائق</CardTitle>
+          <CardTitle>{t('addTrip.steps.selectDriver')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Select
@@ -289,7 +300,9 @@ export function AddTripPage(): React.JSX.Element {
             disabled={resourceLoading}
           >
             <SelectTrigger>
-              <SelectValue placeholder={resourceLoading ? 'جاري التحميل...' : 'اختار السائق'} />
+              <SelectValue
+                placeholder={resourceLoading ? t('common.loading') : t('addTrip.selectDriver')}
+              />
             </SelectTrigger>
             <SelectContent>
               {resources.drivers.map((driver) => (
@@ -305,40 +318,48 @@ export function AddTripPage(): React.JSX.Element {
       {selectedDriverId && (
         <Card>
           <CardHeader>
-            <CardTitle>الخطوة 2: حالة الوردية</CardTitle>
+            <CardTitle>{t('addTrip.steps.shiftStatus')}</CardTitle>
           </CardHeader>
           <CardContent>
             {checkingShift ? (
-              <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+              <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
             ) : openShift ? (
               <div className="flex flex-col gap-4">
                 <div className="grid gap-3 sm:grid-cols-5">
                   <div>
-                    <p className="text-sm text-muted-foreground">رقم الوردية</p>
+                    <p className="text-sm text-muted-foreground">{t('shifts.shiftInfo.number')}</p>
                     <Badge variant="secondary">{openShift.id}</Badge>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">رقم السيارة</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t('vehiclesSettings.fields.vehicleNo')}
+                    </p>
                     <p>{openShift.vehicleNo}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">تاريخ البداية</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t('shifts.shiftInfo.startDate')}
+                    </p>
                     <p>{openShift.startDate}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">تكعيب الكسارة</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t('createShift.fields.crusherCubic')}
+                    </p>
                     <p>{openShift.crusherCubicDefault}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">تكعيب العميل</p>
+                    <p className="text-sm text-muted-foreground">
+                      {t('createShift.fields.clientCubic')}
+                    </p>
                     <p>{openShift.clientCubicDefault}</p>
                   </div>
                 </div>
-                <Badge>وردية مفتوحة</Badge>
+                <Badge>{t('shiftStatus.open')}</Badge>
               </div>
             ) : (
               <div className="flex flex-col gap-4">
-                <p className="text-sm text-amber-400">مفيش وردية مفتوحة لهذا السائق</p>
+                <p className="text-sm text-amber-400">{t('addTrip.noOpenShift')}</p>
                 <CreateShiftForm
                   form={createShiftForm}
                   vehicles={resources.vehicles}
@@ -364,7 +385,7 @@ export function AddTripPage(): React.JSX.Element {
       {tripLog.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>سجل النقلات</CardTitle>
+            <CardTitle>{t('addTrip.tripLogTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-col gap-2 text-sm">
@@ -394,12 +415,13 @@ export function TripForm({
   recipientNameStatus: TripValues['recipientNameStatus']
   onSubmit: (values: TripValues) => Promise<void>
 }): React.JSX.Element {
+  const { t } = useTranslation()
   const [locationOpen, setLocationOpen] = useState(false)
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>الخطوة 3: بيانات النقلة</CardTitle>
+        <CardTitle>{t('addTrip.steps.tripDetails')}</CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -409,12 +431,15 @@ export function TripForm({
               name="tripDate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>تاريخ النقلة *</FormLabel>
+                  <FormLabel>
+                    {t('tripForm.fields.tripDate')}
+                    {' *'}
+                  </FormLabel>
                   <FormControl>
                     <DatePicker
                       value={field.value}
                       onChange={field.onChange}
-                      placeholder="اختر تاريخ النقلة"
+                      placeholder={t('tripForm.placeholders.tripDate')}
                     />
                   </FormControl>
                   <FormMessage />
@@ -424,22 +449,26 @@ export function TripForm({
             <NumberField
               control={form.control}
               name="crusherCubic"
-              label="تكعيب الكسارة"
+              label={t('tripForm.fields.crusherCubic')}
               required
             />
             <NumberField
               control={form.control}
               name="clientCubicReported"
-              label="تكعيب العميل"
+              label={t('tripForm.fields.clientCubic')}
               required
             />
-            <NumberField control={form.control} name="discountQty" label="الخصم" />
+            <NumberField
+              control={form.control}
+              name="discountQty"
+              label={t('tripForm.fields.discount')}
+            />
             <FormField
               control={form.control}
               name="discountReason"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>سبب الخصم</FormLabel>
+                  <FormLabel>{t('tripForm.fields.discountReason')}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -452,7 +481,7 @@ export function TripForm({
               name="location"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>المكان</FormLabel>
+                  <FormLabel>{t('tripForm.fields.location')}</FormLabel>
                   <Popover open={locationOpen} onOpenChange={setLocationOpen}>
                     <PopoverTrigger asChild>
                       <FormControl>
@@ -461,7 +490,7 @@ export function TripForm({
                           role="combobox"
                           className="w-full justify-between font-normal"
                         >
-                          {field.value || 'اختار أو اكتب المكان'}
+                          {field.value || t('tripForm.placeholders.location')}
                           <ChevronsUpDown className="h-4 w-4 opacity-50" />
                         </Button>
                       </FormControl>
@@ -471,10 +500,10 @@ export function TripForm({
                         <CommandInput
                           value={field.value ?? ''}
                           onValueChange={field.onChange}
-                          placeholder="اكتب المكان..."
+                          placeholder={t('tripForm.placeholders.typeLocation')}
                         />
                         <CommandList>
-                          <CommandEmpty>اكتب قيمة جديدة أو اختار من القائمة</CommandEmpty>
+                          <CommandEmpty>{t('tripForm.locationEmpty')}</CommandEmpty>
                           {locations.map((location) => (
                             <CommandItem
                               key={location}
@@ -506,14 +535,17 @@ export function TripForm({
               name="crusherId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>الكسارة *</FormLabel>
+                  <FormLabel>
+                    {t('tripForm.fields.crusher')}
+                    {' *'}
+                  </FormLabel>
                   <Select
                     value={field.value ? String(field.value) : ''}
                     onValueChange={(value) => field.onChange(Number(value))}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="اختار الكسارة" />
+                        <SelectValue placeholder={t('tripForm.placeholders.crusher')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -528,13 +560,21 @@ export function TripForm({
                 </FormItem>
               )}
             />
-            <NumberField control={form.control} name="stonePrice" label="سعر الحجر" required />
+            <NumberField
+              control={form.control}
+              name="stonePrice"
+              label={t('tripForm.fields.stonePrice')}
+              required
+            />
             <FormField
               control={form.control}
               name="crusherReceiptStatus"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>إيصال الكسارة *</FormLabel>
+                  <FormLabel>
+                    {t('tripForm.fields.crusherReceiptStatus')}
+                    {' *'}
+                  </FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
@@ -542,9 +582,13 @@ export function TripForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="قيمة">قيمة</SelectItem>
-                      <SelectItem value="مفيش (متأكد)">مفيش (متأكد)</SelectItem>
-                      <SelectItem value="مش معروف">مش معروف</SelectItem>
+                      <SelectItem value="قيمة">{t('tripForm.receiptStatuses.value')}</SelectItem>
+                      <SelectItem value="مفيش (متأكد)">
+                        {t('tripForm.receiptStatuses.noReceiptConfirmed')}
+                      </SelectItem>
+                      <SelectItem value="مش معروف">
+                        {t('tripForm.receiptStatuses.unknown')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -555,7 +599,7 @@ export function TripForm({
               <NumberField
                 control={form.control}
                 name="crusherReceiptNo"
-                label="رقم إيصال الكسارة"
+                label={t('tripForm.fields.crusherReceiptNumber')}
                 required
               />
             )}
@@ -564,14 +608,17 @@ export function TripForm({
               name="clientId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>العميل *</FormLabel>
+                  <FormLabel>
+                    {t('tripForm.fields.client')}
+                    {' *'}
+                  </FormLabel>
                   <Select
                     value={field.value ? String(field.value) : ''}
                     onValueChange={(value) => field.onChange(Number(value))}
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="اختار العميل" />
+                        <SelectValue placeholder={t('tripForm.placeholders.client')} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -586,14 +633,24 @@ export function TripForm({
                 </FormItem>
               )}
             />
-            <NumberField control={form.control} name="transportPrice" label="سعر النقل" required />
-            <NumberField control={form.control} name="clientPrice" label="سعر العميل" required />
+            <NumberField
+              control={form.control}
+              name="transportPrice"
+              label={t('tripForm.fields.transportPrice')}
+              required
+            />
+            <NumberField
+              control={form.control}
+              name="clientPrice"
+              label={t('tripForm.fields.clientPrice')}
+              required
+            />
             <FormField
               control={form.control}
               name="recipientNameStatus"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>اسم المستلم</FormLabel>
+                  <FormLabel>{t('tripForm.fields.recipientNameStatus')}</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger>
@@ -601,8 +658,10 @@ export function TripForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="قيمة">قيمة</SelectItem>
-                      <SelectItem value="مش واضح">مش واضح</SelectItem>
+                      <SelectItem value="قيمة">{t('tripForm.receiptStatuses.value')}</SelectItem>
+                      <SelectItem value="مش واضح">
+                        {t('tripForm.recipientNameStatuses.unclear')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -615,7 +674,10 @@ export function TripForm({
                 name="recipientName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>اسم المستلم *</FormLabel>
+                    <FormLabel>
+                      {t('tripForm.fields.recipientName')}
+                      {' *'}
+                    </FormLabel>
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -629,7 +691,7 @@ export function TripForm({
               name="clientReceiptNo"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>رقم إيصال العميل</FormLabel>
+                  <FormLabel>{t('tripForm.fields.clientReceiptNumber')}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -642,7 +704,7 @@ export function TripForm({
               name="notes"
               render={({ field }) => (
                 <FormItem className="md:col-span-2">
-                  <FormLabel>ملاحظات</FormLabel>
+                  <FormLabel>{t('common.columns.notes')}</FormLabel>
                   <FormControl>
                     <Textarea {...field} />
                   </FormControl>
@@ -651,7 +713,7 @@ export function TripForm({
               )}
             />
             <div className="md:col-span-2">
-              <Button type="submit">إضافة النقلة</Button>
+              <Button type="submit">{t('tripForm.submit')}</Button>
             </div>
           </form>
         </Form>

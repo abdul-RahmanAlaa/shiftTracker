@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import {
   LedgerEntryForm,
@@ -48,6 +49,7 @@ type Shift = { id: string; status: string }
 const emptyValue = '__none__'
 
 export function ContractorAccountPage(): React.JSX.Element {
+  const { t } = useTranslation()
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
@@ -163,7 +165,7 @@ export function ContractorAccountPage(): React.JSX.Element {
   }
 
   async function handleDeleteEntry(entry: LedgerRow): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح الحركة رقم ${entry.id}؟`)) return
+    if (!confirm(t('allMovements.deleteConfirmation', { id: entry.id }))) return
     const result = await window.api.deleteLedgerEntry({ id: entry.id })
     if (result.ok && selectedContractorId) {
       await handleChange(String(selectedContractorId))
@@ -171,16 +173,16 @@ export function ContractorAccountPage(): React.JSX.Element {
   }
 
   return (
-    <AccountCard title="حساب المقاول">
+    <AccountCard title={t('contractorAccount.title')}>
       <Select
         value={selectedContractorId ? String(selectedContractorId) : emptyValue}
         onValueChange={(value) => void handleChange(value)}
       >
         <SelectTrigger>
-          <SelectValue placeholder="اختر المقاول" />
+          <SelectValue placeholder={t('ledgerEntryForm.placeholders.contractor')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={emptyValue}>اختر المقاول</SelectItem>
+          <SelectItem value={emptyValue}>{t('ledgerEntryForm.placeholders.contractor')}</SelectItem>
           {contractors.map((contractor) => (
             <SelectItem key={contractor.id} value={String(contractor.id)}>
               {contractor.name}
@@ -192,9 +194,13 @@ export function ContractorAccountPage(): React.JSX.Element {
         <>
           <AccountSummary
             items={[
-              { label: 'مستحق النقل', value: account.transportTotal },
-              { label: 'إجمالي حركات السجل', value: account.ledgerTotal },
-              { label: 'الرصيد', value: account.balance, highlight: true }
+              { label: t('contractorAccount.summary.transportDue'), value: account.transportTotal },
+              { label: t('contractorAccount.summary.ledgerTotal'), value: account.ledgerTotal },
+              {
+                label: t('contractorAccount.summary.balance'),
+                value: account.balance,
+                highlight: true
+              }
             ]}
           />
           <Dialog
@@ -209,12 +215,12 @@ export function ContractorAccountPage(): React.JSX.Element {
           >
             <DialogTrigger asChild>
               <Button type="button" onClick={openCreateEntryDialog}>
-                إضافة حركة
+                {t('allMovements.addMovement')}
               </Button>
             </DialogTrigger>
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
-                <DialogTitle>إضافة حركة</DialogTitle>
+                <DialogTitle>{t('allMovements.addMovement')}</DialogTitle>
               </DialogHeader>
               <LedgerEntryForm
                 form={ledgerForm}
@@ -223,7 +229,7 @@ export function ContractorAccountPage(): React.JSX.Element {
                 contractors={contractors}
                 shifts={shifts}
                 lockedContractorId={selectedContractorId}
-                submitLabel="إضافة"
+                submitLabel={t('contractorsSettings.addSubmit')}
               />
             </DialogContent>
           </Dialog>
@@ -253,7 +259,7 @@ export function ContractorAccountPage(): React.JSX.Element {
           >
             <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
               <DialogHeader>
-                <DialogTitle>تعديل حركة</DialogTitle>
+                <DialogTitle>{t('allMovements.editTitle')}</DialogTitle>
               </DialogHeader>
               <Form {...ledgerForm}>
                 <form
@@ -265,12 +271,12 @@ export function ContractorAccountPage(): React.JSX.Element {
                     name="entryDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>تاريخ الحركة</FormLabel>
+                        <FormLabel>{t('ledgerEntryForm.fields.date')}</FormLabel>
                         <FormControl>
                           <DatePicker
                             value={field.value}
                             onChange={field.onChange}
-                            placeholder="اختر تاريخ الحركة"
+                            placeholder={t('ledgerEntryForm.placeholders.date')}
                           />
                         </FormControl>
                         <FormMessage />
@@ -282,17 +288,25 @@ export function ContractorAccountPage(): React.JSX.Element {
                     name="movementType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>نوع الحركة</FormLabel>
+                        <FormLabel>{t('ledgerEntryForm.fields.movementType')}</FormLabel>
                         <Select value={field.value ?? ''} onValueChange={field.onChange}>
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="اختر نوع الحركة" />
+                              <SelectValue
+                                placeholder={t('ledgerEntryForm.placeholders.movementType')}
+                              />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="عهدة">عهدة</SelectItem>
-                            <SelectItem value="دفعة">دفعة</SelectItem>
-                            <SelectItem value="اخرى">اخرى</SelectItem>
+                            <SelectItem value="عهدة">
+                              {t('ledgerEntryForm.movementTypes.custody')}
+                            </SelectItem>
+                            <SelectItem value="دفعة">
+                              {t('ledgerEntryForm.movementTypes.payment')}
+                            </SelectItem>
+                            <SelectItem value="اخرى">
+                              {t('ledgerEntryForm.movementTypes.other')}
+                            </SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />
@@ -304,7 +318,7 @@ export function ContractorAccountPage(): React.JSX.Element {
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>المبلغ</FormLabel>
+                        <FormLabel>{t('common.columns.amount')}</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -325,7 +339,7 @@ export function ContractorAccountPage(): React.JSX.Element {
                     name="driverId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>السائق</FormLabel>
+                        <FormLabel>{t('ledgerEntryForm.fields.driver')}</FormLabel>
                         <Select
                           value={field.value ? String(field.value) : emptyValue}
                           onValueChange={(value) =>
@@ -334,11 +348,13 @@ export function ContractorAccountPage(): React.JSX.Element {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="بدون سائق" />
+                              <SelectValue placeholder={t('ledgerEntryForm.none.driver')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={emptyValue}>بدون سائق</SelectItem>
+                            <SelectItem value={emptyValue}>
+                              {t('ledgerEntryForm.none.driver')}
+                            </SelectItem>
                             {drivers.map((driver) => (
                               <SelectItem key={driver.id} value={String(driver.id)}>
                                 {driver.name}
@@ -355,7 +371,7 @@ export function ContractorAccountPage(): React.JSX.Element {
                     name="shiftId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>الوردية</FormLabel>
+                        <FormLabel>{t('ledgerEntryForm.fields.shift')}</FormLabel>
                         <Select
                           value={field.value ?? emptyValue}
                           onValueChange={(value) =>
@@ -364,11 +380,13 @@ export function ContractorAccountPage(): React.JSX.Element {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="بدون وردية" />
+                              <SelectValue placeholder={t('ledgerEntryForm.none.shift')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={emptyValue}>بدون وردية</SelectItem>
+                            <SelectItem value={emptyValue}>
+                              {t('ledgerEntryForm.none.shift')}
+                            </SelectItem>
                             {shifts.map((shift) => (
                               <SelectItem key={shift.id} value={shift.id}>
                                 {shift.id}
@@ -385,7 +403,7 @@ export function ContractorAccountPage(): React.JSX.Element {
                     name="contractorId"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>المقاول</FormLabel>
+                        <FormLabel>{t('ledgerEntryForm.fields.contractor')}</FormLabel>
                         <Select
                           value={field.value ? String(field.value) : emptyValue}
                           onValueChange={(value) =>
@@ -394,11 +412,15 @@ export function ContractorAccountPage(): React.JSX.Element {
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="اختر المقاول" />
+                              <SelectValue
+                                placeholder={t('ledgerEntryForm.placeholders.contractor')}
+                              />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value={emptyValue}>اختر المقاول</SelectItem>
+                            <SelectItem value={emptyValue}>
+                              {t('ledgerEntryForm.placeholders.contractor')}
+                            </SelectItem>
                             {contractors.map((contractor) => (
                               <SelectItem key={contractor.id} value={String(contractor.id)}>
                                 {contractor.name}
@@ -415,7 +437,7 @@ export function ContractorAccountPage(): React.JSX.Element {
                     name="notes"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel>ملاحظات</FormLabel>
+                        <FormLabel>{t('common.columns.notes')}</FormLabel>
                         <FormControl>
                           <Textarea {...field} />
                         </FormControl>
@@ -424,10 +446,10 @@ export function ContractorAccountPage(): React.JSX.Element {
                     )}
                   />
                   <DialogFooter className="md:col-span-2">
-                    <Button type="submit">حفظ التعديل</Button>
+                    <Button type="submit">{t('contractorsSettings.saveEdit')}</Button>
                     <DialogClose asChild>
                       <Button type="button" variant="outline">
-                        إلغاء
+                        {t('common.cancel')}
                       </Button>
                     </DialogClose>
                   </DialogFooter>
@@ -437,7 +459,9 @@ export function ContractorAccountPage(): React.JSX.Element {
           </Dialog>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">اختر مقاول عشان تشوف الحساب</p>
+        <p className="text-sm text-muted-foreground">
+          {t('contractorAccount.selectContractorHint')}
+        </p>
       )}
     </AccountCard>
   )

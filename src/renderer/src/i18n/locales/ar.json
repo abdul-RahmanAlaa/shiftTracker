@@ -8,6 +8,7 @@
     "loading": "جاري التحميل...",
     "emptyCell": "-",
     "notAvailable": "-",
+    "emDash": "—",
     "defaultPrice": "السعر الافتراضي",
     "lockedShift": "مرتبطة بوردية مقفولة",
     "columns": {
@@ -258,5 +259,108 @@
     "title": "سجل السائق",
     "selectDriver": "اختر السائق",
     "selectDriverHint": "اختر سائق عشان تشوف الحساب"
+  },
+  "contractorAccount": {
+    "title": "حساب المقاول",
+    "selectContractorHint": "اختر مقاول عشان تشوف الحساب",
+    "summary": {
+      "transportDue": "مستحق النقل",
+      "ledgerTotal": "إجمالي حركات السجل",
+      "balance": "الرصيد"
+    }
+  },
+  "shiftStatus": {
+    "open": "مفتوحة",
+    "closed": "منتهية"
+  },
+  "shifts": {
+    "title": "الورديات",
+    "listTitle": "سجل الورديات",
+    "tripsTitle": "نقلات الوردية {{id}}",
+    "editTripTitle": "تعديل النقلة {{id}}",
+    "emptyTrips": "لا توجد نقلات في الوردية",
+    "deleteTripConfirmation": "متأكد إنك عايز تمسح النقلة {{id}}؟",
+    "selectDriver": "اختار السائق",
+    "closeCardTitle": "قفل وردية",
+    "selectShift": "اختار الوردية",
+    "closeDatePlaceholder": "اختر تاريخ القفل",
+    "closingPhotoRequired": "لازم ترفع صورة ورقة التقفيل الأول",
+    "closeSubmit": "قفل الوردية",
+    "columns": {
+      "status": "الحالة",
+      "startDate": "تاريخ البداية",
+      "endDate": "تاريخ النهاية",
+      "tripCount": "عدد النقلات",
+      "receiptPhoto": "صورة الإيصال"
+    },
+    "shiftInfo": {
+      "number": "رقم الوردية",
+      "startDate": "تاريخ البداية"
+    }
+  },
+  "tripForm": {
+    "fields": {
+      "tripDate": "تاريخ النقلة",
+      "location": "المكان",
+      "crusherCubic": "تكعيب الكسارة",
+      "clientCubic": "تكعيب العميل",
+      "stonePrice": "سعر الحجر",
+      "transportPrice": "سعر النقل",
+      "clientPrice": "سعر العميل",
+      "discount": "الخصم",
+      "discountReason": "سبب الخصم",
+      "crusher": "الكسارة",
+      "crusherReceiptStatus": "إيصال الكسارة",
+      "crusherReceiptNumber": "رقم إيصال الكسارة",
+      "client": "العميل",
+      "recipientNameStatus": "اسم المستلم",
+      "recipientName": "اسم المستلم",
+      "clientReceiptNumber": "رقم إيصال العميل"
+    },
+    "placeholders": {
+      "tripDate": "اختر تاريخ النقلة",
+      "location": "اختار أو اكتب المكان",
+      "typeLocation": "اكتب المكان...",
+      "crusher": "اختار الكسارة",
+      "client": "اختار العميل"
+    },
+    "locationEmpty": "اكتب قيمة جديدة أو اختار من القائمة",
+    "receiptStatuses": {
+      "value": "قيمة",
+      "noReceiptConfirmed": "مفيش (متأكد)",
+      "unknown": "مش معروف"
+    },
+    "recipientNameStatuses": {
+      "unclear": "مش واضح"
+    },
+    "submit": "إضافة النقلة",
+    "validation": {
+      "tripDateRequired": "تاريخ النقلة مطلوب",
+      "crusherCubicRequired": "تكعيب الكسارة مطلوب",
+      "clientCubicRequired": "تكعيب العميل مطلوب",
+      "crusherRequired": "الكسارة مطلوبة",
+      "stonePriceRequired": "سعر الحجر مطلوب",
+      "crusherReceiptNumberRequired": "رقم إيصال الكسارة مطلوب",
+      "clientRequired": "العميل مطلوب",
+      "transportPriceRequired": "سعر النقل مطلوب",
+      "clientPriceRequired": "سعر العميل مطلوب",
+      "recipientNameRequired": "اسم المستلم مطلوب"
+    }
+  },
+  "addTrip": {
+    "title": "إضافة نقلة",
+    "subtitle": "اختار السائق ثم أدخل بيانات النقلة",
+    "selectDriver": "اختار السائق",
+    "noOpenShift": "مفيش وردية مفتوحة لهذا السائق",
+    "tripLogTitle": "سجل النقلات",
+    "steps": {
+      "selectDriver": "الخطوة 1: اختيار السائق",
+      "shiftStatus": "الخطوة 2: حالة الوردية",
+      "tripDetails": "الخطوة 3: بيانات النقلة"
+    },
+    "logs": {
+      "created": "✅ نقلة اتضافت: {{id}}",
+      "failed": "❌ نقلة: {{errors}}"
+    }
   }
 }

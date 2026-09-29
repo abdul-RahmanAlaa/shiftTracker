@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -41,6 +42,7 @@ type ShiftListRow = {
 }
 
 export function ShiftsPage(): React.JSX.Element {
+  const { t } = useTranslation()
   const [shifts, setShifts] = useState<ShiftListRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedDriverIdForShift, setSelectedDriverIdForShift] = useState<number>()
@@ -181,7 +183,7 @@ export function ShiftsPage(): React.JSX.Element {
   }
 
   async function handleDeleteTrip(trip: TripRow): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح النقلة ${trip.id}؟`)) return
+    if (!confirm(t('shifts.deleteTripConfirmation', { id: trip.id }))) return
     const result = await window.api.deleteTrip({ id: trip.id })
     if (result.ok) {
       if (selectedShiftId) await loadShiftTrips(selectedShiftId)
@@ -242,18 +244,18 @@ export function ShiftsPage(): React.JSX.Element {
   const shiftColumns: ColumnDef<ShiftListRow, unknown>[] = [
     {
       accessorKey: 'id',
-      header: 'رقم الوردية',
+      header: t('shifts.shiftInfo.number'),
       cell: ({ row }) => (
         <Button type="button" variant="link" onClick={() => void selectShift(row.original.id)}>
           {row.original.id}
         </Button>
       )
     },
-    { accessorKey: 'driverName', header: 'السائق' },
-    { accessorKey: 'vehicleNo', header: 'رقم السيارة' },
+    { accessorKey: 'driverName', header: t('ledgerEntryForm.fields.driver') },
+    { accessorKey: 'vehicleNo', header: t('vehiclesSettings.fields.vehicleNo') },
     {
       accessorKey: 'status',
-      header: 'الحالة',
+      header: t('shifts.columns.status'),
       cell: ({ getValue }) => (
         <Badge
           className={
@@ -262,31 +264,39 @@ export function ShiftsPage(): React.JSX.Element {
               : 'border-transparent bg-gray-500 text-white hover:bg-gray-500'
           }
         >
-          {String(getValue())}
+          {t(getValue() === 'مفتوحة' ? 'shiftStatus.open' : 'shiftStatus.closed')}
         </Badge>
       )
     },
-    { accessorKey: 'startDate', header: 'تاريخ البداية' },
-    { id: 'endDate', accessorFn: (shift) => shift.endDate ?? '—', header: 'تاريخ النهاية' },
-    { accessorKey: 'actualTripCount', header: 'عدد النقلات' }
+    { accessorKey: 'startDate', header: t('shifts.columns.startDate') },
+    {
+      id: 'endDate',
+      accessorFn: (shift) => shift.endDate ?? t('common.emDash'),
+      header: t('shifts.columns.endDate')
+    },
+    { accessorKey: 'actualTripCount', header: t('shifts.columns.tripCount') }
   ]
 
   const tripColumns: ColumnDef<TripRow, unknown>[] = [
-    { accessorKey: 'id', header: 'id' },
-    { accessorKey: 'tripDate', header: 'تاريخ النقلة' },
-    { id: 'location', accessorFn: (trip) => trip.location ?? '—', header: 'المكان' },
-    { accessorKey: 'crusherCubic', header: 'تكعيب الكسارة' },
-    { accessorKey: 'clientCubicReported', header: 'تكعيب العميل' },
+    { accessorKey: 'id', header: t('common.columns.id') },
+    { accessorKey: 'tripDate', header: t('tripForm.fields.tripDate') },
+    {
+      id: 'location',
+      accessorFn: (trip) => trip.location ?? t('common.emDash'),
+      header: t('tripForm.fields.location')
+    },
+    { accessorKey: 'crusherCubic', header: t('tripForm.fields.crusherCubic') },
+    { accessorKey: 'clientCubicReported', header: t('tripForm.fields.clientCubic') },
     {
       id: 'stonePrice',
-      accessorFn: (trip) => trip.stonePrice ?? '—',
-      header: 'سعر الحجر'
+      accessorFn: (trip) => trip.stonePrice ?? t('common.emDash'),
+      header: t('tripForm.fields.stonePrice')
     },
-    { accessorKey: 'transportPrice', header: 'سعر النقل' },
-    { accessorKey: 'clientPrice', header: 'سعر العميل' },
+    { accessorKey: 'transportPrice', header: t('tripForm.fields.transportPrice') },
+    { accessorKey: 'clientPrice', header: t('tripForm.fields.clientPrice') },
     {
       id: 'receiptPhoto',
-      header: 'صورة الإيصال',
+      header: t('shifts.columns.receiptPhoto'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
@@ -305,12 +315,12 @@ export function ShiftsPage(): React.JSX.Element {
     },
     {
       id: 'actions',
-      header: 'إجراءات',
+      header: t('common.columns.actions'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) =>
         isSelectedShiftClosed ? (
-          <span className="text-sm text-muted-foreground">الوردية مقفولة</span>
+          <span className="text-sm text-muted-foreground">{t('common.lockedShift')}</span>
         ) : (
           <div className="flex gap-2">
             <Button
@@ -319,7 +329,7 @@ export function ShiftsPage(): React.JSX.Element {
               size="sm"
               onClick={() => startEditingTrip(row.original)}
             >
-              تعديل
+              {t('common.edit')}
             </Button>
             <Button
               type="button"
@@ -327,7 +337,7 @@ export function ShiftsPage(): React.JSX.Element {
               size="sm"
               onClick={() => void handleDeleteTrip(row.original)}
             >
-              مسح
+              {t('common.delete')}
             </Button>
           </div>
         )
@@ -336,22 +346,22 @@ export function ShiftsPage(): React.JSX.Element {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
-      <h1 className="text-2xl font-semibold">الورديات</h1>
+      <h1 className="text-2xl font-semibold">{t('shifts.title')}</h1>
 
       <Card className="min-h-0 flex-1">
         <CardHeader>
-          <CardTitle>سجل الورديات</CardTitle>
+          <CardTitle>{t('shifts.listTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-col">
           {loading ? (
-            <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
             <DataTable
               columns={shiftColumns}
               data={shifts}
               getRowId={(shift) => shift.id}
               enableRowSelection
-              emptyMessage="لا يوجد بيانات بعد"
+              emptyMessage={t('dataTable.emptyMessage')}
             />
           )}
         </CardContent>
@@ -360,7 +370,7 @@ export function ShiftsPage(): React.JSX.Element {
       {selectedShiftId && (
         <Card className="min-h-0 flex-1">
           <CardHeader>
-            <CardTitle>نقلات الوردية {selectedShiftId}</CardTitle>
+            <CardTitle>{t('shifts.tripsTitle', { id: selectedShiftId })}</CardTitle>
           </CardHeader>
           <CardContent className="flex min-h-0 flex-col">
             <Dialog
@@ -371,7 +381,7 @@ export function ShiftsPage(): React.JSX.Element {
             >
               <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
                 <DialogHeader>
-                  <DialogTitle>تعديل النقلة {editingTripId}</DialogTitle>
+                  <DialogTitle>{t('shifts.editTripTitle', { id: editingTripId })}</DialogTitle>
                 </DialogHeader>
                 <TripForm
                   form={editTripForm}
@@ -388,7 +398,7 @@ export function ShiftsPage(): React.JSX.Element {
               data={shiftTrips}
               getRowId={(trip) => trip.id}
               enableRowSelection
-              emptyMessage="لا توجد نقلات في الوردية"
+              emptyMessage={t('shifts.emptyTrips')}
             />
           </CardContent>
         </Card>
@@ -396,7 +406,7 @@ export function ShiftsPage(): React.JSX.Element {
 
       <Card>
         <CardHeader>
-          <CardTitle>فتح وردية جديدة</CardTitle>
+          <CardTitle>{t('createShift.title')}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Select
@@ -404,7 +414,7 @@ export function ShiftsPage(): React.JSX.Element {
             onValueChange={(value) => setSelectedDriverIdForShift(Number(value))}
           >
             <SelectTrigger>
-              <SelectValue placeholder="اختار السائق" />
+              <SelectValue placeholder={t('shifts.selectDriver')} />
             </SelectTrigger>
             <SelectContent>
               {resources.drivers.map((driver) => (
@@ -426,13 +436,13 @@ export function ShiftsPage(): React.JSX.Element {
 
       <Card>
         <CardHeader>
-          <CardTitle>قفل وردية</CardTitle>
+          <CardTitle>{t('shifts.closeCardTitle')}</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleCloseShift} className="grid gap-4 md:grid-cols-2">
             <Select value={closeShiftId || ''} onValueChange={setCloseShiftId}>
               <SelectTrigger>
-                <SelectValue placeholder="اختار الوردية" />
+                <SelectValue placeholder={t('shifts.selectShift')} />
               </SelectTrigger>
               <SelectContent>
                 {shifts
@@ -444,10 +454,14 @@ export function ShiftsPage(): React.JSX.Element {
                   ))}
               </SelectContent>
             </Select>
-            <DatePicker value={endDate} onChange={setEndDate} placeholder="اختر تاريخ القفل" />
+            <DatePicker
+              value={endDate}
+              onChange={setEndDate}
+              placeholder={t('shifts.closeDatePlaceholder')}
+            />
             {shiftToClose && (
               <div className="flex flex-col gap-2 md:col-span-2">
-                <p className="text-sm font-medium">ورقة تقفيل الوردية</p>
+                <p className="text-sm font-medium">{t('receiptPhoto.labels.shift')}</p>
                 <ReceiptPhoto
                   entityKind="shift"
                   entityId={shiftToClose.id}
@@ -467,12 +481,12 @@ export function ShiftsPage(): React.JSX.Element {
               <Button
                 type="submit"
                 disabled={!closeShiftId || !endDate || !hasClosingPhoto}
-                title={!hasClosingPhoto ? 'لازم ترفع صورة ورقة التقفيل الأول' : undefined}
+                title={!hasClosingPhoto ? t('shifts.closingPhotoRequired') : undefined}
               >
-                قفل الوردية
+                {t('shifts.closeSubmit')}
               </Button>
               {!hasClosingPhoto && closeShiftId && (
-                <p className="text-sm text-muted-foreground">لازم ترفع صورة ورقة التقفيل الأول</p>
+                <p className="text-sm text-muted-foreground">{t('shifts.closingPhotoRequired')}</p>
               )}
             </div>
           </form>

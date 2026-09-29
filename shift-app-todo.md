@@ -34,9 +34,9 @@
 - [x] `VehiclesSettings.tsx` (12,430 bytes)
 - [x] `DataTable.tsx` (13,219 bytes)
 - [x] `DriverHistoryPage.tsx` (16,261 bytes)
-- [ ] `ContractorAccountPage.tsx` (16,627 bytes)
-- [ ] `ShiftsPage.tsx` (16,889 bytes)
-- [ ] `AddTripPage.tsx` (23,354 bytes)
+- [x] `ContractorAccountPage.tsx` (16,627 bytes)
+- [x] `ShiftsPage.tsx` (16,889 bytes)
+- [x] `AddTripPage.tsx` (23,354 bytes)
 
 ## ✅ موجود في الكود ومؤكد
 
