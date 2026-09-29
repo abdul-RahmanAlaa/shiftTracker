@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import i18n from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -41,13 +43,14 @@ import {
 type Client = { id: number; name: string }
 const emptyValue = '__none__'
 const paymentSchema = z.object({
-  entryDate: z.string().min(1, 'تاريخ الدفعة مطلوب'),
-  amount: z.number({ message: 'المبلغ مطلوب' }),
+  entryDate: z.string().min(1, i18n.t('clientAccount.validation.dateRequired')),
+  amount: z.number({ message: i18n.t('common.validation.amountRequired') }),
   notes: z.string().optional()
 })
 type PaymentFormValues = z.infer<typeof paymentSchema>
 
 export function ClientAccountPage(): React.JSX.Element {
+  const { t } = useTranslation()
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClientId, setSelectedClientId] = useState<number>()
   const [account, setAccount] = useState<ClientAccount | null>(null)
@@ -125,7 +128,7 @@ export function ClientAccountPage(): React.JSX.Element {
   }
 
   async function handleDeletePayment(payment: { id: number }): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح الدفعة رقم ${payment.id}؟`)) return
+    if (!confirm(t('clientAccount.deleteConfirmation', { id: payment.id }))) return
     const result = await window.api.deleteClientPayment({ id: payment.id })
     if (result.ok && selectedClientId) {
       if (editingPaymentId === payment.id) {
@@ -137,16 +140,16 @@ export function ClientAccountPage(): React.JSX.Element {
   }
 
   return (
-    <AccountCard title="حساب العميل">
+    <AccountCard title={t('clientAccount.title')}>
       <Select
         value={selectedClientId ? String(selectedClientId) : emptyValue}
         onValueChange={(value) => void handleChange(value)}
       >
         <SelectTrigger>
-          <SelectValue placeholder="اختر العميل" />
+          <SelectValue placeholder={t('clientAccount.selectClient')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value={emptyValue}>اختر العميل</SelectItem>
+          <SelectItem value={emptyValue}>{t('clientAccount.selectClient')}</SelectItem>
           {clients.map((client) => (
             <SelectItem key={client.id} value={String(client.id)}>
               {client.name}
@@ -158,10 +161,10 @@ export function ClientAccountPage(): React.JSX.Element {
         <>
           <AccountSummary
             items={[
-              { label: 'مستحق من العميل', value: account.receivableTotal },
-              { label: 'إجمالي الكمية (م³)', value: account.totalCubic },
-              { label: 'المدفوع', value: account.paidTotal },
-              { label: 'الرصيد', value: account.balance, highlight: true }
+              { label: t('clientAccount.summary.receivable'), value: account.receivableTotal },
+              { label: t('clientAccount.summary.totalQuantity'), value: account.totalCubic },
+              { label: t('clientAccount.summary.paid'), value: account.paidTotal },
+              { label: t('clientAccount.summary.balance'), value: account.balance, highlight: true }
             ]}
           />
           <DataTable
@@ -193,12 +196,16 @@ export function ClientAccountPage(): React.JSX.Element {
                   paymentForm.reset()
                 }}
               >
-                إضافة دفعة
+                {t('clientAccount.addPayment')}
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{editingPaymentId ? 'تعديل دفعة' : 'إضافة دفعة'}</DialogTitle>
+                <DialogTitle>
+                  {editingPaymentId
+                    ? t('clientAccount.editPayment')
+                    : t('clientAccount.addPayment')}
+                </DialogTitle>
               </DialogHeader>
               <Form {...paymentForm}>
                 <form
@@ -210,12 +217,12 @@ export function ClientAccountPage(): React.JSX.Element {
                     name="entryDate"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>تاريخ الدفعة</FormLabel>
+                        <FormLabel>{t('clientAccount.fields.paymentDate')}</FormLabel>
                         <FormControl>
                           <DatePicker
                             value={field.value}
                             onChange={field.onChange}
-                            placeholder="اختر تاريخ الدفعة"
+                            placeholder={t('clientAccount.placeholders.paymentDate')}
                           />
                         </FormControl>
                         <FormMessage />
@@ -227,7 +234,7 @@ export function ClientAccountPage(): React.JSX.Element {
                     name="amount"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>المبلغ</FormLabel>
+                        <FormLabel>{t('common.columns.amount')}</FormLabel>
                         <FormControl>
                           <Input
                             type="number"
@@ -248,7 +255,7 @@ export function ClientAccountPage(): React.JSX.Element {
                     name="notes"
                     render={({ field }) => (
                       <FormItem className="md:col-span-2">
-                        <FormLabel>ملاحظات</FormLabel>
+                        <FormLabel>{t('common.columns.notes')}</FormLabel>
                         <FormControl>
                           <Textarea {...field} />
                         </FormControl>
@@ -258,11 +265,13 @@ export function ClientAccountPage(): React.JSX.Element {
                   />
                   <DialogFooter className="md:col-span-2">
                     <Button type="submit">
-                      {editingPaymentId ? 'حفظ التعديل' : 'تسجيل الدفعة'}
+                      {editingPaymentId
+                        ? t('contractorsSettings.saveEdit')
+                        : t('clientAccount.submitPayment')}
                     </Button>
                     <DialogClose asChild>
                       <Button type="button" variant="outline">
-                        إلغاء
+                        {t('common.cancel')}
                       </Button>
                     </DialogClose>
                   </DialogFooter>
@@ -272,7 +281,7 @@ export function ClientAccountPage(): React.JSX.Element {
           </Dialog>
         </>
       ) : (
-        <p className="text-sm text-muted-foreground">اختر عميل عشان تشوف الحساب</p>
+        <p className="text-sm text-muted-foreground">{t('clientAccount.selectClientHint')}</p>
       )}
     </AccountCard>
   )

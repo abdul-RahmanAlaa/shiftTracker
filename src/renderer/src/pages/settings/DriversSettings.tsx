@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import i18n from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -26,7 +28,7 @@ import {
 import { Input } from '@/components/ui/input'
 
 const driverSchema = z.object({
-  name: z.string().min(1, 'اسم السائق مطلوب'),
+  name: z.string().min(1, i18n.t('driversSettings.validation.nameRequired')),
   phone1: z.string().optional(),
   phone2: z.string().optional()
 })
@@ -35,6 +37,7 @@ type DriverFormValues = z.infer<typeof driverSchema>
 type Driver = { id: number; name: string; phone1: string | null; phone2: string | null }
 
 export function DriversSettings(): React.JSX.Element {
+  const { t } = useTranslation()
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
   const [editingDriverId, setEditingDriverId] = useState<number | null>(null)
@@ -93,7 +96,7 @@ export function DriversSettings(): React.JSX.Element {
   }
 
   async function handleDeleteDriver(driver: Driver): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح السائق ${driver.name}؟`)) return
+    if (!confirm(t('driversSettings.deleteConfirmation', { name: driver.name }))) return
     const result = await window.api.deleteDriver({ id: driver.id })
     if (result.ok) {
       if (editingDriverId === driver.id) cancelEditingDriver()
@@ -110,12 +113,20 @@ export function DriversSettings(): React.JSX.Element {
   }
 
   const columns: ColumnDef<Driver, unknown>[] = [
-    { accessorKey: 'name', header: 'الاسم' },
-    { accessorKey: 'phone1', header: 'تليفون 1', cell: ({ getValue }) => getValue() ?? '-' },
-    { accessorKey: 'phone2', header: 'تليفون 2', cell: ({ getValue }) => getValue() ?? '-' },
+    { accessorKey: 'name', header: t('common.columns.name') },
+    {
+      accessorKey: 'phone1',
+      header: t('driversSettings.phone1'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
+    },
+    {
+      accessorKey: 'phone2',
+      header: t('driversSettings.phone2'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
+    },
     {
       id: 'actions',
-      header: 'إجراءات',
+      header: t('common.columns.actions'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
@@ -126,7 +137,7 @@ export function DriversSettings(): React.JSX.Element {
             size="sm"
             onClick={() => startEditingDriver(row.original)}
           >
-            تعديل
+            {t('common.edit')}
           </Button>
           <Button
             type="button"
@@ -134,7 +145,7 @@ export function DriversSettings(): React.JSX.Element {
             size="sm"
             onClick={() => void handleDeleteDriver(row.original)}
           >
-            مسح
+            {t('common.delete')}
           </Button>
         </div>
       )
@@ -144,7 +155,7 @@ export function DriversSettings(): React.JSX.Element {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>السائقون</CardTitle>
+        <CardTitle>{t('driversSettings.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
@@ -156,12 +167,14 @@ export function DriversSettings(): React.JSX.Element {
                 driverForm.reset()
               }}
             >
-              إضافة سائق
+              {t('driversSettings.addButton')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingDriverId ? 'تعديل سائق' : 'إضافة سائق جديد'}</DialogTitle>
+              <DialogTitle>
+                {editingDriverId ? t('driversSettings.editTitle') : t('driversSettings.addTitle')}
+              </DialogTitle>
             </DialogHeader>
             <Form {...driverForm}>
               <form onSubmit={driverForm.handleSubmit(handleSaveDriver)} className="grid gap-4">
@@ -170,9 +183,9 @@ export function DriversSettings(): React.JSX.Element {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>اسم السائق</FormLabel>
+                      <FormLabel>{t('driversSettings.fields.name')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="اسم السائق" {...field} />
+                        <Input placeholder={t('driversSettings.fields.name')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -183,9 +196,9 @@ export function DriversSettings(): React.JSX.Element {
                   name="phone1"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>تليفون 1</FormLabel>
+                      <FormLabel>{t('driversSettings.phone1')}</FormLabel>
                       <FormControl>
-                        <Input type="text" placeholder="تليفون 1" {...field} />
+                        <Input type="text" placeholder={t('driversSettings.phone1')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -196,19 +209,23 @@ export function DriversSettings(): React.JSX.Element {
                   name="phone2"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>تليفون 2</FormLabel>
+                      <FormLabel>{t('driversSettings.phone2')}</FormLabel>
                       <FormControl>
-                        <Input type="text" placeholder="تليفون 2" {...field} />
+                        <Input type="text" placeholder={t('driversSettings.phone2')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <DialogFooter>
-                  <Button type="submit">{editingDriverId ? 'حفظ التعديل' : 'إضافة'}</Button>
+                  <Button type="submit">
+                    {editingDriverId
+                      ? t('contractorsSettings.saveEdit')
+                      : t('contractorsSettings.addSubmit')}
+                  </Button>
                   <DialogClose asChild>
                     <Button type="button" variant="outline" onClick={cancelEditingDriver}>
-                      إلغاء
+                      {t('common.cancel')}
                     </Button>
                   </DialogClose>
                 </DialogFooter>
@@ -218,7 +235,7 @@ export function DriversSettings(): React.JSX.Element {
         </Dialog>
         <div className="mt-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
             <DataTable
               columns={columns}

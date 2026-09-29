@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import i18n from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -26,12 +28,12 @@ import {
 import { Input } from '@/components/ui/input'
 
 const clientSchema = z.object({
-  name: z.string().min(1, 'اسم العميل مطلوب'),
+  name: z.string().min(1, i18n.t('clientsSettings.validation.nameRequired')),
   initialPrice: z
     .string()
     .optional()
     .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine((val) => val === undefined || val >= 0, 'السعر لازم يكون رقم موجب')
+    .refine((val) => val === undefined || val >= 0, i18n.t('common.validation.positivePrice'))
 })
 
 type ClientFormValues = z.infer<typeof clientSchema>
@@ -39,6 +41,7 @@ type ClientFormInput = z.input<typeof clientSchema>
 type Client = { id: number; name: string; initialPrice: number | null }
 
 export function ClientsSettings(): React.JSX.Element {
+  const { t } = useTranslation()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [editingClientId, setEditingClientId] = useState<number | null>(null)
@@ -112,7 +115,7 @@ export function ClientsSettings(): React.JSX.Element {
   }
 
   async function handleDeleteClient(client: Client): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح العميل ${client.name}؟`)) return
+    if (!confirm(t('clientsSettings.deleteConfirmation', { name: client.name }))) return
     const result = await window.api.deleteClient({ id: client.id })
     if (result.ok) {
       if (editingClientId === client.id) cancelEditingClient()
@@ -129,15 +132,15 @@ export function ClientsSettings(): React.JSX.Element {
   }
 
   const columns: ColumnDef<Client, unknown>[] = [
-    { accessorKey: 'name', header: 'الاسم' },
+    { accessorKey: 'name', header: t('common.columns.name') },
     {
       accessorKey: 'initialPrice',
-      header: 'السعر الافتراضي',
-      cell: ({ getValue }) => getValue() ?? '-'
+      header: t('common.defaultPrice'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
     },
     {
       id: 'actions',
-      header: 'إجراءات',
+      header: t('common.columns.actions'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
@@ -148,7 +151,7 @@ export function ClientsSettings(): React.JSX.Element {
             size="sm"
             onClick={() => startEditingClient(row.original)}
           >
-            تعديل
+            {t('common.edit')}
           </Button>
           <Button
             type="button"
@@ -156,7 +159,7 @@ export function ClientsSettings(): React.JSX.Element {
             size="sm"
             onClick={() => void handleDeleteClient(row.original)}
           >
-            مسح
+            {t('common.delete')}
           </Button>
         </div>
       )
@@ -166,7 +169,7 @@ export function ClientsSettings(): React.JSX.Element {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>العملاء</CardTitle>
+        <CardTitle>{t('clientsSettings.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
@@ -178,12 +181,14 @@ export function ClientsSettings(): React.JSX.Element {
                 clientForm.reset()
               }}
             >
-              إضافة عميل
+              {t('clientsSettings.addButton')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingClientId ? 'تعديل عميل' : 'إضافة عميل جديد'}</DialogTitle>
+              <DialogTitle>
+                {editingClientId ? t('clientsSettings.editTitle') : t('clientsSettings.addTitle')}
+              </DialogTitle>
             </DialogHeader>
             <Form {...clientForm}>
               <form
@@ -196,9 +201,9 @@ export function ClientsSettings(): React.JSX.Element {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>اسم العميل</FormLabel>
+                      <FormLabel>{t('clientsSettings.fields.name')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="اسم العميل" {...field} />
+                        <Input placeholder={t('clientsSettings.fields.name')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -209,13 +214,13 @@ export function ClientsSettings(): React.JSX.Element {
                   name="initialPrice"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>السعر الافتراضي</FormLabel>
+                      <FormLabel>{t('common.defaultPrice')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
                           min="0"
                           step="any"
-                          placeholder="السعر الافتراضي"
+                          placeholder={t('common.defaultPrice')}
                           {...field}
                         />
                       </FormControl>
@@ -224,10 +229,14 @@ export function ClientsSettings(): React.JSX.Element {
                   )}
                 />
                 <DialogFooter>
-                  <Button type="submit">{editingClientId ? 'حفظ التعديل' : 'إضافة'}</Button>
+                  <Button type="submit">
+                    {editingClientId
+                      ? t('contractorsSettings.saveEdit')
+                      : t('contractorsSettings.addSubmit')}
+                  </Button>
                   <DialogClose asChild>
                     <Button type="button" variant="outline" onClick={cancelEditingClient}>
-                      إلغاء
+                      {t('common.cancel')}
                     </Button>
                   </DialogClose>
                 </DialogFooter>
@@ -237,7 +246,7 @@ export function ClientsSettings(): React.JSX.Element {
         </Dialog>
         <div className="mt-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
             <DataTable
               columns={columns}

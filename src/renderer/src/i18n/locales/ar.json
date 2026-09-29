@@ -7,9 +7,7 @@
     "loading": "جاري التحميل...",
     "emptyCell": "-",
     "notAvailable": "-",
-    "edit": "تعديل",
-    "delete": "مسح",
-    "cancel": "إلغاء",
+    "defaultPrice": "السعر الافتراضي",
     "lockedShift": "مرتبطة بوردية مقفولة",
     "columns": {
       "id": "id",
@@ -20,6 +18,10 @@
       "shift": "الوردية",
       "notes": "ملاحظات",
       "actions": "الإجراءات"
+    },
+    "validation": {
+      "positivePrice": "السعر لازم يكون رقم موجب",
+      "amountRequired": "المبلغ مطلوب"
     }
   },
   "floatingWindow": {
@@ -62,7 +64,6 @@
     "submit": "استيراد",
     "successSummary": "تم استيراد {{shifts}} وردية و{{trips}} نقلة بنجاح",
     "csv": {
-      "headers": "old_shift_no,driver_name,vehicle_no,shift_start_date,shift_end_date,shift_crusher_cubic_default,shift_client_cubic_default,trip_date,crusher_cubic,client_cubic_reported,discount_qty,discount_reason,location,crusher_name,stone_price,crusher_receipt_status,crusher_receipt_no,client_name,transport_price,client_price,recipient_name_status,recipient_name,client_receipt_no,notes",
       "description": "احذف هذا السطر قبل الرفع, اسم السائق, رقم العربية, تاريخ بداية الوردية, تاريخ نهاية الوردية, تكعيب الكسارة الافتراضي للوردية, تكعيب العميل الافتراضي للوردية, تاريخ النقلة, تكعيب الكسارة, تكعيب العميل, كمية الخصم, سبب الخصم, المكان, اسم الكسارة, سعر الحجر, حالة إيصال الكسارة (قيمة/مفيش (متأكد)/مش معروف), رقم إيصال الكسارة, اسم العميل, سعر النقل, سعر العميل, حالة اسم المستلم (قيمة/مش واضح), اسم المستلم, رقم إيصال العميل, ملاحظات",
       "example": "SH-OLD-1,أحمد محمد,1645,2026-01-01,2026-01-05,25,24,2026-01-02,25,24,0,,الكسارة الرئيسية,اسم كسارة تجريبي,150,قيمة,1001,اسم عميل تجريبي,80,200,مش واضح,,,ملاحظة تجريبية",
       "templateFileName": "نموذج_استيراد.csv"
@@ -92,6 +93,100 @@
     },
     "validation": {
       "nameRequired": "اسم المقاول مطلوب"
+    }
+  },
+  "driversSettings": {
+    "title": "السائقون",
+    "addButton": "إضافة سائق",
+    "addTitle": "إضافة سائق جديد",
+    "editTitle": "تعديل سائق",
+    "phone1": "تليفون 1",
+    "phone2": "تليفون 2",
+    "deleteConfirmation": "متأكد إنك عايز تمسح السائق {{name}}؟",
+    "fields": {
+      "name": "اسم السائق"
+    },
+    "validation": {
+      "nameRequired": "اسم السائق مطلوب"
+    }
+  },
+  "clientsSettings": {
+    "title": "العملاء",
+    "addButton": "إضافة عميل",
+    "addTitle": "إضافة عميل جديد",
+    "editTitle": "تعديل عميل",
+    "deleteConfirmation": "متأكد إنك عايز تمسح العميل {{name}}؟",
+    "fields": {
+      "name": "اسم العميل"
+    },
+    "validation": {
+      "nameRequired": "اسم العميل مطلوب"
+    }
+  },
+  "crushersSettings": {
+    "title": "الكسارات",
+    "addButton": "إضافة كسارة",
+    "addTitle": "إضافة كسارة جديدة",
+    "editTitle": "تعديل كسارة",
+    "deleteConfirmation": "متأكد إنك عايز تمسح الكسارة {{name}}؟",
+    "fields": {
+      "name": "اسم الكسارة"
+    },
+    "validation": {
+      "nameRequired": "اسم الكسارة مطلوب"
+    }
+  },
+  "ledgerEntryForm": {
+    "fields": {
+      "date": "تاريخ الحركة",
+      "movementType": "نوع الحركة",
+      "driver": "السائق",
+      "shift": "الوردية",
+      "contractor": "المقاول"
+    },
+    "placeholders": {
+      "date": "اختر تاريخ الحركة",
+      "contractor": "اختر المقاول"
+    },
+    "none": {
+      "driver": "بدون سائق",
+      "shift": "بدون وردية",
+      "contractor": "بدون مقاول"
+    },
+    "movementTypes": {
+      "custody": "عهدة",
+      "payment": "دفعة",
+      "other": "اخرى"
+    },
+    "validation": {
+      "dateRequired": "تاريخ الحركة مطلوب",
+      "movementTypeRequired": "نوع الحركة مطلوب",
+      "amountRequired": "المبلغ مطلوب",
+      "contractorRequired": "مقاول النقل مطلوب"
+    }
+  },
+  "clientAccount": {
+    "title": "حساب العميل",
+    "selectClient": "اختر العميل",
+    "selectClientHint": "اختر عميل عشان تشوف الحساب",
+    "addPayment": "إضافة دفعة",
+    "editPayment": "تعديل دفعة",
+    "submitPayment": "تسجيل الدفعة",
+    "deleteConfirmation": "متأكد إنك عايز تمسح الدفعة رقم {{id}}؟",
+    "fields": {
+      "paymentDate": "تاريخ الدفعة"
+    },
+    "placeholders": {
+      "paymentDate": "اختر تاريخ الدفعة"
+    },
+    "summary": {
+      "receivable": "مستحق من العميل",
+      "totalQuantity": "إجمالي الكمية (م³)",
+      "paid": "المدفوع",
+      "balance": "الرصيد"
+    },
+    "validation": {
+      "dateRequired": "تاريخ الدفعة مطلوب"
     }
   }
 }

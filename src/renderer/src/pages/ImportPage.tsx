@@ -11,6 +11,9 @@ import { Input } from '@/components/ui/input'
 
 type ImportError = { row: number; field: string; message: string }
 
+const importCsvHeaders =
+  'old_shift_no,driver_name,vehicle_no,shift_start_date,shift_end_date,shift_crusher_cubic_default,shift_client_cubic_default,trip_date,crusher_cubic,client_cubic_reported,discount_qty,discount_reason,location,crusher_name,stone_price,crusher_receipt_status,crusher_receipt_no,client_name,transport_price,client_price,recipient_name_status,recipient_name,client_receipt_no,notes'
+
 const t = i18n.t
 
 const importErrorColumns: ColumnDef<ImportError, unknown>[] = [
@@ -38,7 +41,7 @@ export function ImportPage(): React.JSX.Element {
   const [fileError, setFileError] = useState<string | null>(null)
 
   function handleDownloadTemplate(): void {
-    const csvText = `\uFEFF${t('importPage.csv.headers')}\n${t('importPage.csv.description')}\n${t('importPage.csv.example')}\n`
+    const csvText = `\uFEFF${importCsvHeaders}\n${t('importPage.csv.description')}\n${t('importPage.csv.example')}\n`
     const blob = new Blob([csvText], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')

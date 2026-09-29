@@ -1,5 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
+import i18n from 'i18next'
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import type { UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -24,10 +26,12 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 
 export const ledgerEntrySchema = z.object({
-  entryDate: z.string().min(1, 'تاريخ الحركة مطلوب'),
+  entryDate: z.string().min(1, i18n.t('ledgerEntryForm.validation.dateRequired')),
   driverId: z.number().int().positive().optional(),
-  movementType: z.enum(['عهدة', 'دفعة', 'اخرى'], { message: 'نوع الحركة مطلوب' }),
-  amount: z.number({ message: 'المبلغ مطلوب' }),
+  movementType: z.enum(['عهدة', 'دفعة', 'اخرى'], {
+    message: i18n.t('ledgerEntryForm.validation.movementTypeRequired')
+  }),
+  amount: z.number({ message: i18n.t('ledgerEntryForm.validation.amountRequired') }),
   shiftId: z.string().optional(),
   contractorId: z.number().int().positive().optional(),
   notes: z.string().optional()
@@ -60,6 +64,8 @@ export function LedgerEntryForm({
   lockedDriverId,
   requireContractorId = false
 }: LedgerEntryFormProps): React.JSX.Element {
+  const { t } = useTranslation()
+
   useEffect(() => {
     if (lockedContractorId !== undefined) {
       form.setValue('contractorId', lockedContractorId)
@@ -77,7 +83,7 @@ export function LedgerEntryForm({
     }
 
     if (requireContractorId && !submittedValues.contractorId) {
-      form.setError('contractorId', { message: 'مقاول النقل مطلوب' })
+      form.setError('contractorId', { message: t('ledgerEntryForm.validation.contractorRequired') })
       return
     }
 
@@ -92,12 +98,12 @@ export function LedgerEntryForm({
           name="entryDate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>تاريخ الحركة</FormLabel>
+              <FormLabel>{t('ledgerEntryForm.fields.date')}</FormLabel>
               <FormControl>
                 <DatePicker
                   value={field.value}
                   onChange={field.onChange}
-                  placeholder="اختر تاريخ الحركة"
+                  placeholder={t('ledgerEntryForm.placeholders.date')}
                 />
               </FormControl>
               <FormMessage />
@@ -109,7 +115,7 @@ export function LedgerEntryForm({
           name="movementType"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>نوع الحركة</FormLabel>
+              <FormLabel>{t('ledgerEntryForm.fields.movementType')}</FormLabel>
               <Select value={field.value ?? ''} onValueChange={field.onChange}>
                 <FormControl>
                   <SelectTrigger>
@@ -117,9 +123,9 @@ export function LedgerEntryForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="عهدة">عهدة</SelectItem>
-                  <SelectItem value="دفعة">دفعة</SelectItem>
-                  <SelectItem value="اخرى">اخرى</SelectItem>
+                  <SelectItem value="عهدة">{t('ledgerEntryForm.movementTypes.custody')}</SelectItem>
+                  <SelectItem value="دفعة">{t('ledgerEntryForm.movementTypes.payment')}</SelectItem>
+                  <SelectItem value="اخرى">{t('ledgerEntryForm.movementTypes.other')}</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
@@ -131,7 +137,7 @@ export function LedgerEntryForm({
           name="amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>المبلغ</FormLabel>
+              <FormLabel>{t('common.columns.amount')}</FormLabel>
               <FormControl>
                 <Input
                   type="number"
@@ -155,7 +161,7 @@ export function LedgerEntryForm({
 
             return (
               <FormItem>
-                <FormLabel>السائق</FormLabel>
+                <FormLabel>{t('ledgerEntryForm.fields.driver')}</FormLabel>
                 <Select
                   disabled={lockedDriverId !== undefined}
                   value={driverId ? String(driverId) : emptyValue}
@@ -165,11 +171,11 @@ export function LedgerEntryForm({
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="بدون سائق" />
+                      <SelectValue placeholder={t('ledgerEntryForm.none.driver')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    <SelectItem value={emptyValue}>بدون سائق</SelectItem>
+                    <SelectItem value={emptyValue}>{t('ledgerEntryForm.none.driver')}</SelectItem>
                     {drivers.map((driver) => (
                       <SelectItem key={driver.id} value={String(driver.id)}>
                         {driver.name}
@@ -187,18 +193,18 @@ export function LedgerEntryForm({
           name="shiftId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>الوردية</FormLabel>
+              <FormLabel>{t('ledgerEntryForm.fields.shift')}</FormLabel>
               <Select
                 value={field.value ?? emptyValue}
                 onValueChange={(value) => field.onChange(value === emptyValue ? undefined : value)}
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="بدون وردية" />
+                    <SelectValue placeholder={t('ledgerEntryForm.none.shift')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value={emptyValue}>بدون وردية</SelectItem>
+                  <SelectItem value={emptyValue}>{t('ledgerEntryForm.none.shift')}</SelectItem>
                   {shifts.map((shift) => (
                     <SelectItem key={shift.id} value={shift.id}>
                       {shift.id}
@@ -218,7 +224,7 @@ export function LedgerEntryForm({
 
             return (
               <FormItem>
-                <FormLabel>المقاول</FormLabel>
+                <FormLabel>{t('ledgerEntryForm.fields.contractor')}</FormLabel>
                 <Select
                   disabled={lockedContractorId !== undefined}
                   value={contractorId ? String(contractorId) : emptyValue}
@@ -229,13 +235,19 @@ export function LedgerEntryForm({
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue
-                        placeholder={requireContractorId ? 'اختر المقاول' : 'بدون مقاول'}
+                        placeholder={
+                          requireContractorId
+                            ? t('ledgerEntryForm.placeholders.contractor')
+                            : t('ledgerEntryForm.none.contractor')
+                        }
                       />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
                     {!requireContractorId && lockedContractorId === undefined && (
-                      <SelectItem value={emptyValue}>بدون مقاول</SelectItem>
+                      <SelectItem value={emptyValue}>
+                        {t('ledgerEntryForm.none.contractor')}
+                      </SelectItem>
                     )}
                     {contractors.map((contractor) => (
                       <SelectItem key={contractor.id} value={String(contractor.id)}>
@@ -254,7 +266,7 @@ export function LedgerEntryForm({
           name="notes"
           render={({ field }) => (
             <FormItem className="md:col-span-2">
-              <FormLabel>ملاحظات</FormLabel>
+              <FormLabel>{t('common.columns.notes')}</FormLabel>
               <FormControl>
                 <Textarea {...field} />
               </FormControl>
@@ -266,7 +278,7 @@ export function LedgerEntryForm({
           <Button type="submit">{submitLabel}</Button>
           <DialogClose asChild>
             <Button type="button" variant="outline">
-              إلغاء
+              {t('common.cancel')}
             </Button>
           </DialogClose>
         </DialogFooter>

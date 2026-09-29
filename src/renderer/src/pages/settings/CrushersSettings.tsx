@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import i18n from 'i18next'
+import { useTranslation } from 'react-i18next'
 import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -26,12 +28,12 @@ import {
 import { Input } from '@/components/ui/input'
 
 const crusherSchema = z.object({
-  name: z.string().min(1, 'اسم الكسارة مطلوب'),
+  name: z.string().min(1, i18n.t('crushersSettings.validation.nameRequired')),
   initialPrice: z
     .string()
     .optional()
     .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine((val) => val === undefined || val >= 0, 'السعر لازم يكون رقم موجب')
+    .refine((val) => val === undefined || val >= 0, i18n.t('common.validation.positivePrice'))
 })
 
 type CrusherFormValues = z.infer<typeof crusherSchema>
@@ -39,6 +41,7 @@ type CrusherFormInput = z.input<typeof crusherSchema>
 type Crusher = { id: number; name: string; initialPrice: number | null }
 
 export function CrushersSettings(): React.JSX.Element {
+  const { t } = useTranslation()
   const [crushers, setCrushers] = useState<Crusher[]>([])
   const [loading, setLoading] = useState(true)
   const [editingCrusherId, setEditingCrusherId] = useState<number | null>(null)
@@ -112,7 +115,7 @@ export function CrushersSettings(): React.JSX.Element {
   }
 
   async function handleDeleteCrusher(crusher: Crusher): Promise<void> {
-    if (!confirm(`متأكد إنك عايز تمسح الكسارة ${crusher.name}؟`)) return
+    if (!confirm(t('crushersSettings.deleteConfirmation', { name: crusher.name }))) return
     const result = await window.api.deleteCrusher({ id: crusher.id })
     if (result.ok) {
       if (editingCrusherId === crusher.id) cancelEditingCrusher()
@@ -129,15 +132,15 @@ export function CrushersSettings(): React.JSX.Element {
   }
 
   const columns: ColumnDef<Crusher, unknown>[] = [
-    { accessorKey: 'name', header: 'الاسم' },
+    { accessorKey: 'name', header: t('common.columns.name') },
     {
       accessorKey: 'initialPrice',
-      header: 'السعر الافتراضي',
-      cell: ({ getValue }) => getValue() ?? '-'
+      header: t('common.defaultPrice'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
     },
     {
       id: 'actions',
-      header: 'إجراءات',
+      header: t('common.columns.actions'),
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
@@ -148,7 +151,7 @@ export function CrushersSettings(): React.JSX.Element {
             size="sm"
             onClick={() => startEditingCrusher(row.original)}
           >
-            تعديل
+            {t('common.edit')}
           </Button>
           <Button
             type="button"
@@ -156,7 +159,7 @@ export function CrushersSettings(): React.JSX.Element {
             size="sm"
             onClick={() => void handleDeleteCrusher(row.original)}
           >
-            مسح
+            {t('common.delete')}
           </Button>
         </div>
       )
@@ -166,7 +169,7 @@ export function CrushersSettings(): React.JSX.Element {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>الكسارات</CardTitle>
+        <CardTitle>{t('crushersSettings.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
@@ -178,12 +181,16 @@ export function CrushersSettings(): React.JSX.Element {
                 crusherForm.reset()
               }}
             >
-              إضافة كسارة
+              {t('crushersSettings.addButton')}
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingCrusherId ? 'تعديل كسارة' : 'إضافة كسارة جديدة'}</DialogTitle>
+              <DialogTitle>
+                {editingCrusherId
+                  ? t('crushersSettings.editTitle')
+                  : t('crushersSettings.addTitle')}
+              </DialogTitle>
             </DialogHeader>
             <Form {...crusherForm}>
               <form
@@ -196,9 +203,9 @@ export function CrushersSettings(): React.JSX.Element {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>اسم الكسارة</FormLabel>
+                      <FormLabel>{t('crushersSettings.fields.name')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="اسم الكسارة" {...field} />
+                        <Input placeholder={t('crushersSettings.fields.name')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -209,13 +216,13 @@ export function CrushersSettings(): React.JSX.Element {
                   name="initialPrice"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>السعر الافتراضي</FormLabel>
+                      <FormLabel>{t('common.defaultPrice')}</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
                           min="0"
                           step="any"
-                          placeholder="السعر الافتراضي"
+                          placeholder={t('common.defaultPrice')}
                           {...field}
                         />
                       </FormControl>
@@ -224,10 +231,14 @@ export function CrushersSettings(): React.JSX.Element {
                   )}
                 />
                 <DialogFooter>
-                  <Button type="submit">{editingCrusherId ? 'حفظ التعديل' : 'إضافة'}</Button>
+                  <Button type="submit">
+                    {editingCrusherId
+                      ? t('contractorsSettings.saveEdit')
+                      : t('contractorsSettings.addSubmit')}
+                  </Button>
                   <DialogClose asChild>
                     <Button type="button" variant="outline" onClick={cancelEditingCrusher}>
-                      إلغاء
+                      {t('common.cancel')}
                     </Button>
                   </DialogClose>
                 </DialogFooter>
@@ -237,7 +248,7 @@ export function CrushersSettings(): React.JSX.Element {
         </Dialog>
         <div className="mt-6">
           {loading ? (
-            <p className="text-sm text-muted-foreground">جاري التحميل...</p>
+            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
             <DataTable
               columns={columns}
