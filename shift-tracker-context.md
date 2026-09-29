@@ -87,6 +87,7 @@ src/renderer/src/
   components/
     DataTable.tsx                — جدول عام: sorting + multi-select filters بالـ popover + row selection
                                     + sum اختياري + actions column. عن قصد من غير تحديد خلايا فردية بالسحب.
+    LedgerEntryForm.tsx           — فورم Ledger مشترك للإضافة، مع قفل اختياري للمقاول أو السائق
     CreateShiftForm.tsx          — shared (createShiftSchema, CreateShiftValues, CreateShiftForm)، بقى Dialog
     ReceiptPhoto.tsx              — مكوّن مشترك لصور النقلة وورقة تقفيل الوردية (رفع/crop/rotate/ضغط/thumbnail/lightbox/delete)
     FloatingWindow.tsx           — نافذة عائمة جوه نفس صفحة React (react-rnd: سحب/تحجيم/تصغير/تكبير/إغلاق)
@@ -107,8 +108,8 @@ src/renderer/src/
       AllMovementsPage.tsx            — ✅ DataTable + Dialog "إضافة حركة" + زرار "تفاصيل" في كل صف يفتح `FloatingWindow` باستخدام `LedgerEntryDetailsContent` في `src/renderer/src/components/`.
                                       Rendered as the fourth section inside AccountsPage under the label "كل الحركات".
       AccountsPage.tsx               — side-menu: مقاول / سائق / عميل / كل الحركات
-      ContractorAccountPage.tsx      — ✅ DataTable
-      DriverHistoryPage.tsx           — ✅ DataTable
+      ContractorAccountPage.tsx      — ✅ DataTable + Dialog "إضافة حركة" بمقاول مقفول
+      DriverHistoryPage.tsx           — ✅ DataTable + Dialog "إضافة حركة" بسائق مقفول ومقاول مطلوب حر
       ClientAccountPage.tsx            — ✅ DataTable + totalCubic + Dialog "إضافة دفعة"
       AccountTables.tsx                 — shared (AccountCard, AccountSummary, LedgerEntriesTable...)
     SettingsPage.tsx + settings/         — ✅ الخمسة كلهم Dialog + RHF + zod
@@ -162,4 +163,4 @@ src/renderer/src/
 - ⏳ لسه باقي: مفيش CSV export حقيقي، فيه بس تنزيل نموذج الاستيراد.
 
 ## آخر جرد شامل للكود
-تم جرد كامل للـ backend والـ preload والـ renderer، وبعده اتعمل تنظيف lint/typecheck كامل، ودُمجت Ledger جوه AccountsPage. الحالة الحالية: الـ backend والـ preload متطابقين بدون أي دالة يتيمة، الـ lint والـ typecheck نضاف بالكامل (0 errors/0 warnings)، والـ Ledger بقت قسم "كل الحركات" جوه Accounts. الباقي: السكرول الداخلي (ملك المستخدم، مش تاسك Copilot)، و`LedgerEntryForm.tsx` وزرار "إضافة حركة" في صفحتي المقاول والسائق (محجوزين لقرار مستقل)، وصفحات الورديات المستقلة، وCSV export.
+تم جرد كامل للـ backend والـ preload والـ renderer، وبعده اتعمل تنظيف lint/typecheck كامل، ودُمجت Ledger جوه AccountsPage. الحالة الحالية: الـ backend والـ preload متطابقين بدون أي دالة يتيمة، والـ Ledger بقت قسم "كل الحركات" جوه Accounts. اتضاف `LedgerEntryForm.tsx` وزرار "إضافة حركة" لصفحتَي المقاول والسائق مع قفل الشخص المعروض وإعادة تحميل بيانات الصفحة بعد الحفظ. الباقي: السكرول الداخلي (ملك المستخدم، مش تاسك Copilot)، وصفحات الورديات المستقلة، وCSV export.

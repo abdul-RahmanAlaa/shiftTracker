@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
+import {
+  LedgerEntryForm,
+  ledgerEntrySchema,
+  type LedgerEntryFormValues
+} from '@/components/LedgerEntryForm'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -9,7 +13,8 @@ import {
   DialogContent,
   DialogFooter,
   DialogHeader,
-  DialogTitle
+  DialogTitle,
+  DialogTrigger
 } from '@/components/ui/dialog'
 import {
   Form,
@@ -42,18 +47,6 @@ type Driver = { id: number; name: string }
 type Shift = { id: string; status: string }
 const emptyValue = '__none__'
 
-const ledgerSchema = z.object({
-  entryDate: z.string().min(1, 'تاريخ الحركة مطلوب'),
-  driverId: z.number().int().positive().optional(),
-  movementType: z.enum(['عهدة', 'دفعة', 'اخرى'], { message: 'نوع الحركة مطلوب' }),
-  amount: z.number({ message: 'المبلغ مطلوب' }),
-  shiftId: z.string().optional(),
-  contractorId: z.number().int().positive().optional(),
-  notes: z.string().optional()
-})
-
-type LedgerFormValues = z.infer<typeof ledgerSchema>
-
 export function ContractorAccountPage(): React.JSX.Element {
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [drivers, setDrivers] = useState<Driver[]>([])
@@ -62,8 +55,9 @@ export function ContractorAccountPage(): React.JSX.Element {
   const [account, setAccount] = useState<ContractorAccount | null>(null)
   const [editingEntry, setEditingEntry] = useState<LedgerRow | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const ledgerForm = useForm<LedgerFormValues>({
-    resolver: zodResolver(ledgerSchema),
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const ledgerForm = useForm<LedgerEntryFormValues>({
+    resolver: zodResolver(ledgerEntrySchema),
     defaultValues: {
       entryDate: '',
       driverId: undefined,
@@ -72,7 +66,7 @@ export function ContractorAccountPage(): React.JSX.Element {
       shiftId: undefined,
       contractorId: undefined,
       notes: ''
-    } as LedgerFormValues
+    } as LedgerEntryFormValues
   })
 
   useEffect(() => {
@@ -103,6 +97,24 @@ export function ContractorAccountPage(): React.JSX.Element {
     }
   }
 
+  function getDefaultLedgerValues(contractorId?: number): LedgerEntryFormValues {
+    return {
+      entryDate: '',
+      driverId: undefined,
+      movementType: 'عهدة',
+      amount: 0,
+      shiftId: undefined,
+      contractorId,
+      notes: ''
+    }
+  }
+
+  function openCreateEntryDialog(): void {
+    setEditingEntry(null)
+    ledgerForm.reset(getDefaultLedgerValues(selectedContractorId))
+    setIsCreateDialogOpen(true)
+  }
+
   function isEntryLocked(entry: LedgerRow): boolean {
     return Boolean(
       entry.shiftId &&
@@ -120,33 +132,31 @@ export function ContractorAccountPage(): React.JSX.Element {
       shiftId: entry.shiftId ?? undefined,
       contractorId: entry.contractorId ?? undefined,
       notes: entry.notes ?? ''
-    } as LedgerFormValues)
+    } as LedgerEntryFormValues)
     setIsEditDialogOpen(true)
   }
 
-  async function handleSaveEntry(values: LedgerFormValues): Promise<void> {
-    if (!editingEntry) return
-    const result = await window.api.updateLedgerEntry({
-      id: editingEntry.id,
-      ...values
-    } satisfies Parameters<typeof window.api.updateLedgerEntry>[0])
+  async function handleSaveEntry(values: LedgerEntryFormValues): Promise<void> {
+    const result = editingEntry
+      ? await window.api.updateLedgerEntry({
+          id: editingEntry.id,
+          ...values
+        } satisfies Parameters<typeof window.api.updateLedgerEntry>[0])
+      : await window.api.createLedgerEntry(
+          values satisfies Parameters<typeof window.api.createLedgerEntry>[0]
+        )
     if (result.ok) {
       setIsEditDialogOpen(false)
+      setIsCreateDialogOpen(false)
       setEditingEntry(null)
-      ledgerForm.reset({
-        entryDate: '',
-        driverId: undefined,
-        movementType: 'عهدة',
-        amount: 0,
-        shiftId: undefined,
-        contractorId: undefined,
-        notes: ''
-      } as LedgerFormValues)
+      ledgerForm.reset(getDefaultLedgerValues())
       if (selectedContractorId) await handleChange(String(selectedContractorId))
     } else {
       result.errors.forEach((error) => {
         if (error.field in values) {
-          ledgerForm.setError(error.field as keyof LedgerFormValues, { message: error.message })
+          ledgerForm.setError(error.field as keyof LedgerEntryFormValues, {
+            message: error.message
+          })
         }
       })
     }
@@ -187,6 +197,36 @@ export function ContractorAccountPage(): React.JSX.Element {
               { label: 'الرصيد', value: account.balance, highlight: true }
             ]}
           />
+          <Dialog
+            open={isCreateDialogOpen}
+            onOpenChange={(open) => {
+              setIsCreateDialogOpen(open)
+              if (!open) {
+                setEditingEntry(null)
+                ledgerForm.reset(getDefaultLedgerValues())
+              }
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button type="button" onClick={openCreateEntryDialog}>
+                إضافة حركة
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>إضافة حركة</DialogTitle>
+              </DialogHeader>
+              <LedgerEntryForm
+                form={ledgerForm}
+                onSubmit={handleSaveEntry}
+                drivers={drivers}
+                contractors={contractors}
+                shifts={shifts}
+                lockedContractorId={selectedContractorId}
+                submitLabel="إضافة"
+              />
+            </DialogContent>
+          </Dialog>
           <LedgerEntriesTable
             entries={account.entries}
             onEditEntry={openEditEntryDialog}
@@ -207,7 +247,7 @@ export function ContractorAccountPage(): React.JSX.Element {
                   shiftId: undefined,
                   contractorId: undefined,
                   notes: ''
-                } as LedgerFormValues)
+                } as LedgerEntryFormValues)
               }
             }}
           >

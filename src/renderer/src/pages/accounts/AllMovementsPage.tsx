@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,32 +8,17 @@ import { DataTable } from '@/components/DataTable'
 import { useFloatingWindows } from '@/components/FloatingWindowsContext'
 import { LedgerEntryDetailsContent } from '@/components/LedgerEntryDetailsContent'
 import {
+  LedgerEntryForm,
+  ledgerEntrySchema,
+  type LedgerEntryFormValues
+} from '@/components/LedgerEntryForm'
+import {
   Dialog,
-  DialogClose,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { DatePicker } from '@/components/ui/date-picker'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 
 type LedgerRow = Extract<
   Awaited<ReturnType<typeof window.api.listLedgerEntries>>,
@@ -43,20 +27,6 @@ type LedgerRow = Extract<
 type Driver = { id: number; name: string }
 type Contractor = { id: number; name: string }
 type Shift = { id: string; status: string }
-
-const emptyValue = '__none__'
-
-const ledgerSchema = z.object({
-  entryDate: z.string().min(1, 'تاريخ الحركة مطلوب'),
-  driverId: z.number().int().positive().optional(),
-  movementType: z.enum(['عهدة', 'دفعة', 'اخرى'], { message: 'نوع الحركة مطلوب' }),
-  amount: z.number({ message: 'المبلغ مطلوب' }),
-  shiftId: z.string().optional(),
-  contractorId: z.number().int().positive().optional(),
-  notes: z.string().optional()
-})
-
-type LedgerFormValues = z.infer<typeof ledgerSchema>
 
 export function AllMovementsPage(): React.JSX.Element {
   const { openWindow } = useFloatingWindows()
@@ -67,8 +37,8 @@ export function AllMovementsPage(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [editingEntryId, setEditingEntryId] = useState<number | null>(null)
-  const ledgerForm = useForm<LedgerFormValues>({
-    resolver: zodResolver(ledgerSchema),
+  const ledgerForm = useForm<LedgerEntryFormValues>({
+    resolver: zodResolver(ledgerEntrySchema),
     defaultValues: {
       entryDate: '',
       driverId: undefined,
@@ -77,7 +47,7 @@ export function AllMovementsPage(): React.JSX.Element {
       shiftId: undefined,
       contractorId: undefined,
       notes: ''
-    } as LedgerFormValues
+    } as LedgerEntryFormValues
   })
 
   async function loadEntries(): Promise<void> {
@@ -102,7 +72,7 @@ export function AllMovementsPage(): React.JSX.Element {
     })
   }, [])
 
-  function getDefaultLedgerValues(): LedgerFormValues {
+  function getDefaultLedgerValues(): LedgerEntryFormValues {
     return {
       entryDate: '',
       driverId: undefined,
@@ -111,7 +81,7 @@ export function AllMovementsPage(): React.JSX.Element {
       shiftId: undefined,
       contractorId: undefined,
       notes: ''
-    } as LedgerFormValues
+    } as LedgerEntryFormValues
   }
 
   function isEntryLocked(entry: LedgerRow): boolean {
@@ -137,11 +107,11 @@ export function AllMovementsPage(): React.JSX.Element {
       shiftId: entry.shiftId ?? undefined,
       contractorId: entry.contractorId ?? undefined,
       notes: entry.notes ?? ''
-    } as LedgerFormValues)
+    } as LedgerEntryFormValues)
     setIsCreateDialogOpen(true)
   }
 
-  async function handleSaveEntry(values: LedgerFormValues): Promise<void> {
+  async function handleSaveEntry(values: LedgerEntryFormValues): Promise<void> {
     const result = editingEntryId
       ? await window.api.updateLedgerEntry({
           id: editingEntryId,
@@ -159,7 +129,9 @@ export function AllMovementsPage(): React.JSX.Element {
     } else {
       result.errors.forEach((error) => {
         if (error.field in values) {
-          ledgerForm.setError(error.field as keyof LedgerFormValues, { message: error.message })
+          ledgerForm.setError(error.field as keyof LedgerEntryFormValues, {
+            message: error.message
+          })
         }
       })
     }
@@ -278,184 +250,14 @@ export function AllMovementsPage(): React.JSX.Element {
             <DialogHeader>
               <DialogTitle>{editingEntryId ? 'تعديل حركة' : 'إضافة حركة'}</DialogTitle>
             </DialogHeader>
-            <Form {...ledgerForm}>
-              <form
-                onSubmit={ledgerForm.handleSubmit(handleSaveEntry)}
-                className="grid gap-4 md:grid-cols-2"
-              >
-                <FormField
-                  control={ledgerForm.control}
-                  name="entryDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>تاريخ الحركة</FormLabel>
-                      <FormControl>
-                        <DatePicker
-                          value={field.value}
-                          onChange={field.onChange}
-                          placeholder="اختر تاريخ الحركة"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={ledgerForm.control}
-                  name="movementType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>نوع الحركة</FormLabel>
-                      <Select value={field.value ?? ''} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="اختر نوع الحركة" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="عهدة">عهدة</SelectItem>
-                          <SelectItem value="دفعة">دفعة</SelectItem>
-                          <SelectItem value="اخرى">اخرى</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={ledgerForm.control}
-                  name="amount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>المبلغ</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          value={field.value ?? ''}
-                          onChange={(event) =>
-                            field.onChange(
-                              event.target.value === '' ? undefined : Number(event.target.value)
-                            )
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={ledgerForm.control}
-                  name="driverId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>السائق</FormLabel>
-                      <Select
-                        value={field.value ? String(field.value) : emptyValue}
-                        onValueChange={(value) =>
-                          field.onChange(value === emptyValue ? undefined : Number(value))
-                        }
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="بدون سائق" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value={emptyValue}>بدون سائق</SelectItem>
-                          {drivers.map((driver) => (
-                            <SelectItem key={driver.id} value={String(driver.id)}>
-                              {driver.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={ledgerForm.control}
-                  name="shiftId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>الوردية</FormLabel>
-                      <Select
-                        value={field.value ?? emptyValue}
-                        onValueChange={(value) =>
-                          field.onChange(value === emptyValue ? undefined : value)
-                        }
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="بدون وردية" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value={emptyValue}>بدون وردية</SelectItem>
-                          {shifts.map((shift) => (
-                            <SelectItem key={shift.id} value={shift.id}>
-                              {shift.id}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={ledgerForm.control}
-                  name="contractorId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>المقاول</FormLabel>
-                      <Select
-                        value={field.value ? String(field.value) : emptyValue}
-                        onValueChange={(value) =>
-                          field.onChange(value === emptyValue ? undefined : Number(value))
-                        }
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="بدون مقاول" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value={emptyValue}>بدون مقاول</SelectItem>
-                          {contractors.map((contractor) => (
-                            <SelectItem key={contractor.id} value={String(contractor.id)}>
-                              {contractor.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={ledgerForm.control}
-                  name="notes"
-                  render={({ field }) => (
-                    <FormItem className="md:col-span-2">
-                      <FormLabel>ملاحظات</FormLabel>
-                      <FormControl>
-                        <Textarea {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter className="md:col-span-2">
-                  <Button type="submit">{editingEntryId ? 'حفظ التعديل' : 'إضافة'}</Button>
-                  <DialogClose asChild>
-                    <Button type="button" variant="outline">
-                      إلغاء
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </Form>
+            <LedgerEntryForm
+              form={ledgerForm}
+              onSubmit={handleSaveEntry}
+              drivers={drivers}
+              contractors={contractors}
+              shifts={shifts}
+              submitLabel={editingEntryId ? 'حفظ التعديل' : 'إضافة'}
+            />
           </DialogContent>
         </Dialog>
       </div>
