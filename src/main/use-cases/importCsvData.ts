@@ -71,7 +71,7 @@ const requiredHeaders = [
 ]
 
 const validCrusherReceiptStatuses = new Set(['قيمة', 'مفيش (متأكد)', 'مش معروف'])
-const validRecipientNameStatuses = new Set(['قيمة', 'مش واضح'])
+const validRecipientNameStatuses = new Set(['PROVIDED', 'UNCLEAR'])
 const templateDescriptionSentinel = 'احذف هذا السطر قبل الرفع'
 
 interface SqliteError extends Error {
@@ -207,7 +207,7 @@ export function importCsvData(input: { csvText: string }): ImportResult {
     const discountQty = parseOptionalNumber(raw.discount_qty, row, 'discount_qty', errors) ?? 0
     const crusherReceiptStatus = text(raw.crusher_receipt_status)
     const recipientNameStatusInput = text(raw.recipient_name_status)
-    const recipientNameStatus = recipientNameStatusInput || 'مش واضح'
+    const recipientNameStatus = recipientNameStatusInput || 'UNCLEAR'
 
     if (!validCrusherReceiptStatuses.has(crusherReceiptStatus)) {
       errors.push({
@@ -234,7 +234,7 @@ export function importCsvData(input: { csvText: string }): ImportResult {
     }
 
     const recipientName = text(raw.recipient_name)
-    if (recipientNameStatus === 'قيمة' && !recipientName) {
+    if (recipientNameStatus === 'PROVIDED' && !recipientName) {
       errors.push({ row, field: 'recipient_name', message: 'اسم المستلم مطلوب' })
     }
 
@@ -295,7 +295,7 @@ export function importCsvData(input: { csvText: string }): ImportResult {
         transportPrice,
         clientPrice,
         recipientNameStatus,
-        recipientName: recipientNameStatus === 'قيمة' ? recipientName || null : null,
+        recipientName: recipientNameStatus === 'PROVIDED' ? recipientName || null : null,
         clientReceiptNo: text(raw.client_receipt_no) || null,
         notes: text(raw.notes) || null
       })

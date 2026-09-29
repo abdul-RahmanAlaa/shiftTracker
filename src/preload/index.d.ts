@@ -114,7 +114,7 @@ interface CreateTripInput {
   clientId: number
   transportPrice: number
   clientPrice: number
-  recipientNameStatus?: 'قيمة' | 'مش واضح'
+  recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
   recipientName?: string
   clientReceiptNo?: string
   notes?: string
@@ -301,7 +301,7 @@ interface Api {
     clientId: number
     transportPrice: number
     clientPrice: number
-    recipientNameStatus?: 'قيمة' | 'مش واضح'
+    recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
     recipientName?: string
     clientReceiptNo?: string
     notes?: string
@@ -365,7 +365,7 @@ interface Api {
     clientId: number
     transportPrice: number
     clientPrice: number
-    recipientNameStatus?: 'قيمة' | 'مش واضح'
+    recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
     recipientName?: string
     clientReceiptNo?: string
     notes?: string

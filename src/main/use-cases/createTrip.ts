@@ -34,7 +34,7 @@ interface TripFieldsInput {
   clientId: number
   transportPrice: number
   clientPrice: number
-  recipientNameStatus?: 'قيمة' | 'مش واضح'
+  recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
   recipientName?: string
   clientReceiptNo?: string
   notes?: string
@@ -59,8 +59,8 @@ function validateTripFields(input: TripFieldsInput): { field: string; message: s
     errors.push({ field: 'crusherReceiptNo', message: 'رقم الإيصال مطلوب' })
   }
 
-  const recipientNameStatus = input.recipientNameStatus ?? 'مش واضح'
-  if (recipientNameStatus === 'قيمة' && !input.recipientName?.trim()) {
+  const recipientNameStatus = input.recipientNameStatus ?? 'UNCLEAR'
+  if (recipientNameStatus === 'PROVIDED' && !input.recipientName?.trim()) {
     errors.push({ field: 'recipientName', message: 'اسم المستلم مطلوب' })
   }
 
@@ -90,7 +90,7 @@ export function createTrip(input: CreateTripInput): UseCaseResult<{ id: string }
     }
   }
 
-  const recipientNameStatus = input.recipientNameStatus ?? 'مش واضح'
+  const recipientNameStatus = input.recipientNameStatus ?? 'UNCLEAR'
   const id = getNextTripId()
 
   try {
@@ -112,7 +112,7 @@ export function createTrip(input: CreateTripInput): UseCaseResult<{ id: string }
       transportPrice: input.transportPrice,
       clientPrice: input.clientPrice,
       recipientNameStatus,
-      recipientName: recipientNameStatus === 'قيمة' ? (input.recipientName ?? null) : null,
+      recipientName: recipientNameStatus === 'PROVIDED' ? (input.recipientName ?? null) : null,
       clientReceiptNo: input.clientReceiptNo ?? null,
       notes: input.notes ?? null
     })
@@ -159,7 +159,7 @@ export function updateTrip(input: UpdateTripInput): UseCaseResult<{ id: string }
     }
   }
 
-  const recipientNameStatus = input.recipientNameStatus ?? 'مش واضح'
+  const recipientNameStatus = input.recipientNameStatus ?? 'UNCLEAR'
 
   try {
     updateTripInDb({
@@ -179,7 +179,7 @@ export function updateTrip(input: UpdateTripInput): UseCaseResult<{ id: string }
       transportPrice: input.transportPrice,
       clientPrice: input.clientPrice,
       recipientNameStatus,
-      recipientName: recipientNameStatus === 'قيمة' ? (input.recipientName ?? null) : null,
+      recipientName: recipientNameStatus === 'PROVIDED' ? (input.recipientName ?? null) : null,
       clientReceiptNo: input.clientReceiptNo ?? null,
       notes: input.notes ?? null
     })
