@@ -237,7 +237,7 @@ export function ShiftsPage(): React.JSX.Element {
   }
 
   const selectedShift = shifts.find((shift) => shift.id === selectedShiftId)
-  const isSelectedShiftClosed = selectedShift?.status === 'منتهية'
+  const isSelectedShiftClosed = selectedShift?.status === 'CLOSED'
   const shiftToClose = shifts.find((shift) => shift.id === closeShiftId)
   const hasClosingPhoto = Boolean(shiftToClose?.closingPhotoPath?.trim())
 
@@ -259,12 +259,12 @@ export function ShiftsPage(): React.JSX.Element {
       cell: ({ getValue }) => (
         <Badge
           className={
-            getValue() === 'مفتوحة'
+            getValue() === 'OPEN'
               ? 'border-transparent bg-green-600 text-white hover:bg-green-600'
               : 'border-transparent bg-gray-500 text-white hover:bg-gray-500'
           }
         >
-          {t(getValue() === 'مفتوحة' ? 'shiftStatus.open' : 'shiftStatus.closed')}
+          {t(getValue() === 'OPEN' ? 'shiftStatus.open' : 'shiftStatus.closed')}
         </Badge>
       )
     },
@@ -446,7 +446,7 @@ export function ShiftsPage(): React.JSX.Element {
               </SelectTrigger>
               <SelectContent>
                 {shifts
-                  .filter((shift) => shift.status === 'مفتوحة')
+                  .filter((shift) => shift.status === 'OPEN')
                   .map((shift) => (
                     <SelectItem key={shift.id} value={shift.id}>
                       {shift.id} ({shift.driverName})

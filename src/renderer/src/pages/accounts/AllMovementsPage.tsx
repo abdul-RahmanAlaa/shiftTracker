@@ -89,7 +89,7 @@ export function AllMovementsPage(): React.JSX.Element {
   function isEntryLocked(entry: LedgerRow): boolean {
     return Boolean(
       entry.shiftId &&
-      shifts.some((shift) => shift.id === entry.shiftId && shift.status === 'منتهية')
+      shifts.some((shift) => shift.id === entry.shiftId && shift.status === 'CLOSED')
     )
   }
 
