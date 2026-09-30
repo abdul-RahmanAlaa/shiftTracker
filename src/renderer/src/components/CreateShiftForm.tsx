@@ -36,6 +36,7 @@ import { NumberField } from '@/pages/AddTripPage'
 import type { ResourceState } from '@/pages/AddTripPage'
 
 export const createShiftSchema = z.object({
+  driverId: z.number().int().positive(i18n.t('createShift.validation.driverRequired')),
   vehicleNo: z.number().int().positive(i18n.t('createShift.validation.vehicleRequired')),
   crusherCubicDefault: z
     .number()
@@ -51,12 +52,16 @@ export type CreateShiftValues = z.infer<typeof createShiftSchema>
 
 export function CreateShiftForm({
   form,
+  drivers,
   vehicles,
-  onSubmit
+  onSubmit,
+  inline = false
 }: {
   form: ReturnType<typeof useForm<CreateShiftValues>>
+  drivers: ResourceState['drivers']
   vehicles: ResourceState['vehicles']
   onSubmit: (values: CreateShiftValues) => Promise<boolean>
+  inline?: boolean
 }): React.JSX.Element {
   const [isOpen, setIsOpen] = useState(false)
   const { t } = useTranslation()
@@ -65,6 +70,149 @@ export function CreateShiftForm({
     const created = await onSubmit(values)
     if (created) setIsOpen(false)
   }
+
+  const fields = (
+    <>
+      <FormField
+        control={form.control}
+        name="driverId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('createShift.fields.driver')}</FormLabel>
+            <Select
+              value={field.value ? String(field.value) : ''}
+              onValueChange={(value) => field.onChange(Number(value))}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('createShift.placeholders.driver')} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {drivers.map((driver) => (
+                  <SelectItem key={driver.id} value={String(driver.id)}>
+                    {driver.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="vehicleNo"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('createShift.fields.vehicle')}</FormLabel>
+            <Select
+              value={field.value ? String(field.value) : ''}
+              onValueChange={(value) => field.onChange(Number(value))}
+            >
+              <FormControl>
+                <SelectTrigger>
+                  <SelectValue placeholder={t('createShift.placeholders.vehicle')} />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {vehicles.map((vehicle) => (
+                  <SelectItem key={vehicle.vehicleNo} value={String(vehicle.vehicleNo)}>
+                    {vehicle.vehicleNo}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <NumberField
+        control={form.control}
+        name="crusherCubicDefault"
+        label={t('createShift.fields.crusherCubic')}
+        required
+      />
+      <NumberField
+        control={form.control}
+        name="clientCubicDefault"
+        label={t('createShift.fields.clientCubic')}
+        required
+      />
+      <FormField
+        control={form.control}
+        name="startDate"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('createShift.fields.startDate')}</FormLabel>
+            <FormControl>
+              <DatePicker
+                value={field.value}
+                onChange={field.onChange}
+                placeholder={t('createShift.placeholders.startDate')}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="reportedDestination"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>{t('createShift.fields.destination')}</FormLabel>
+            <FormControl>
+              <Input {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+      <NumberField
+        control={form.control}
+        name="reportedTripCount"
+        label={t('createShift.fields.tripCount')}
+      />
+      <FormField
+        control={form.control}
+        name="notes"
+        render={({ field }) => (
+          <FormItem className="md:col-span-2">
+            <FormLabel>{t('common.columns.notes')}</FormLabel>
+            <FormControl>
+              <Textarea {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+    </>
+  )
+
+  const formContent = (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="grid gap-4 md:grid-cols-2">
+        {fields}
+        {inline ? (
+          <div className="md:col-span-2">
+            <Button type="submit">{t('createShift.submit')}</Button>
+          </div>
+        ) : (
+          <DialogFooter className="md:col-span-2">
+            <Button type="submit">{t('createShift.submit')}</Button>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">
+                {t('common.cancel')}
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        )}
+      </form>
+    </Form>
+  )
+
+  if (inline) return formContent
 
   return (
     <Dialog
@@ -81,105 +229,7 @@ export function CreateShiftForm({
         <DialogHeader>
           <DialogTitle>{t('createShift.title')}</DialogTitle>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="grid gap-4 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="vehicleNo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('createShift.fields.vehicle')}</FormLabel>
-                  <Select
-                    value={field.value ? String(field.value) : ''}
-                    onValueChange={(value) => field.onChange(Number(value))}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('createShift.placeholders.vehicle')} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {vehicles.map((vehicle) => (
-                        <SelectItem key={vehicle.vehicleNo} value={String(vehicle.vehicleNo)}>
-                          {vehicle.vehicleNo}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <NumberField
-              control={form.control}
-              name="crusherCubicDefault"
-              label={t('createShift.fields.crusherCubic')}
-              required
-            />
-            <NumberField
-              control={form.control}
-              name="clientCubicDefault"
-              label={t('createShift.fields.clientCubic')}
-              required
-            />
-            <FormField
-              control={form.control}
-              name="startDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('createShift.fields.startDate')}</FormLabel>
-                  <FormControl>
-                    <DatePicker
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder={t('createShift.placeholders.startDate')}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="reportedDestination"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t('createShift.fields.destination')}</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <NumberField
-              control={form.control}
-              name="reportedTripCount"
-              label={t('createShift.fields.tripCount')}
-            />
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem className="md:col-span-2">
-                  <FormLabel>{t('common.columns.notes')}</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <DialogFooter className="md:col-span-2">
-              <Button type="submit">{t('createShift.submit')}</Button>
-              <DialogClose asChild>
-                <Button type="button" variant="outline">
-                  {t('common.cancel')}
-                </Button>
-              </DialogClose>
-            </DialogFooter>
-          </form>
-        </Form>
+        {formContent}
       </DialogContent>
     </Dialog>
   )

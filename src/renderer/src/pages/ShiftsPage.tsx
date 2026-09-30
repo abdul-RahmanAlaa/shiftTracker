@@ -1,15 +1,17 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm, useWatch } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
+import { LockKeyhole, Plus } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
+import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
+import type { CreateShiftValues } from '@/components/CreateShiftForm'
+import { DataTable } from '@/components/DataTable'
+import { ReceiptPhoto } from '@/components/ReceiptPhoto'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
-import { ReceiptPhoto } from '@/components/ReceiptPhoto'
-import { DataTable } from '@/components/DataTable'
-import type { CreateShiftValues } from '@/components/CreateShiftForm'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
@@ -19,48 +21,29 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { TripForm, tripSchema } from './AddTripPage'
-import type { ResourceState, TripValues } from './AddTripPage'
 
-type TripRow = Extract<
-  Awaited<ReturnType<typeof window.api.listTripsByShift>>,
+type ShiftListRow = Extract<
+  Awaited<ReturnType<typeof window.api.listShifts>>,
   { ok: true }
 >['data'][number]
 
-type ShiftListRow = {
-  id: string
-  vehicleNo: number
-  driverId: number
-  driverName: string
-  crusherCubicDefault: number
-  clientCubicDefault: number
-  status: string
-  startDate: string
-  endDate: string | null
-  closingPhotoPath: string | null
-  actualTripCount: number
-}
-
 export function ShiftsPage(): React.JSX.Element {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [shifts, setShifts] = useState<ShiftListRow[]>([])
+  const [drivers, setDrivers] = useState<{ id: number; name: string }[]>([])
+  const [vehicles, setVehicles] = useState<
+    { vehicleNo: number; trailerNo: number; contractorId: number }[]
+  >([])
   const [loading, setLoading] = useState(true)
-  const [selectedDriverIdForShift, setSelectedDriverIdForShift] = useState<number>()
+  const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false)
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false)
   const [closeShiftId, setCloseShiftId] = useState('')
   const [endDate, setEndDate] = useState('')
-  const [selectedShiftId, setSelectedShiftId] = useState<string | null>(null)
-  const [shiftTrips, setShiftTrips] = useState<TripRow[]>([])
-  const [editingTripId, setEditingTripId] = useState<string | null>(null)
-  const [resources, setResources] = useState<ResourceState>({
-    drivers: [],
-    vehicles: [],
-    crushers: [],
-    clients: [],
-    locations: []
-  })
   const createShiftForm = useForm<CreateShiftValues>({
     resolver: zodResolver(createShiftSchema),
     defaultValues: {
+      driverId: undefined,
       vehicleNo: undefined,
       crusherCubicDefault: 0,
       clientCubicDefault: 0,
@@ -71,40 +54,15 @@ export function ShiftsPage(): React.JSX.Element {
     }
   })
 
-  const editTripForm = useForm<TripValues>({
-    resolver: zodResolver(tripSchema),
-    defaultValues: {
-      tripDate: '',
-      crusherCubic: 0,
-      clientCubicReported: 0,
-      discountQty: 0,
-      discountReason: '',
-      location: '',
-      crusherId: undefined,
-      stonePrice: undefined,
-      crusherReceiptStatus: 'UNKNOWN',
-      crusherReceiptNo: undefined,
-      clientId: undefined,
-      transportPrice: undefined,
-      clientPrice: undefined,
-      recipientNameStatus: 'UNCLEAR',
-      recipientName: '',
-      clientReceiptNo: '',
-      notes: ''
-    }
-  })
-  const editCrusherReceiptStatus = useWatch({
-    control: editTripForm.control,
-    name: 'crusherReceiptStatus'
-  })
-  const editRecipientNameStatus = useWatch({
-    control: editTripForm.control,
-    name: 'recipientNameStatus'
-  })
-
   useEffect(() => {
-    void window.api.listShifts().then((result) => {
-      if (result.ok) setShifts(result.data)
+    void Promise.all([
+      window.api.listShifts(),
+      window.api.listDrivers(),
+      window.api.listVehicles()
+    ]).then(([shiftResult, driversResult, vehiclesResult]) => {
+      if (shiftResult.ok) setShifts(shiftResult.data)
+      if (driversResult.ok) setDrivers(driversResult.data)
+      if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
       setLoading(false)
     })
   }, [])
@@ -112,88 +70,24 @@ export function ShiftsPage(): React.JSX.Element {
   async function loadShifts(): Promise<void> {
     const result = await window.api.listShifts()
     if (result.ok) setShifts(result.data)
-    setLoading(false)
   }
 
-  useEffect(() => {
-    void Promise.all([
-      window.api.listDrivers(),
-      window.api.listVehicles(),
-      window.api.listCrushers(),
-      window.api.listClients(),
-      window.api.listTripLocations()
-    ]).then(([drivers, vehicles, crushers, clients, locations]) => {
-      setResources({
-        drivers: drivers.ok ? drivers.data : [],
-        vehicles: vehicles.ok ? vehicles.data : [],
-        crushers: crushers.ok ? crushers.data : [],
-        clients: clients.ok ? clients.data : [],
-        locations: locations.ok ? locations.data : []
-      })
-    })
-  }, [])
-
-  async function loadShiftTrips(shiftId: string): Promise<void> {
-    const result = await window.api.listTripsByShift({ shiftId })
-    setShiftTrips(result.ok ? result.data : [])
-  }
-
-  async function selectShift(shiftId: string): Promise<void> {
-    setSelectedShiftId(shiftId)
-    setEditingTripId(null)
-    await loadShiftTrips(shiftId)
-  }
-
-  function startEditingTrip(trip: TripRow): void {
-    setEditingTripId(trip.id)
-    editTripForm.reset({
-      tripDate: trip.tripDate,
-      crusherCubic: trip.crusherCubic,
-      clientCubicReported: trip.clientCubicReported,
-      discountQty: trip.discountQty,
-      discountReason: trip.discountReason ?? '',
-      location: trip.location ?? '',
-      crusherId: trip.crusherId,
-      stonePrice: trip.stonePrice ?? undefined,
-      crusherReceiptStatus: trip.crusherReceiptStatus as TripValues['crusherReceiptStatus'],
-      crusherReceiptNo: trip.crusherReceiptNo ?? undefined,
-      clientId: trip.clientId,
-      transportPrice: trip.transportPrice,
-      clientPrice: trip.clientPrice,
-      recipientNameStatus: trip.recipientNameStatus as TripValues['recipientNameStatus'],
-      recipientName: trip.recipientName ?? '',
-      clientReceiptNo: trip.clientReceiptNo ?? '',
-      notes: trip.notes ?? ''
-    })
-  }
-
-  async function handleUpdateTrip(values: TripValues): Promise<void> {
-    if (!editingTripId || !selectedShiftId) return
-    const result = await window.api.updateTrip({ id: editingTripId, ...values })
-    if (result.ok) {
-      setEditingTripId(null)
-      await loadShiftTrips(selectedShiftId)
-    } else {
+  async function handleCreateShift(values: CreateShiftValues): Promise<boolean> {
+    const result = await window.api.createShift(values)
+    if (!result.ok) {
       result.errors.forEach((error) => {
         if (error.field in values) {
-          editTripForm.setError(error.field as keyof TripValues, { message: error.message })
+          createShiftForm.setError(error.field as keyof CreateShiftValues, {
+            message: error.message
+          })
         }
       })
+      return false
     }
-  }
-
-  async function handleDeleteTrip(trip: TripRow): Promise<void> {
-    if (!confirm(t('shifts.deleteTripConfirmation', { id: trip.id }))) return
-    const result = await window.api.deleteTrip({ id: trip.id })
-    if (result.ok) {
-      if (selectedShiftId) await loadShiftTrips(selectedShiftId)
-    }
-  }
-
-  function handlePhotoChange(tripId: string, photoPath: string | null): void {
-    setShiftTrips((previous) =>
-      previous.map((trip) => (trip.id === tripId ? { ...trip, receiptPhotoPath: photoPath } : trip))
-    )
+    createShiftForm.reset()
+    setIsOpenDialogOpen(false)
+    await loadShifts()
+    return true
   }
 
   function handleClosingPhotoChange(shiftId: string, photoPath: string | null): void {
@@ -204,53 +98,20 @@ export function ShiftsPage(): React.JSX.Element {
     )
   }
 
-  async function handleCreateShift(values: CreateShiftValues): Promise<boolean> {
-    if (!selectedDriverIdForShift) return false
-    const result = await window.api.createShift({
-      ...values,
-      driverId: selectedDriverIdForShift
-    })
-    if (result.ok) {
-      createShiftForm.reset()
-      await loadShifts()
-      return true
-    } else {
-      result.errors.forEach((error) => {
-        if (error.field in values) {
-          createShiftForm.setError(error.field as keyof CreateShiftValues, {
-            message: error.message
-          })
-        }
-      })
-    }
-    return false
-  }
-
-  async function handleCloseShift(e: React.FormEvent): Promise<void> {
-    e.preventDefault()
+  async function handleCloseShift(event: React.FormEvent): Promise<void> {
+    event.preventDefault()
     const result = await window.api.closeShift({ shiftId: closeShiftId, endDate })
-    if (result.ok) {
-      setCloseShiftId('')
-      setEndDate('')
-      await loadShifts()
-    }
+    if (!result.ok) return
+    setIsCloseDialogOpen(false)
+    setCloseShiftId('')
+    setEndDate('')
+    await loadShifts()
   }
 
-  const selectedShift = shifts.find((shift) => shift.id === selectedShiftId)
-  const isSelectedShiftClosed = selectedShift?.status === 'CLOSED'
   const shiftToClose = shifts.find((shift) => shift.id === closeShiftId)
   const hasClosingPhoto = Boolean(shiftToClose?.closingPhotoPath?.trim())
-
-  const shiftColumns: ColumnDef<ShiftListRow, unknown>[] = [
-    {
-      accessorKey: 'id',
-      header: t('shifts.shiftInfo.number'),
-      cell: ({ row }) => (
-        <Button type="button" variant="link" onClick={() => void selectShift(row.original.id)}>
-          {row.original.id}
-        </Button>
-      )
-    },
+  const columns: ColumnDef<ShiftListRow, unknown>[] = [
+    { accessorKey: 'id', header: t('shifts.shiftInfo.number') },
     { accessorKey: 'driverName', header: t('ledgerEntryForm.fields.driver') },
     { accessorKey: 'vehicleNo', header: t('vehiclesSettings.fields.vehicleNo') },
     {
@@ -277,77 +138,110 @@ export function ShiftsPage(): React.JSX.Element {
     { accessorKey: 'actualTripCount', header: t('shifts.columns.tripCount') }
   ]
 
-  const tripColumns: ColumnDef<TripRow, unknown>[] = [
-    { accessorKey: 'id', header: t('common.columns.id') },
-    { accessorKey: 'tripDate', header: t('tripForm.fields.tripDate') },
-    {
-      id: 'location',
-      accessorFn: (trip) => trip.location ?? t('common.emDash'),
-      header: t('tripForm.fields.location')
-    },
-    { accessorKey: 'crusherCubic', header: t('tripForm.fields.crusherCubic') },
-    { accessorKey: 'clientCubicReported', header: t('tripForm.fields.clientCubic') },
-    {
-      id: 'stonePrice',
-      accessorFn: (trip) => trip.stonePrice ?? t('common.emDash'),
-      header: t('tripForm.fields.stonePrice')
-    },
-    { accessorKey: 'transportPrice', header: t('tripForm.fields.transportPrice') },
-    { accessorKey: 'clientPrice', header: t('tripForm.fields.clientPrice') },
-    {
-      id: 'receiptPhoto',
-      header: t('shifts.columns.receiptPhoto'),
-      enableSorting: false,
-      enableColumnFilter: false,
-      cell: ({ row }) => (
-        <ReceiptPhoto
-          entityKind="trip"
-          entityId={row.original.id}
-          photoPath={row.original.receiptPhotoPath}
-          onPhotoChange={(photoPath) => handlePhotoChange(row.original.id, photoPath)}
-          savePhoto={(entityId, imageBase64) =>
-            window.api.saveTripPhoto({ tripId: entityId, imageBase64 })
-          }
-          deletePhoto={(entityId) => window.api.deleteTripPhoto({ tripId: entityId })}
-          getPhoto={(photoPath) => window.api.getTripPhoto({ photoPath })}
-        />
-      )
-    },
-    {
-      id: 'actions',
-      header: t('common.columns.actions'),
-      enableSorting: false,
-      enableColumnFilter: false,
-      cell: ({ row }) =>
-        isSelectedShiftClosed ? (
-          <span className="text-sm text-muted-foreground">{t('common.lockedShift')}</span>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => startEditingTrip(row.original)}
-            >
-              {t('common.edit')}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => void handleDeleteTrip(row.original)}
-            >
-              {t('common.delete')}
-            </Button>
-          </div>
-        )
-    }
-  ]
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
-      <h1 className="text-2xl font-semibold">{t('shifts.title')}</h1>
-
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold">{t('shifts.title')}</h1>
+        <div className="flex flex-wrap gap-2">
+          <Dialog
+            open={isOpenDialogOpen}
+            onOpenChange={(open) => {
+              setIsOpenDialogOpen(open)
+              if (!open) createShiftForm.reset()
+            }}
+          >
+            <Button type="button" onClick={() => setIsOpenDialogOpen(true)}>
+              <Plus className="h-4 w-4" />
+              {t('createShift.title')}
+            </Button>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>{t('createShift.title')}</DialogTitle>
+              </DialogHeader>
+              <CreateShiftForm
+                form={createShiftForm}
+                drivers={drivers}
+                vehicles={vehicles}
+                onSubmit={handleCreateShift}
+                inline
+              />
+            </DialogContent>
+          </Dialog>
+          <Dialog
+            open={isCloseDialogOpen}
+            onOpenChange={(open) => {
+              setIsCloseDialogOpen(open)
+              if (!open) {
+                setCloseShiftId('')
+                setEndDate('')
+              }
+            }}
+          >
+            <Button type="button" variant="outline" onClick={() => setIsCloseDialogOpen(true)}>
+              <LockKeyhole className="h-4 w-4" />
+              {t('shifts.closeCardTitle')}
+            </Button>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{t('shifts.closeCardTitle')}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCloseShift} className="grid gap-4 md:grid-cols-2">
+                <Select value={closeShiftId} onValueChange={setCloseShiftId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('shifts.selectShift')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {shifts
+                      .filter((shift) => shift.status === 'OPEN')
+                      .map((shift) => (
+                        <SelectItem key={shift.id} value={shift.id}>
+                          {shift.id} ({shift.driverName})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <DatePicker
+                  value={endDate}
+                  onChange={setEndDate}
+                  placeholder={t('shifts.closeDatePlaceholder')}
+                />
+                {shiftToClose && (
+                  <div className="flex flex-col gap-2 md:col-span-2">
+                    <p className="text-sm font-medium">{t('receiptPhoto.labels.shift')}</p>
+                    <ReceiptPhoto
+                      entityKind="shift"
+                      entityId={shiftToClose.id}
+                      photoPath={shiftToClose.closingPhotoPath}
+                      onPhotoChange={(photoPath) =>
+                        handleClosingPhotoChange(shiftToClose.id, photoPath)
+                      }
+                      savePhoto={(entityId, imageBase64) =>
+                        window.api.saveShiftPhoto({ shiftId: entityId, imageBase64 })
+                      }
+                      deletePhoto={(entityId) => window.api.deleteShiftPhoto({ shiftId: entityId })}
+                      getPhoto={(photoPath) => window.api.getShiftPhoto({ photoPath })}
+                    />
+                  </div>
+                )}
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="submit"
+                    disabled={!closeShiftId || !endDate || !hasClosingPhoto}
+                    title={!hasClosingPhoto ? t('shifts.closingPhotoRequired') : undefined}
+                  >
+                    {t('shifts.closeSubmit')}
+                  </Button>
+                  {!hasClosingPhoto && closeShiftId && (
+                    <p className="text-sm text-muted-foreground">
+                      {t('shifts.closingPhotoRequired')}
+                    </p>
+                  )}
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
       <Card className="min-h-0 flex-1">
         <CardHeader>
           <CardTitle>{t('shifts.listTitle')}</CardTitle>
@@ -357,139 +251,14 @@ export function ShiftsPage(): React.JSX.Element {
             <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
           ) : (
             <DataTable
-              columns={shiftColumns}
+              columns={columns}
               data={shifts}
               getRowId={(shift) => shift.id}
               enableRowSelection
+              onRowClick={(shift) => navigate(`/shifts/${encodeURIComponent(shift.id)}`)}
               emptyMessage={t('dataTable.emptyMessage')}
             />
           )}
-        </CardContent>
-      </Card>
-
-      {selectedShiftId && (
-        <Card className="min-h-0 flex-1">
-          <CardHeader>
-            <CardTitle>{t('shifts.tripsTitle', { id: selectedShiftId })}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex min-h-0 flex-col">
-            <Dialog
-              open={editingTripId !== null}
-              onOpenChange={(open) => {
-                if (!open) setEditingTripId(null)
-              }}
-            >
-              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
-                <DialogHeader>
-                  <DialogTitle>{t('shifts.editTripTitle', { id: editingTripId })}</DialogTitle>
-                </DialogHeader>
-                <TripForm
-                  form={editTripForm}
-                  resources={resources}
-                  locations={resources.locations}
-                  crusherReceiptStatus={editCrusherReceiptStatus}
-                  recipientNameStatus={editRecipientNameStatus}
-                  onSubmit={handleUpdateTrip}
-                />
-              </DialogContent>
-            </Dialog>
-            <DataTable
-              columns={tripColumns}
-              data={shiftTrips}
-              getRowId={(trip) => trip.id}
-              enableRowSelection
-              emptyMessage={t('shifts.emptyTrips')}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('createShift.title')}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <Select
-            value={selectedDriverIdForShift ? String(selectedDriverIdForShift) : ''}
-            onValueChange={(value) => setSelectedDriverIdForShift(Number(value))}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder={t('shifts.selectDriver')} />
-            </SelectTrigger>
-            <SelectContent>
-              {resources.drivers.map((driver) => (
-                <SelectItem key={driver.id} value={String(driver.id)}>
-                  {driver.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedDriverIdForShift && (
-            <CreateShiftForm
-              form={createShiftForm}
-              vehicles={resources.vehicles}
-              onSubmit={handleCreateShift}
-            />
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('shifts.closeCardTitle')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCloseShift} className="grid gap-4 md:grid-cols-2">
-            <Select value={closeShiftId || ''} onValueChange={setCloseShiftId}>
-              <SelectTrigger>
-                <SelectValue placeholder={t('shifts.selectShift')} />
-              </SelectTrigger>
-              <SelectContent>
-                {shifts
-                  .filter((shift) => shift.status === 'OPEN')
-                  .map((shift) => (
-                    <SelectItem key={shift.id} value={shift.id}>
-                      {shift.id} ({shift.driverName})
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            <DatePicker
-              value={endDate}
-              onChange={setEndDate}
-              placeholder={t('shifts.closeDatePlaceholder')}
-            />
-            {shiftToClose && (
-              <div className="flex flex-col gap-2 md:col-span-2">
-                <p className="text-sm font-medium">{t('receiptPhoto.labels.shift')}</p>
-                <ReceiptPhoto
-                  entityKind="shift"
-                  entityId={shiftToClose.id}
-                  photoPath={shiftToClose.closingPhotoPath}
-                  onPhotoChange={(photoPath) =>
-                    handleClosingPhotoChange(shiftToClose.id, photoPath)
-                  }
-                  savePhoto={(entityId, imageBase64) =>
-                    window.api.saveShiftPhoto({ shiftId: entityId, imageBase64 })
-                  }
-                  deletePhoto={(entityId) => window.api.deleteShiftPhoto({ shiftId: entityId })}
-                  getPhoto={(photoPath) => window.api.getShiftPhoto({ photoPath })}
-                />
-              </div>
-            )}
-            <div className="flex flex-col gap-2">
-              <Button
-                type="submit"
-                disabled={!closeShiftId || !endDate || !hasClosingPhoto}
-                title={!hasClosingPhoto ? t('shifts.closingPhotoRequired') : undefined}
-              >
-                {t('shifts.closeSubmit')}
-              </Button>
-              {!hasClosingPhoto && closeShiftId && (
-                <p className="text-sm text-muted-foreground">{t('shifts.closingPhotoRequired')}</p>
-              )}
-            </div>
-          </form>
         </CardContent>
       </Card>
     </div>

@@ -41,6 +41,7 @@
     "title": "فتح وردية جديدة",
     "submit": "فتح الوردية",
     "fields": {
+      "driver": "السائق",
       "vehicle": "السيارة",
       "crusherCubic": "تكعيب الكسارة",
       "clientCubic": "تكعيب العميل",
@@ -49,10 +50,12 @@
       "tripCount": "عدد النقلات"
     },
     "placeholders": {
+      "driver": "اختار السائق",
       "vehicle": "اختار السيارة",
       "startDate": "اختر تاريخ البداية"
     },
     "validation": {
+      "driverRequired": "السائق مطلوب",
       "vehicleRequired": "السيارة مطلوبة",
       "crusherCubicRequired": "تكعيب الكسارة مطلوب",
       "clientCubicRequired": "تكعيب العميل مطلوب",
@@ -277,8 +280,10 @@
   },
   "shifts": {
     "title": "الورديات",
+    "breadcrumb": "مسار الورديات",
     "listTitle": "سجل الورديات",
     "tripsTitle": "نقلات الوردية {{id}}",
+    "shiftNotFound": "الوردية غير موجودة",
     "editTripTitle": "تعديل النقلة {{id}}",
     "emptyTrips": "لا توجد نقلات في الوردية",
     "deleteTripConfirmation": "متأكد إنك عايز تمسح النقلة {{id}}؟",

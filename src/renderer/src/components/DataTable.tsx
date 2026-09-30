@@ -38,6 +38,7 @@ interface DataTableProps<T> {
   columns: ColumnDef<T, unknown>[]
   data: T[]
   getRowId?: (row: T) => string
+  onRowClick?: (row: T) => void
   enableRowSelection?: boolean
   sumColumnId?: string
   initialSorting?: SortingState
@@ -64,6 +65,7 @@ function DataTable<T>({
   columns,
   data,
   getRowId,
+  onRowClick,
   enableRowSelection = false,
   sumColumnId,
   initialSorting = [],
@@ -295,9 +297,20 @@ function DataTable<T>({
             </TableRow>
           ) : (
             table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id} data-state={row.getIsSelected() ? 'selected' : undefined}>
+              <TableRow
+                key={row.id}
+                data-state={row.getIsSelected() ? 'selected' : undefined}
+                className={onRowClick ? 'cursor-pointer' : undefined}
+                onClick={() => onRowClick?.(row.original)}
+                tabIndex={onRowClick ? 0 : undefined}
+                onKeyDown={(event) => {
+                  if (!onRowClick || (event.key !== 'Enter' && event.key !== ' ')) return
+                  event.preventDefault()
+                  onRowClick(row.original)
+                }}
+              >
                 {enableRowSelection && (
-                  <TableCell>
+                  <TableCell onClick={(event) => event.stopPropagation()}>
                     <Checkbox
                       aria-label={t('dataTable.selectRow')}
                       checked={row.getIsSelected()}

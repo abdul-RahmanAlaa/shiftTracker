@@ -159,6 +159,7 @@ export function AddTripPage(): React.JSX.Element {
   const createShiftForm = useForm<CreateShiftValues>({
     resolver: zodResolver(createShiftSchema),
     defaultValues: {
+      driverId: undefined,
       vehicleNo: undefined,
       crusherCubicDefault: 0,
       clientCubicDefault: 0,
@@ -216,6 +217,7 @@ export function AddTripPage(): React.JSX.Element {
 
   async function selectDriver(driverId: number): Promise<void> {
     setSelectedDriverId(driverId)
+    createShiftForm.setValue('driverId', driverId)
     setCheckingShift(true)
     const result = await window.api.getDriverOpenShift({ driverId })
     if (result.ok && result.data) {
@@ -236,8 +238,8 @@ export function AddTripPage(): React.JSX.Element {
   }
 
   async function handleCreateShift(values: CreateShiftValues): Promise<boolean> {
-    if (!selectedDriverId) return false
-    const result = await window.api.createShift({ ...values, driverId: selectedDriverId })
+    if (!values.driverId) return false
+    const result = await window.api.createShift(values)
     if (!result.ok) {
       result.errors.forEach((error) => {
         if (error.field in values)
@@ -247,7 +249,7 @@ export function AddTripPage(): React.JSX.Element {
       })
       return false
     }
-    const shiftResult = await window.api.getDriverOpenShift({ driverId: selectedDriverId })
+    const shiftResult = await window.api.getDriverOpenShift({ driverId: values.driverId })
     if (shiftResult.ok && shiftResult.data) {
       setOpenShift(shiftResult.data)
       syncTripDefaults(shiftResult.data)
@@ -362,6 +364,7 @@ export function AddTripPage(): React.JSX.Element {
                 <p className="text-sm text-amber-400">{t('addTrip.noOpenShift')}</p>
                 <CreateShiftForm
                   form={createShiftForm}
+                  drivers={resources.drivers}
                   vehicles={resources.vehicles}
                   onSubmit={handleCreateShift}
                 />
@@ -582,7 +585,9 @@ export function TripForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="PROVIDED">{t('tripForm.receiptStatuses.value')}</SelectItem>
+                      <SelectItem value="PROVIDED">
+                        {t('tripForm.receiptStatuses.value')}
+                      </SelectItem>
                       <SelectItem value="CONFIRMED_MISSING">
                         {t('tripForm.receiptStatuses.noReceiptConfirmed')}
                       </SelectItem>
@@ -658,7 +663,9 @@ export function TripForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="PROVIDED">{t('tripForm.receiptStatuses.value')}</SelectItem>
+                      <SelectItem value="PROVIDED">
+                        {t('tripForm.receiptStatuses.value')}
+                      </SelectItem>
                       <SelectItem value="UNCLEAR">
                         {t('tripForm.recipientNameStatuses.unclear')}
                       </SelectItem>

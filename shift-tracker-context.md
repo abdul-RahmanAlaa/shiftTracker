@@ -1,3 +1,4 @@
+  CreateShiftForm.tsx          — shared (createShiftSchema, CreateShiftValues, CreateShiftForm)، واختيار السائق حقل داخل الفورم
 # Context — تطبيق إدارة ورديات نقل السن
 
 مشروع Offline (Electron + React + SQLite) بيحل محل ملف `إدارة_ورديات_نقل_السن.xlsx` لإدارة الورديات (SH-xxxx) والنقلات (TRP-xxxx). **حجم البيانات الفعلي: ~2000 نقلة/سنة تقريبًا.**
@@ -43,14 +44,7 @@
 
 ## نظام الـ Migration
 
-`db.ts` بيستخدم `pragma('user_version')`. النسخة الحالية: **v9**. أي migration جديدة تتحط في نفس السلسلة: `SCHEMA` كامل (شامل كل الأعمدة) لأي تنصيب جديد (`0 → أحدث نسخة`)، وكل نسخة قديمة بتتصعّد بالتتابع (`1→2→...→9`، مش تقفز). أمثلة فعلية اتعملت:
-- v3: `Trip.receipt_photo_path`
-- v4: `TransportContractor.phone` (اختياري)
-- v5: `Trip.stone_price` بقى nullable — احتاجت إعادة بناء ذرية لجدول Trip كامل (SQLite مبيدعمش `ALTER COLUMN` لتغيير nullability)، مع الحفاظ على البيانات والفهارس والـ views
-- v6: `Shift.closing_photo_path` — صورة ورقة تقفيل الوردية، إجبارية قبل القفل
-- v7: إصلاح CHECK لـ `Shift.status`
-- v8: `Trip.recipient_name_status` بقيم `PROVIDED` / `UNCLEAR`
-- v9: `Ledger.movement_type` بقيم `ADVANCE` / `PAYMENT` / `OTHER` و`Trip.crusher_receipt_status` بقيم `PROVIDED` / `CONFIRMED_MISSING` / `UNKNOWN`
+`db.ts` حاليًا بيبدأ قاعدة بيانات جديدة بـ schema واحدة و`user_version = 1`؛ منطق migrations القديمة اتشال بعد حذف قاعدة التطوير المحلية. قيم الحالة المخزنة بالإنجليزية: `Shift.status` (`OPEN`/`CLOSED`)، و`Trip.recipient_name_status`، و`Trip.crusher_receipt_status`، و`Ledger.movement_type`.
 
 ## Data Model (الحالة الحالية)
 
@@ -66,8 +60,6 @@ Ledger(id, entry_date, driver_id NULL, movement_type['ADVANCE'|'PAYMENT'|'OTHER'
 ClientPayment(id, entry_date, client_id, amount, notes)
 Views: ShiftStats, TripAccounting  -- effective_client_cubic = client_cubic_reported - discount_qty
 ```
-
-`Ledger.movement_type` و`Trip.crusher_receipt_status` بقى لهم English enums من `db.ts` v9، على نفس نمط `Trip.recipient_name_status` (v8) و`Shift.status` (v7).
 
 **قرار مهم يفرّق الـ Ledger عن ClientPayment**: العميل بس بيدفع (علاقة اتجاه واحد، فـ `ClientPayment` بسيط). المقاول/السائق العلاقة أعقد (عهدة سلفة + دفعة تسديد + اخرى)، فمحتاجين `Ledger` بنوع حركة. ده مش هيتغير — الحل لتسهيل الاستخدام هو تسهيل الوصول للـ Ledger من صفحات الحساب، مش دمج المفهومين في بعض.
 
@@ -117,8 +109,8 @@ src/renderer/src/
       (باقي shadcn primitives)
   pages/
     AddTripPage.tsx               — ✅ فورم النقلة فاضل مكشوف على الصفحة (استثناء متعمد من نمط Dialog)
-    ShiftsPage.tsx                 — ✅ DataTable للورديات + للنقلات، فتح/تعديل/مسح بـ Dialog، ورفع ورقة التقفيل قبل الإغلاق
-                                      ⏳ هيتحول لصفحات مستقلة (/shifts/open, /shifts/close, /shifts/:shiftId) + breadcrumb
+    ShiftsPage.tsx                 — ✅ قائمة الورديات وDialog لفتح/قفل الوردية؛ النقر على الصف يفتح التفاصيل
+    ShiftDetailPage.tsx            — ✅ تفاصيل وردية ونقلاتها وتعديل/مسح النقلات + breadcrumb
     accounts/
       AllMovementsPage.tsx            — ✅ DataTable + Dialog "إضافة حركة" + زرار "تفاصيل" في كل صف يفتح `FloatingWindow` باستخدام `LedgerEntryDetailsContent` في `src/renderer/src/components/`.
                                       Rendered as the fourth section inside AccountsPage under the label "كل الحركات".
@@ -131,6 +123,10 @@ src/renderer/src/
     AllTripsPage.tsx                      — ✅ DataTable + FloatingWindow للتفاصيل
     ImportPage.tsx                         — ✅ رفع CSV + نموذج + ملخص + أخطاء صفوف
 ```
+
+## نمط القائمة والتفاصيل
+
+الورديات لها قائمة `/shifts` وصفحة تفاصيل `/shifts/:shiftId` فقط؛ الإنشاء والإغلاق Dialogs من صفحة القائمة. اختيار السائق حقل عادي داخل `CreateShiftForm`. اتبع نمط القائمة→التفاصيل لأي كيان مستقبلي يحتاج list→detail split، وأبقِ إجراءات الإنشاء/الإغلاق Dialogs عند ملاءمتها.
 
 ## أنماط تقنية ثابتة (لازم تتبع بنفس الطريقة في أي تسك جديدة)
 

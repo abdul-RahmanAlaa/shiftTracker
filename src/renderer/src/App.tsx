@@ -9,6 +9,7 @@ import { AccountsPage } from '@/pages/AccountsPage'
 import { ImportPage } from '@/pages/ImportPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ShiftsPage } from '@/pages/ShiftsPage'
+import { ShiftDetailPage } from '@/pages/ShiftDetailPage'
 import { AllTripsPage } from '@/pages/AllTripsPage'
 
 const navigationItems = [
@@ -68,6 +69,7 @@ function App(): React.JSX.Element {
           <Route element={<AppLayout />}>
             <Route index element={<AddTripPage />} />
             <Route path="shifts" element={<ShiftsPage />} />
+            <Route path="shifts/:shiftId" element={<ShiftDetailPage />} />
             <Route path="all-trips" element={<AllTripsPage />} />
             <Route path="accounts" element={<AccountsPage />} />
             <Route path="settings" element={<SettingsPage />} />
