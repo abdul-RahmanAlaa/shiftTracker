@@ -57,7 +57,7 @@ export function DriverHistoryPage(): React.JSX.Element {
     defaultValues: {
       entryDate: '',
       driverId: undefined,
-      movementType: 'عهدة',
+      movementType: 'ADVANCE',
       amount: 0,
       shiftId: undefined,
       contractorId: undefined,
@@ -97,7 +97,7 @@ export function DriverHistoryPage(): React.JSX.Element {
     return {
       entryDate: '',
       driverId,
-      movementType: 'عهدة',
+      movementType: 'ADVANCE',
       amount: 0,
       shiftId: undefined,
       contractorId: undefined,
@@ -123,7 +123,7 @@ export function DriverHistoryPage(): React.JSX.Element {
     ledgerForm.reset({
       entryDate: entry.entryDate,
       driverId: entry.driverId ?? undefined,
-      movementType: entry.movementType as 'عهدة' | 'دفعة' | 'اخرى',
+      movementType: entry.movementType as 'ADVANCE' | 'PAYMENT' | 'OTHER',
       amount: Number(entry.amount),
       shiftId: entry.shiftId ?? undefined,
       contractorId: entry.contractorId ?? undefined,
@@ -234,7 +234,7 @@ export function DriverHistoryPage(): React.JSX.Element {
                 ledgerForm.reset({
                   entryDate: '',
                   driverId: undefined,
-                  movementType: 'عهدة',
+                  movementType: 'ADVANCE',
                   amount: 0,
                   shiftId: undefined,
                   contractorId: undefined,
@@ -284,13 +284,13 @@ export function DriverHistoryPage(): React.JSX.Element {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="عهدة">
+                            <SelectItem value="ADVANCE">
                               {t('ledgerEntryForm.movementTypes.custody')}
                             </SelectItem>
-                            <SelectItem value="دفعة">
+                            <SelectItem value="PAYMENT">
                               {t('ledgerEntryForm.movementTypes.payment')}
                             </SelectItem>
-                            <SelectItem value="اخرى">
+                            <SelectItem value="OTHER">
                               {t('ledgerEntryForm.movementTypes.other')}
                             </SelectItem>
                           </SelectContent>

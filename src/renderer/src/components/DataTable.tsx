@@ -286,7 +286,7 @@ function DataTable<T>({
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody>
+        <TableBody className="max-h-full overflow-y-scroll">
           {table.getRowModel().rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={columns.length + (enableRowSelection ? 1 : 0)}>

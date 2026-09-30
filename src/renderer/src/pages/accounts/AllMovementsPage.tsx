@@ -44,7 +44,7 @@ export function AllMovementsPage(): React.JSX.Element {
     defaultValues: {
       entryDate: '',
       driverId: undefined,
-      movementType: 'عهدة',
+      movementType: 'ADVANCE',
       amount: 0,
       shiftId: undefined,
       contractorId: undefined,
@@ -78,7 +78,7 @@ export function AllMovementsPage(): React.JSX.Element {
     return {
       entryDate: '',
       driverId: undefined,
-      movementType: 'عهدة',
+      movementType: 'ADVANCE',
       amount: 0,
       shiftId: undefined,
       contractorId: undefined,
@@ -104,7 +104,7 @@ export function AllMovementsPage(): React.JSX.Element {
     ledgerForm.reset({
       entryDate: entry.entryDate,
       driverId: entry.driverId ?? undefined,
-      movementType: entry.movementType as 'عهدة' | 'دفعة' | 'اخرى',
+      movementType: entry.movementType as 'ADVANCE' | 'PAYMENT' | 'OTHER',
       amount: Number(entry.amount),
       shiftId: entry.shiftId ?? undefined,
       contractorId: entry.contractorId ?? undefined,

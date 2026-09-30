@@ -29,7 +29,7 @@ interface TripFieldsInput {
   location?: string
   crusherId: number
   stonePrice: number
-  crusherReceiptStatus: 'قيمة' | 'مفيش (متأكد)' | 'مش معروف'
+  crusherReceiptStatus: 'PROVIDED' | 'CONFIRMED_MISSING' | 'UNKNOWN'
   crusherReceiptNo?: number
   clientId: number
   transportPrice: number
@@ -55,7 +55,7 @@ function validateTripFields(input: TripFieldsInput): { field: string; message: s
 
   if (!input.crusherReceiptStatus) {
     errors.push({ field: 'crusherReceiptStatus', message: 'حالة إيصال الكسارة مطلوبة' })
-  } else if (input.crusherReceiptStatus === 'قيمة' && !input.crusherReceiptNo) {
+  } else if (input.crusherReceiptStatus === 'PROVIDED' && !input.crusherReceiptNo) {
     errors.push({ field: 'crusherReceiptNo', message: 'رقم الإيصال مطلوب' })
   }
 
@@ -107,7 +107,7 @@ export function createTrip(input: CreateTripInput): UseCaseResult<{ id: string }
       stonePrice: input.stonePrice,
       crusherReceiptStatus: input.crusherReceiptStatus,
       crusherReceiptNo:
-        input.crusherReceiptStatus === 'قيمة' ? (input.crusherReceiptNo ?? null) : null,
+        input.crusherReceiptStatus === 'PROVIDED' ? (input.crusherReceiptNo ?? null) : null,
       clientId: input.clientId,
       transportPrice: input.transportPrice,
       clientPrice: input.clientPrice,
@@ -174,7 +174,7 @@ export function updateTrip(input: UpdateTripInput): UseCaseResult<{ id: string }
       stonePrice: input.stonePrice,
       crusherReceiptStatus: input.crusherReceiptStatus,
       crusherReceiptNo:
-        input.crusherReceiptStatus === 'قيمة' ? (input.crusherReceiptNo ?? null) : null,
+        input.crusherReceiptStatus === 'PROVIDED' ? (input.crusherReceiptNo ?? null) : null,
       clientId: input.clientId,
       transportPrice: input.transportPrice,
       clientPrice: input.clientPrice,

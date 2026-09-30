@@ -59,7 +59,7 @@ const api = {
     location?: string
     crusherId: number
     stonePrice: number
-    crusherReceiptStatus: 'قيمة' | 'مفيش (متأكد)' | 'مش معروف'
+    crusherReceiptStatus: 'PROVIDED' | 'CONFIRMED_MISSING' | 'UNKNOWN'
     crusherReceiptNo?: number
     clientId: number
     transportPrice: number
@@ -79,7 +79,7 @@ const api = {
   createLedgerEntry: (input: {
     entryDate: string
     driverId?: number
-    movementType: 'عهدة' | 'دفعة' | 'اخرى'
+    movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
     amount: number
     shiftId?: string
     contractorId?: number
@@ -89,7 +89,7 @@ const api = {
     id: number
     entryDate: string
     driverId?: number
-    movementType: 'عهدة' | 'دفعة' | 'اخرى'
+    movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
     amount: number
     shiftId?: string
     contractorId?: number
@@ -127,7 +127,7 @@ const api = {
     location?: string
     crusherId: number
     stonePrice: number
-    crusherReceiptStatus: 'قيمة' | 'مفيش (متأكد)' | 'مش معروف'
+    crusherReceiptStatus: 'PROVIDED' | 'CONFIRMED_MISSING' | 'UNKNOWN'
     crusherReceiptNo?: number
     clientId: number
     transportPrice: number

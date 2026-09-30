@@ -82,7 +82,7 @@ export function ShiftsPage(): React.JSX.Element {
       location: '',
       crusherId: undefined,
       stonePrice: undefined,
-      crusherReceiptStatus: 'مش معروف',
+      crusherReceiptStatus: 'UNKNOWN',
       crusherReceiptNo: undefined,
       clientId: undefined,
       transportPrice: undefined,

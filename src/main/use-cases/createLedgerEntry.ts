@@ -13,7 +13,7 @@ type UseCaseResult<T> =
 export interface CreateLedgerInput {
   entryDate: string
   driverId?: number
-  movementType: 'عهدة' | 'دفعة' | 'اخرى'
+  movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
   amount: number
   shiftId?: string
   contractorId?: number
@@ -22,7 +22,7 @@ export interface CreateLedgerInput {
 
 function validateLedgerInput(input: {
   entryDate: string
-  movementType?: 'عهدة' | 'دفعة' | 'اخرى'
+  movementType?: 'ADVANCE' | 'PAYMENT' | 'OTHER'
   amount?: number
   shiftId?: string
   contractorId?: number

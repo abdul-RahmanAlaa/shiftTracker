@@ -7,7 +7,7 @@
 1. [x] Scope audit (read-only، ضمن التاسك دي)
 2. [x] Install and configure i18next + react-i18next (renderer only، ضمن التاسك دي؛ لغة ثابتة `ar` ومن غير language detector)
 3. [x] Extract renderer strings into translation files، صفحة/قسم واحد في كل تاسك؛ اكتمل استخراج الملفات المدرجة في القائمة، والـ Arabic regex الباقي في المصدر قيم enum/status ثابتة.
-4. [ ] Backend enum/status value rewrite to English + translation layer للعرض (تاسك مستقبلي، Claude ينفذه)
+4. [x] Backend enum values اتنقلت للإنجليزية في `db.ts` v9: `Ledger.movement_type` و`Trip.crusher_receipt_status`، بنفس نمط `Trip.recipient_name_status` (v8) و`Shift.status` (v7)
 
 ### Renderer extraction checklist (file size, smallest first)
 
@@ -42,7 +42,7 @@
 
 ### Backend والبيانات
 - [x] Schema كامل (Driver/Client/Crusher/Contractor/Vehicle/Shift/Trip/Ledger/ClientPayment) + Views: ShiftStats, TripAccounting
-- [x] Migration chain كامل حتى v6 (v3 صورة النقلة، v4 هاتف المقاول، v5 stone_price nullable، v6 صورة تقفيل الوردية)
+- [x] Migration chain كامل حتى v9 (v3 صورة النقلة، v4 هاتف المقاول، v5 stone_price nullable، v6 صورة تقفيل الوردية، v7 Shift.status، v8 recipient name status، v9 ledger + crusher receipt enums)
 - [x] CRUD كامل لـ Driver/Client/Crusher/Contractor/Vehicle، كل واحد بـ repository + use-case مخصص
 - [x] دورة الوردية والنقلة: فتح/قفل/تعديل/مسح، مع منع القفل لو عدد النقلات مش مطابق، وbackup تلقائي عند القفل
 - [x] صورة ورقة تقفيل الوردية إجبارية قبل القفل (شرط backend في `closeShift` + تعطيل الزرار في الـ UI)

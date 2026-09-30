@@ -69,7 +69,7 @@ export const tripSchema = z
     location: z.string().optional(),
     crusherId: z.number().int().positive(i18n.t('tripForm.validation.crusherRequired')),
     stonePrice: z.number().nonnegative(i18n.t('tripForm.validation.stonePriceRequired')),
-    crusherReceiptStatus: z.enum(['قيمة', 'مفيش (متأكد)', 'مش معروف']),
+    crusherReceiptStatus: z.enum(['PROVIDED', 'CONFIRMED_MISSING', 'UNKNOWN']),
     crusherReceiptNo: z
       .number()
       .int()
@@ -84,7 +84,7 @@ export const tripSchema = z
     notes: z.string().optional()
   })
   .superRefine((values, context) => {
-    if (values.crusherReceiptStatus === 'قيمة' && !values.crusherReceiptNo) {
+    if (values.crusherReceiptStatus === 'PROVIDED' && !values.crusherReceiptNo) {
       context.addIssue({
         code: 'custom',
         path: ['crusherReceiptNo'],
@@ -180,7 +180,7 @@ export function AddTripPage(): React.JSX.Element {
       location: '',
       crusherId: undefined,
       stonePrice: undefined,
-      crusherReceiptStatus: 'مش معروف',
+      crusherReceiptStatus: 'UNKNOWN',
       crusherReceiptNo: undefined,
       clientId: undefined,
       transportPrice: undefined,
@@ -582,11 +582,11 @@ export function TripForm({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="قيمة">{t('tripForm.receiptStatuses.value')}</SelectItem>
-                      <SelectItem value="مفيش (متأكد)">
+                      <SelectItem value="PROVIDED">{t('tripForm.receiptStatuses.value')}</SelectItem>
+                      <SelectItem value="CONFIRMED_MISSING">
                         {t('tripForm.receiptStatuses.noReceiptConfirmed')}
                       </SelectItem>
-                      <SelectItem value="مش معروف">
+                      <SelectItem value="UNKNOWN">
                         {t('tripForm.receiptStatuses.unknown')}
                       </SelectItem>
                     </SelectContent>
@@ -595,7 +595,7 @@ export function TripForm({
                 </FormItem>
               )}
             />
-            {crusherReceiptStatus === 'قيمة' && (
+            {crusherReceiptStatus === 'PROVIDED' && (
               <NumberField
                 control={form.control}
                 name="crusherReceiptNo"

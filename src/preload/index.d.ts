@@ -109,7 +109,7 @@ interface CreateTripInput {
   location?: string
   crusherId: number
   stonePrice: number
-  crusherReceiptStatus: 'قيمة' | 'مفيش (متأكد)' | 'مش معروف'
+  crusherReceiptStatus: 'PROVIDED' | 'CONFIRMED_MISSING' | 'UNKNOWN'
   crusherReceiptNo?: number
   clientId: number
   transportPrice: number
@@ -296,7 +296,7 @@ interface Api {
     location?: string
     crusherId: number
     stonePrice: number
-    crusherReceiptStatus: 'قيمة' | 'مفيش (متأكد)' | 'مش معروف'
+    crusherReceiptStatus: 'PROVIDED' | 'CONFIRMED_MISSING' | 'UNKNOWN'
     crusherReceiptNo?: number
     clientId: number
     transportPrice: number
@@ -323,7 +323,7 @@ interface Api {
   createLedgerEntry: (input: {
     entryDate: string
     driverId?: number
-    movementType: 'عهدة' | 'دفعة' | 'اخرى'
+    movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
     amount: number
     shiftId?: string
     contractorId?: number
@@ -333,7 +333,7 @@ interface Api {
     id: number
     entryDate: string
     driverId?: number
-    movementType: 'عهدة' | 'دفعة' | 'اخرى'
+    movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
     amount: number
     shiftId?: string
     contractorId?: number
@@ -360,7 +360,7 @@ interface Api {
     location?: string
     crusherId: number
     stonePrice: number
-    crusherReceiptStatus: 'قيمة' | 'مفيش (متأكد)' | 'مش معروف'
+    crusherReceiptStatus: 'PROVIDED' | 'CONFIRMED_MISSING' | 'UNKNOWN'
     crusherReceiptNo?: number
     clientId: number
     transportPrice: number

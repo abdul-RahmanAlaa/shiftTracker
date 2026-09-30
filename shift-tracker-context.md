@@ -25,6 +25,7 @@
 - القسمة دي موجودة لأن Copilot عنده أدوات IDE كاملة (search، multi-file edits، terminal، typecheck/lint) وده بيخليه ممتاز جدًا للتكرار السريع في الـ frontend، لكن تغييرات الـ backend في المشروع (schema، migrations، validation logic، IPC contracts) لازم تمر بمراجعة معماريّة موحّدة لتجنب الانحراف — والراعي دايم هو Claude.
 - لما تاسك تحتاج تغيير في `src/main` أو `src/preload`، Claude يديك الكود حرفيًا في بلوك نسخ ولصق، مع تحديد الملف ومكان الإدراج بالضبط (أو دالة كاملة للاستبدال). دورك ساعتها تلزقه زي ما هو، وتشغّل `typecheck`/`lint`، وتبلّغ بالنتيجة — مش تكتب من عندك نسخة من المنطق، ولا "تحسّنه" أو تعيد تنسيقه، ولا تكيّفه لو مش مطابق تمامًا للكود اللي قدامك. لو كود Claude مش مطابق للملف الحالي (اختلاف في الكود المحيط، الدالة اتغيّرت بالفعل، إلخ)، وقف وبلّغ المستخدم بالاختلاف بدل ما ترتجل حل بنفسك.
 - قيم الـ enum العربية المخزنة في قاعدة البيانات (زي `Shift.status` و`Ledger.movement_type` و`Trip.crusher_receipt_status` و`Trip.recipient_name_status` وأي literal عربي تاني بيتخزن من `src/main`) مسؤولية backend وخارج نطاق Copilot تمامًا من غير تصريح صريح. Claude هو اللي هيعيد كتابتها ويسلّمها ككود حرفي للنسخ واللصق، بنفس قاعدة الصلاحيات دي.
+- قيم الـ enum العربية المخزنة في قاعدة البيانات (زي `Shift.status` وأي literal عربي تاني بيتخزن من `src/main`) مسؤولية backend وخارج نطاق Copilot تمامًا من غير تصريح صريح. Claude هو اللي هيعيد كتابتها ويسلّمها ككود حرفي للنسخ واللصق، بنفس قاعدة الصلاحيات دي.
 
 ## الـ Stack والـ Architecture
 
@@ -42,11 +43,14 @@
 
 ## نظام الـ Migration
 
-`db.ts` بيستخدم `pragma('user_version')`. النسخة الحالية: **v6**. أي migration جديدة تتحط في نفس السلسلة: `SCHEMA` كامل (شامل كل الأعمدة) لأي تنصيب جديد (`0 → أحدث نسخة`)، وكل نسخة قديمة بتتصعّد بالتتابع (`1→2→3→4→5→6`، مش تقفز). أمثلة فعلية اتعملت:
+`db.ts` بيستخدم `pragma('user_version')`. النسخة الحالية: **v9**. أي migration جديدة تتحط في نفس السلسلة: `SCHEMA` كامل (شامل كل الأعمدة) لأي تنصيب جديد (`0 → أحدث نسخة`)، وكل نسخة قديمة بتتصعّد بالتتابع (`1→2→...→9`، مش تقفز). أمثلة فعلية اتعملت:
 - v3: `Trip.receipt_photo_path`
 - v4: `TransportContractor.phone` (اختياري)
 - v5: `Trip.stone_price` بقى nullable — احتاجت إعادة بناء ذرية لجدول Trip كامل (SQLite مبيدعمش `ALTER COLUMN` لتغيير nullability)، مع الحفاظ على البيانات والفهارس والـ views
 - v6: `Shift.closing_photo_path` — صورة ورقة تقفيل الوردية، إجبارية قبل القفل
+- v7: إصلاح CHECK لـ `Shift.status`
+- v8: `Trip.recipient_name_status` بقيم `PROVIDED` / `UNCLEAR`
+- v9: `Ledger.movement_type` بقيم `ADVANCE` / `PAYMENT` / `OTHER` و`Trip.crusher_receipt_status` بقيم `PROVIDED` / `CONFIRMED_MISSING` / `UNKNOWN`
 
 ## Data Model (الحالة الحالية)
 
@@ -56,12 +60,14 @@ Driver(id PK, name UNIQUE NOT NULL, phone1 TEXT NULL, phone2 TEXT NULL)
 Crusher(id PK, name UNIQUE NOT NULL, initial_price REAL NULL)
 Client(id PK, name UNIQUE NOT NULL, initial_price REAL NULL)
 TransportContractor(id PK, name UNIQUE NOT NULL, phone TEXT NULL)
-Trip(..., stone_price REAL NULL, receipt_photo_path TEXT NULL)  -- stone_price بقى nullable للاستيراد التاريخي
+Trip(..., stone_price REAL NULL, receipt_photo_path TEXT NULL, crusher_receipt_status['PROVIDED'|'CONFIRMED_MISSING'|'UNKNOWN'], recipient_name_status['PROVIDED'|'UNCLEAR'])  -- stone_price بقى nullable للاستيراد التاريخي
 Shift(..., closing_photo_path TEXT NULL)  -- إجباري قبل القفل، شرط backend حقيقي في closeShift
-Ledger(id, entry_date, driver_id NULL, movement_type['عهدة'|'دفعة'|'اخرى'], amount, shift_id NULL, contractor_id NOT NULL, notes)
+Ledger(id, entry_date, driver_id NULL, movement_type['ADVANCE'|'PAYMENT'|'OTHER'], amount, shift_id NULL, contractor_id NOT NULL, notes)
 ClientPayment(id, entry_date, client_id, amount, notes)
 Views: ShiftStats, TripAccounting  -- effective_client_cubic = client_cubic_reported - discount_qty
 ```
+
+`Ledger.movement_type` و`Trip.crusher_receipt_status` بقى لهم English enums من `db.ts` v9، على نفس نمط `Trip.recipient_name_status` (v8) و`Shift.status` (v7).
 
 **قرار مهم يفرّق الـ Ledger عن ClientPayment**: العميل بس بيدفع (علاقة اتجاه واحد، فـ `ClientPayment` بسيط). المقاول/السائق العلاقة أعقد (عهدة سلفة + دفعة تسديد + اخرى)، فمحتاجين `Ledger` بنوع حركة. ده مش هيتغير — الحل لتسهيل الاستخدام هو تسهيل الوصول للـ Ledger من صفحات الحساب، مش دمج المفهومين في بعض.
 
@@ -77,7 +83,7 @@ Views: ShiftStats, TripAccounting  -- effective_client_cubic = client_cubic_repo
 
 ```
 src/main/
-  db.ts                        — SCHEMA v6 + migration chain كامل
+  db.ts                        — SCHEMA v9 + migration chain كامل
   photoStorage.ts               — معمم (kind-based: trip/shift)، تخزين userData/docs/{kind}s/{id}.jpg
   repository/  — driverRepository, clientRepository, crusherRepository, contractorRepository,
                   vehicleRepository, shiftRepository, tripRepository, ledgerRepository, accountsRepository

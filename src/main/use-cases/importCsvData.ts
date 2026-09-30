@@ -70,7 +70,7 @@ const requiredHeaders = [
   'recipient_name_status'
 ]
 
-const validCrusherReceiptStatuses = new Set(['قيمة', 'مفيش (متأكد)', 'مش معروف'])
+const validCrusherReceiptStatuses = new Set(['PROVIDED', 'CONFIRMED_MISSING', 'UNKNOWN'])
 const validRecipientNameStatuses = new Set(['PROVIDED', 'UNCLEAR'])
 const templateDescriptionSentinel = 'احذف هذا السطر قبل الرفع'
 
@@ -226,10 +226,10 @@ export function importCsvData(input: { csvText: string }): ImportResult {
       'crusher_receipt_no',
       errors
     )
-    if (crusherReceiptStatus === 'قيمة' && crusherReceiptNo === undefined) {
+    if (crusherReceiptStatus === 'PROVIDED' && crusherReceiptNo === undefined) {
       errors.push({ row, field: 'crusher_receipt_no', message: 'رقم إيصال الكسارة مطلوب' })
     }
-    if (crusherReceiptStatus !== 'قيمة' && text(raw.crusher_receipt_no)) {
+    if (crusherReceiptStatus !== 'PROVIDED' && text(raw.crusher_receipt_no)) {
       errors.push({ row, field: 'crusher_receipt_no', message: 'اترك رقم الإيصال فارغًا' })
     }
 
@@ -290,7 +290,7 @@ export function importCsvData(input: { csvText: string }): ImportResult {
         crusherId,
         stonePrice,
         crusherReceiptStatus,
-        crusherReceiptNo: crusherReceiptStatus === 'قيمة' ? (crusherReceiptNo ?? null) : null,
+        crusherReceiptNo: crusherReceiptStatus === 'PROVIDED' ? (crusherReceiptNo ?? null) : null,
         clientId,
         transportPrice,
         clientPrice,

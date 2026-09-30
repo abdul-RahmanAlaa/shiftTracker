@@ -62,23 +62,23 @@ CREATE TABLE IF NOT EXISTS Trip (
   location                TEXT,
   crusher_id              INTEGER NOT NULL REFERENCES Crusher(id),
   stone_price             REAL,
-  crusher_receipt_status  TEXT NOT NULL CHECK (crusher_receipt_status IN ('قيمة','مفيش (متأكد)','مش معروف')),
+  crusher_receipt_status  TEXT NOT NULL CHECK (crusher_receipt_status IN ('PROVIDED','CONFIRMED_MISSING','UNKNOWN')),
   crusher_receipt_no      INTEGER,
   client_id               INTEGER NOT NULL REFERENCES Client(id),
   transport_price         REAL NOT NULL,
   client_price             REAL NOT NULL,
-  recipient_name_status    TEXT NOT NULL DEFAULT 'مش واضح' CHECK (recipient_name_status IN ('قيمة','مش واضح')),
+  recipient_name_status    TEXT NOT NULL DEFAULT 'UNCLEAR' CHECK (recipient_name_status IN ('PROVIDED','UNCLEAR')),
   recipient_name           TEXT,
   client_receipt_no        TEXT,
   notes                    TEXT,
   receipt_photo_path       TEXT,
   CHECK (
-    (crusher_receipt_status = 'قيمة' AND crusher_receipt_no IS NOT NULL)
-    OR (crusher_receipt_status <> 'قيمة' AND crusher_receipt_no IS NULL)
+    (crusher_receipt_status = 'PROVIDED' AND crusher_receipt_no IS NOT NULL)
+    OR (crusher_receipt_status <> 'PROVIDED' AND crusher_receipt_no IS NULL)
   ),
   CHECK (
-    (recipient_name_status = 'قيمة' AND recipient_name IS NOT NULL)
-    OR (recipient_name_status = 'مش واضح' AND recipient_name IS NULL)
+    (recipient_name_status = 'PROVIDED' AND recipient_name IS NOT NULL)
+    OR (recipient_name_status = 'UNCLEAR' AND recipient_name IS NULL)
   )
 );
 
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS Ledger (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   entry_date     TEXT NOT NULL,
   driver_id      INTEGER REFERENCES Driver(id),
-  movement_type  TEXT NOT NULL CHECK (movement_type IN ('عهدة','دفعة','اخرى')),
+  movement_type  TEXT NOT NULL CHECK (movement_type IN ('ADVANCE','PAYMENT','OTHER')),
   amount         REAL NOT NULL,
   shift_id       TEXT REFERENCES Shift(id),
   contractor_id  INTEGER NOT NULL REFERENCES TransportContractor(id),
@@ -287,6 +287,213 @@ function migrateToV7(): void {
   }
 }
 
+const MIGRATION_V8_FIX_TRIP_RECIPIENT_STATUS_CHECK = `
+DROP VIEW IF EXISTS ShiftStats;
+DROP VIEW IF EXISTS TripAccounting;
+
+CREATE TABLE Trip_new (
+  id                      TEXT PRIMARY KEY,
+  shift_id                TEXT NOT NULL REFERENCES Shift(id),
+  trip_date               TEXT NOT NULL,
+  crusher_cubic           REAL NOT NULL,
+  client_cubic_reported   REAL NOT NULL,
+  discount_qty            REAL NOT NULL DEFAULT 0,
+  discount_reason         TEXT,
+  location                TEXT,
+  crusher_id              INTEGER NOT NULL REFERENCES Crusher(id),
+  stone_price             REAL,
+  crusher_receipt_status  TEXT NOT NULL CHECK (crusher_receipt_status IN ('قيمة','مفيش (متأكد)','مش معروف')),
+  crusher_receipt_no      INTEGER,
+  client_id               INTEGER NOT NULL REFERENCES Client(id),
+  transport_price         REAL NOT NULL,
+  client_price            REAL NOT NULL,
+  recipient_name_status   TEXT NOT NULL DEFAULT 'UNCLEAR' CHECK (recipient_name_status IN ('PROVIDED','UNCLEAR')),
+  recipient_name          TEXT,
+  client_receipt_no       TEXT,
+  notes                   TEXT,
+  receipt_photo_path      TEXT,
+  CHECK (
+    (crusher_receipt_status = 'قيمة' AND crusher_receipt_no IS NOT NULL)
+    OR (crusher_receipt_status <> 'قيمة' AND crusher_receipt_no IS NULL)
+  ),
+  CHECK (
+    (recipient_name_status = 'PROVIDED' AND recipient_name IS NOT NULL)
+    OR (recipient_name_status = 'UNCLEAR' AND recipient_name IS NULL)
+  )
+);
+
+INSERT INTO Trip_new (
+  id, shift_id, trip_date, crusher_cubic, client_cubic_reported, discount_qty,
+  discount_reason, location, crusher_id, stone_price, crusher_receipt_status,
+  crusher_receipt_no, client_id, transport_price, client_price,
+  recipient_name_status, recipient_name, client_receipt_no, notes, receipt_photo_path
+)
+SELECT
+  id, shift_id, trip_date, crusher_cubic, client_cubic_reported, discount_qty,
+  discount_reason, location, crusher_id, stone_price, crusher_receipt_status,
+  crusher_receipt_no, client_id, transport_price, client_price,
+  CASE recipient_name_status
+    WHEN 'قيمة' THEN 'PROVIDED'
+    WHEN 'مش واضح' THEN 'UNCLEAR'
+    ELSE recipient_name_status
+  END,
+  recipient_name, client_receipt_no, notes, receipt_photo_path
+FROM Trip;
+
+DROP TABLE Trip;
+
+ALTER TABLE Trip_new RENAME TO Trip;
+
+CREATE UNIQUE INDEX idx_trip_crusher_receipt
+ON Trip (crusher_id, crusher_receipt_no)
+WHERE crusher_receipt_no IS NOT NULL;
+
+CREATE VIEW ShiftStats AS
+SELECT
+  s.id AS shift_id,
+  COUNT(t.id) AS actual_trip_count,
+  s.reported_trip_count,
+  (s.reported_trip_count IS NOT NULL
+   AND s.reported_trip_count <> COUNT(t.id)) AS has_count_mismatch
+FROM Shift s
+LEFT JOIN Trip t ON t.shift_id = s.id
+GROUP BY s.id;
+
+CREATE VIEW TripAccounting AS
+SELECT
+  id,
+  crusher_cubic * stone_price AS crusher_amount,
+  crusher_cubic * transport_price AS transport_amount,
+  (client_cubic_reported - discount_qty) AS effective_client_cubic,
+  (client_cubic_reported - discount_qty) * client_price AS client_amount
+FROM Trip;
+`
+
+function migrateToV8(): void {
+  db.exec(MIGRATION_V8_FIX_TRIP_RECIPIENT_STATUS_CHECK)
+  const violations = db.pragma('foreign_key_check') as unknown[]
+  if (violations.length > 0) {
+    console.error('[db] migrateToV8: foreign key violations detected after rebuild:', violations)
+    throw new Error('migrateToV8 produced foreign key violations, aborting')
+  }
+}
+
+const MIGRATION_V9_ENGLISH_LEDGER_AND_RECEIPT_ENUMS = `
+CREATE TABLE Ledger_new (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  entry_date     TEXT NOT NULL,
+  driver_id      INTEGER REFERENCES Driver(id),
+  movement_type  TEXT NOT NULL CHECK (movement_type IN ('ADVANCE','PAYMENT','OTHER')),
+  amount         REAL NOT NULL,
+  shift_id       TEXT REFERENCES Shift(id),
+  contractor_id  INTEGER NOT NULL REFERENCES TransportContractor(id),
+  notes          TEXT
+);
+
+INSERT INTO Ledger_new (id, entry_date, driver_id, movement_type, amount, shift_id, contractor_id, notes)
+SELECT id, entry_date, driver_id,
+  CASE movement_type
+    WHEN 'عهدة' THEN 'ADVANCE'
+    WHEN 'دفعة' THEN 'PAYMENT'
+    WHEN 'اخرى' THEN 'OTHER'
+    ELSE movement_type
+  END,
+  amount, shift_id, contractor_id, notes
+FROM Ledger;
+
+DROP TABLE Ledger;
+ALTER TABLE Ledger_new RENAME TO Ledger;
+
+DROP VIEW IF EXISTS ShiftStats;
+DROP VIEW IF EXISTS TripAccounting;
+
+CREATE TABLE Trip_new2 (
+  id                      TEXT PRIMARY KEY,
+  shift_id                TEXT NOT NULL REFERENCES Shift(id),
+  trip_date               TEXT NOT NULL,
+  crusher_cubic           REAL NOT NULL,
+  client_cubic_reported   REAL NOT NULL,
+  discount_qty            REAL NOT NULL DEFAULT 0,
+  discount_reason         TEXT,
+  location                TEXT,
+  crusher_id              INTEGER NOT NULL REFERENCES Crusher(id),
+  stone_price             REAL,
+  crusher_receipt_status  TEXT NOT NULL CHECK (crusher_receipt_status IN ('PROVIDED','CONFIRMED_MISSING','UNKNOWN')),
+  crusher_receipt_no      INTEGER,
+  client_id               INTEGER NOT NULL REFERENCES Client(id),
+  transport_price         REAL NOT NULL,
+  client_price            REAL NOT NULL,
+  recipient_name_status   TEXT NOT NULL DEFAULT 'UNCLEAR' CHECK (recipient_name_status IN ('PROVIDED','UNCLEAR')),
+  recipient_name          TEXT,
+  client_receipt_no       TEXT,
+  notes                   TEXT,
+  receipt_photo_path      TEXT,
+  CHECK (
+    (crusher_receipt_status = 'PROVIDED' AND crusher_receipt_no IS NOT NULL)
+    OR (crusher_receipt_status <> 'PROVIDED' AND crusher_receipt_no IS NULL)
+  ),
+  CHECK (
+    (recipient_name_status = 'PROVIDED' AND recipient_name IS NOT NULL)
+    OR (recipient_name_status = 'UNCLEAR' AND recipient_name IS NULL)
+  )
+);
+
+INSERT INTO Trip_new2 (
+  id, shift_id, trip_date, crusher_cubic, client_cubic_reported, discount_qty,
+  discount_reason, location, crusher_id, stone_price, crusher_receipt_status,
+  crusher_receipt_no, client_id, transport_price, client_price,
+  recipient_name_status, recipient_name, client_receipt_no, notes, receipt_photo_path
+)
+SELECT
+  id, shift_id, trip_date, crusher_cubic, client_cubic_reported, discount_qty,
+  discount_reason, location, crusher_id, stone_price,
+  CASE crusher_receipt_status
+    WHEN 'قيمة' THEN 'PROVIDED'
+    WHEN 'مفيش (متأكد)' THEN 'CONFIRMED_MISSING'
+    WHEN 'مش معروف' THEN 'UNKNOWN'
+    ELSE crusher_receipt_status
+  END,
+  crusher_receipt_no, client_id, transport_price, client_price,
+  recipient_name_status, recipient_name, client_receipt_no, notes, receipt_photo_path
+FROM Trip;
+
+DROP TABLE Trip;
+ALTER TABLE Trip_new2 RENAME TO Trip;
+
+CREATE UNIQUE INDEX idx_trip_crusher_receipt
+ON Trip (crusher_id, crusher_receipt_no)
+WHERE crusher_receipt_no IS NOT NULL;
+
+CREATE VIEW ShiftStats AS
+SELECT
+  s.id AS shift_id,
+  COUNT(t.id) AS actual_trip_count,
+  s.reported_trip_count,
+  (s.reported_trip_count IS NOT NULL
+   AND s.reported_trip_count <> COUNT(t.id)) AS has_count_mismatch
+FROM Shift s
+LEFT JOIN Trip t ON t.shift_id = s.id
+GROUP BY s.id;
+
+CREATE VIEW TripAccounting AS
+SELECT
+  id,
+  crusher_cubic * stone_price AS crusher_amount,
+  crusher_cubic * transport_price AS transport_amount,
+  (client_cubic_reported - discount_qty) AS effective_client_cubic,
+  (client_cubic_reported - discount_qty) * client_price AS client_amount
+FROM Trip;
+`
+
+function migrateToV9(): void {
+  db.exec(MIGRATION_V9_ENGLISH_LEDGER_AND_RECEIPT_ENUMS)
+  const violations = db.pragma('foreign_key_check') as unknown[]
+  if (violations.length > 0) {
+    console.error('[db] migrateToV9: foreign key violations detected after rebuild:', violations)
+    throw new Error('migrateToV9 produced foreign key violations, aborting')
+  }
+}
+
 let db: Database.Database
 
 function migrateToV6(): void {
@@ -308,8 +515,9 @@ export function initDatabase(): Database.Database {
 
   if (currentVersion === 0) {
     db.exec(SCHEMA)
-    db.pragma('user_version = 7')
-    console.log('[db] Schema created (fresh install). user_version = 7')
+    migrateToV9()
+    db.pragma('user_version = 9')
+    console.log('[db] Schema created (fresh install). user_version = 9')
   } else if (currentVersion === 1) {
     db.exec(MIGRATION_V2_ADD_OPTIONAL_FIELDS)
     db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
@@ -317,9 +525,11 @@ export function initDatabase(): Database.Database {
     migrateToV5()
     migrateToV6()
     migrateToV7()
-    db.pragma('user_version = 7')
+    migrateToV8()
+    migrateToV9()
+    db.pragma('user_version = 9')
     console.log(
-      '[db] Migrations v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 applied (optional fields, receipt_photo_path, contractor phone, nullable stone price, shift closing photo, shift status CHECK fix). user_version = 7'
+      '[db] Migrations v1 -> v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 applied (optional fields, receipt_photo_path, contractor phone, nullable stone price, shift closing photo, shift status CHECK fix, trip recipient status CHECK fix, ledger + crusher receipt status CHECK fix). user_version = 9'
     )
   } else if (currentVersion === 2) {
     db.exec(MIGRATION_V3_ADD_RECEIPT_PHOTO)
@@ -327,38 +537,61 @@ export function initDatabase(): Database.Database {
     migrateToV5()
     migrateToV6()
     migrateToV7()
-    db.pragma('user_version = 7')
+    migrateToV8()
+    migrateToV9()
+    db.pragma('user_version = 9')
     console.log(
-      '[db] Migrations v2 -> v3 -> v4 -> v5 -> v6 -> v7 applied (receipt_photo_path, contractor phone, nullable stone price, shift closing photo, shift status CHECK fix). user_version = 7'
+      '[db] Migrations v2 -> v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 applied (receipt_photo_path, contractor phone, nullable stone price, shift closing photo, shift status CHECK fix, trip recipient status CHECK fix, ledger + crusher receipt status CHECK fix). user_version = 9'
     )
   } else if (currentVersion === 3) {
     db.exec(MIGRATION_V4_ADD_CONTRACTOR_PHONE)
     migrateToV5()
     migrateToV6()
     migrateToV7()
-    db.pragma('user_version = 7')
+    migrateToV8()
+    migrateToV9()
+    db.pragma('user_version = 9')
     console.log(
-      '[db] Migrations v3 -> v4 -> v5 -> v6 -> v7 applied (contractor phone, nullable stone price, shift closing photo, shift status CHECK fix). user_version = 7'
+      '[db] Migrations v3 -> v4 -> v5 -> v6 -> v7 -> v8 -> v9 applied (contractor phone, nullable stone price, shift closing photo, shift status CHECK fix, trip recipient status CHECK fix, ledger + crusher receipt status CHECK fix). user_version = 9'
     )
   } else if (currentVersion === 4) {
     migrateToV5()
     migrateToV6()
     migrateToV7()
-    db.pragma('user_version = 7')
+    migrateToV8()
+    migrateToV9()
+    db.pragma('user_version = 9')
     console.log(
-      '[db] Migrations v4 -> v5 -> v6 -> v7 applied (nullable stone price, shift closing photo, shift status CHECK fix). user_version = 7'
+      '[db] Migrations v4 -> v5 -> v6 -> v7 -> v8 -> v9 applied (nullable stone price, shift closing photo, shift status CHECK fix, trip recipient status CHECK fix, ledger + crusher receipt status CHECK fix). user_version = 9'
     )
   } else if (currentVersion === 5) {
     migrateToV6()
     migrateToV7()
-    db.pragma('user_version = 7')
+    migrateToV8()
+    migrateToV9()
+    db.pragma('user_version = 9')
     console.log(
-      '[db] Migrations v5 -> v6 -> v7 applied (shift closing photo, shift status CHECK fix). user_version = 7'
+      '[db] Migrations v5 -> v6 -> v7 -> v8 -> v9 applied (shift closing photo, shift status CHECK fix, trip recipient status CHECK fix, ledger + crusher receipt status CHECK fix). user_version = 9'
     )
   } else if (currentVersion === 6) {
     migrateToV7()
-    db.pragma('user_version = 7')
-    console.log('[db] Migration v6 -> v7 applied (shift status CHECK fix). user_version = 7')
+    migrateToV8()
+    migrateToV9()
+    db.pragma('user_version = 9')
+    console.log(
+      '[db] Migrations v6 -> v7 -> v8 -> v9 applied (shift status CHECK fix, trip recipient status CHECK fix, ledger + crusher receipt status CHECK fix). user_version = 9'
+    )
+  } else if (currentVersion === 7) {
+    migrateToV8()
+    migrateToV9()
+    db.pragma('user_version = 9')
+    console.log(
+      '[db] Migrations v7 -> v8 -> v9 applied (trip recipient status CHECK fix, ledger + crusher receipt status CHECK fix). user_version = 9'
+    )
+  } else if (currentVersion === 8) {
+    migrateToV9()
+    db.pragma('user_version = 9')
+    console.log('[db] Migration v8 -> v9 applied (ledger + crusher receipt status CHECK fix). user_version = 9')
   } else {
     console.log(`[db] Database up to date. user_version = ${currentVersion}`)
   }

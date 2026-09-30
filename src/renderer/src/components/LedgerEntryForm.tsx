@@ -28,7 +28,7 @@ import { Textarea } from '@/components/ui/textarea'
 export const ledgerEntrySchema = z.object({
   entryDate: z.string().min(1, i18n.t('ledgerEntryForm.validation.dateRequired')),
   driverId: z.number().int().positive().optional(),
-  movementType: z.enum(['عهدة', 'دفعة', 'اخرى'], {
+  movementType: z.enum(['ADVANCE', 'PAYMENT', 'OTHER'], {
     message: i18n.t('ledgerEntryForm.validation.movementTypeRequired')
   }),
   amount: z.number({ message: i18n.t('ledgerEntryForm.validation.amountRequired') }),
@@ -123,9 +123,9 @@ export function LedgerEntryForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="عهدة">{t('ledgerEntryForm.movementTypes.custody')}</SelectItem>
-                  <SelectItem value="دفعة">{t('ledgerEntryForm.movementTypes.payment')}</SelectItem>
-                  <SelectItem value="اخرى">{t('ledgerEntryForm.movementTypes.other')}</SelectItem>
+                  <SelectItem value="ADVANCE">{t('ledgerEntryForm.movementTypes.custody')}</SelectItem>
+                  <SelectItem value="PAYMENT">{t('ledgerEntryForm.movementTypes.payment')}</SelectItem>
+                  <SelectItem value="OTHER">{t('ledgerEntryForm.movementTypes.other')}</SelectItem>
                 </SelectContent>
               </Select>
               <FormMessage />
