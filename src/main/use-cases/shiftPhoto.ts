@@ -18,7 +18,7 @@ export function saveShiftPhoto(input: {
   if (!shift) {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مش موجودة' }] }
   }
-  if (shift.status === 'منتهية') {
+  if (shift.status === 'CLOSED') {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة بالفعل' }] }
   }
 
@@ -35,7 +35,7 @@ export function deleteShiftPhoto(input: { shiftId: string }): UseCaseResult<{ sh
   if (!shift) {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مش موجودة' }] }
   }
-  if (shift.status === 'منتهية') {
+  if (shift.status === 'CLOSED') {
     return {
       ok: false,
       errors: [{ field: 'shiftId', message: 'مينفعش تمسح ورقة تقفيل وردية مقفولة' }]

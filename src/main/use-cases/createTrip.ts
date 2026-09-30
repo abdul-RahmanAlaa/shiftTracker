@@ -83,7 +83,7 @@ export function createTrip(input: CreateTripInput): UseCaseResult<{ id: string }
   if (!shift) {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مش موجودة' }] }
   }
-  if (shift.status === 'منتهية') {
+  if (shift.status === 'CLOSED') {
     return {
       ok: false,
       errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة، مينفعش تضاف عليها نقلة' }]
@@ -152,7 +152,7 @@ export function updateTrip(input: UpdateTripInput): UseCaseResult<{ id: string }
   }
 
   const shift = getShiftById(existingTrip.shiftId)
-  if (!shift || shift.status === 'منتهية') {
+  if (!shift || shift.status === 'CLOSED') {
     return {
       ok: false,
       errors: [{ field: 'id', message: 'الوردية دي مقفولة، مينفعش تتعدل نقلة تابعة ليها' }]
@@ -212,7 +212,7 @@ export function deleteTrip(input: { id: string }): UseCaseResult<{ id: string }>
   }
 
   const shift = getShiftById(existingTrip.shiftId)
-  if (!shift || shift.status === 'منتهية') {
+  if (!shift || shift.status === 'CLOSED') {
     return {
       ok: false,
       errors: [{ field: 'id', message: 'الوردية دي مقفولة، مينفعش تتمسح نقلة تابعة ليها' }]

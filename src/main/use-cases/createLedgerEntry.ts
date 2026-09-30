@@ -97,7 +97,7 @@ export function updateLedgerEntry(input: UpdateLedgerEntryInput): UseCaseResult<
   const effectiveShiftId = input.shiftId ?? existingEntry.shiftId
   if (effectiveShiftId) {
     const shift = getShiftById(effectiveShiftId)
-    if (shift?.status === 'منتهية') {
+    if (shift?.status === 'CLOSED') {
       return {
         ok: false,
         errors: [{ field: 'id', message: 'مرتبطة بوردية مقفولة، لا يمكن تعديلها' }]
@@ -142,7 +142,7 @@ export function deleteLedgerEntry(input: { id: number }): UseCaseResult<{ id: nu
 
   if (existingEntry.shiftId) {
     const shift = getShiftById(existingEntry.shiftId)
-    if (shift?.status === 'منتهية') {
+    if (shift?.status === 'CLOSED') {
       return {
         ok: false,
         errors: [{ field: 'id', message: 'مرتبطة بوردية مقفولة، لا يمكن مسحها' }]

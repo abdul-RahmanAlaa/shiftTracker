@@ -36,7 +36,7 @@ export function insertShift(input: InsertShiftInput): void {
       id, vehicle_no, driver_id, crusher_cubic_default, client_cubic_default,
       start_date, end_date, status, reported_destination, reported_trip_count, notes
     ) VALUES (@id, @vehicleNo, @driverId, @crusherCubicDefault, @clientCubicDefault,
-      @startDate, NULL, 'مفتوحة', @reportedDestination, @reportedTripCount, @notes)
+      @startDate, NULL, 'OPEN', @reportedDestination, @reportedTripCount, @notes)
   `)
   stmt.run(input)
 }
@@ -56,7 +56,7 @@ export function insertImportedShift(input: {
     INSERT INTO Shift (
       id, vehicle_no, driver_id, crusher_cubic_default, client_cubic_default,
       start_date, end_date, status, reported_destination, reported_trip_count, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'مفتوحة', NULL, NULL, NULL)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', NULL, NULL, NULL)
   `
   ).run(
     input.id,
@@ -102,13 +102,13 @@ export function getShiftStats(shiftId: string): ShiftStatsRow | undefined {
 
 export function closeShiftInDb(shiftId: string, endDate: string): void {
   const db = getDb()
-  db.prepare(`UPDATE Shift SET status = 'منتهية', end_date = ? WHERE id = ?`).run(endDate, shiftId)
+  db.prepare(`UPDATE Shift SET status = 'CLOSED', end_date = ? WHERE id = ?`).run(endDate, shiftId)
 }
 
 export function getOpenShiftByDriver(driverId: number): { id: string } | undefined {
   const db = getDb()
   return db
-    .prepare(`SELECT id FROM Shift WHERE driver_id = ? AND status = 'مفتوحة'`)
+    .prepare(`SELECT id FROM Shift WHERE driver_id = ? AND status = 'OPEN'`)
     .get(driverId) as { id: string } | undefined
 }
 
@@ -132,7 +132,7 @@ export function getOpenShiftByDriverFull(driverId: number): ShiftFullRow | undef
         client_cubic_default as clientCubicDefault, status,
         start_date as startDate, end_date as endDate
       FROM Shift
-      WHERE driver_id = ? AND status = 'مفتوحة'
+      WHERE driver_id = ? AND status = 'OPEN'
     `
     )
     .get(driverId) as ShiftFullRow | undefined
