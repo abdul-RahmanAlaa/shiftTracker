@@ -8,6 +8,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { SubmitButton } from '@/components/SubmitButton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
 import type { CreateShiftValues } from '@/components/CreateShiftForm'
@@ -720,7 +721,9 @@ export function TripForm({
               )}
             />
             <div className="md:col-span-2">
-              <Button type="submit">{t('tripForm.submit')}</Button>
+              <SubmitButton isSubmitting={form.formState.isSubmitting}>
+                {t('tripForm.submit')}
+              </SubmitButton>
             </div>
           </form>
         </Form>

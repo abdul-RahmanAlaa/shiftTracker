@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { LockKeyhole, Plus } from 'lucide-react'
 import type { ColumnDef } from '@tanstack/react-table'
 import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DatePicker } from '@/components/ui/date-picker'
+import { SubmitButton } from '@/components/SubmitButton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Select,
@@ -26,6 +27,7 @@ type ShiftListRow = Extract<
   Awaited<ReturnType<typeof window.api.listShifts>>,
   { ok: true }
 >['data'][number]
+type CloseShiftValues = { shiftId: string; endDate: string }
 
 export function ShiftsPage(): React.JSX.Element {
   const { t } = useTranslation()
@@ -38,8 +40,11 @@ export function ShiftsPage(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false)
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false)
-  const [closeShiftId, setCloseShiftId] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const closeShiftForm = useForm<CloseShiftValues>({
+    defaultValues: { shiftId: '', endDate: '' }
+  })
+  const closeShiftId = useWatch({ control: closeShiftForm.control, name: 'shiftId' })
+  const endDate = useWatch({ control: closeShiftForm.control, name: 'endDate' })
   const createShiftForm = useForm<CreateShiftValues>({
     resolver: zodResolver(createShiftSchema),
     defaultValues: {
@@ -98,13 +103,11 @@ export function ShiftsPage(): React.JSX.Element {
     )
   }
 
-  async function handleCloseShift(event: React.FormEvent): Promise<void> {
-    event.preventDefault()
-    const result = await window.api.closeShift({ shiftId: closeShiftId, endDate })
+  async function handleCloseShift(values: CloseShiftValues): Promise<void> {
+    const result = await window.api.closeShift(values)
     if (!result.ok) return
     setIsCloseDialogOpen(false)
-    setCloseShiftId('')
-    setEndDate('')
+    closeShiftForm.reset()
     await loadShifts()
   }
 
@@ -154,7 +157,10 @@ export function ShiftsPage(): React.JSX.Element {
               <Plus className="h-4 w-4" />
               {t('createShift.title')}
             </Button>
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
+            <DialogContent
+              className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
+              closeDisabled={createShiftForm.formState.isSubmitting}
+            >
               <DialogHeader>
                 <DialogTitle>{t('createShift.title')}</DialogTitle>
               </DialogHeader>
@@ -171,22 +177,28 @@ export function ShiftsPage(): React.JSX.Element {
             open={isCloseDialogOpen}
             onOpenChange={(open) => {
               setIsCloseDialogOpen(open)
-              if (!open) {
-                setCloseShiftId('')
-                setEndDate('')
-              }
+              if (!open) closeShiftForm.reset()
             }}
           >
             <Button type="button" variant="outline" onClick={() => setIsCloseDialogOpen(true)}>
               <LockKeyhole className="h-4 w-4" />
               {t('shifts.closeCardTitle')}
             </Button>
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+            <DialogContent
+              className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+              closeDisabled={closeShiftForm.formState.isSubmitting}
+            >
               <DialogHeader>
                 <DialogTitle>{t('shifts.closeCardTitle')}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleCloseShift} className="grid gap-4 md:grid-cols-2">
-                <Select value={closeShiftId} onValueChange={setCloseShiftId}>
+              <form
+                onSubmit={closeShiftForm.handleSubmit(handleCloseShift)}
+                className="grid gap-4 md:grid-cols-2"
+              >
+                <Select
+                  value={closeShiftId}
+                  onValueChange={(value) => closeShiftForm.setValue('shiftId', value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder={t('shifts.selectShift')} />
                   </SelectTrigger>
@@ -202,7 +214,7 @@ export function ShiftsPage(): React.JSX.Element {
                 </Select>
                 <DatePicker
                   value={endDate}
-                  onChange={setEndDate}
+                  onChange={(value) => closeShiftForm.setValue('endDate', value)}
                   placeholder={t('shifts.closeDatePlaceholder')}
                 />
                 {shiftToClose && (
@@ -224,13 +236,13 @@ export function ShiftsPage(): React.JSX.Element {
                   </div>
                 )}
                 <div className="flex flex-col gap-2">
-                  <Button
-                    type="submit"
+                  <SubmitButton
+                    isSubmitting={closeShiftForm.formState.isSubmitting}
                     disabled={!closeShiftId || !endDate || !hasClosingPhoto}
                     title={!hasClosingPhoto ? t('shifts.closingPhotoRequired') : undefined}
                   >
                     {t('shifts.closeSubmit')}
-                  </Button>
+                  </SubmitButton>
                   {!hasClosingPhoto && closeShiftId && (
                     <p className="text-sm text-muted-foreground">
                       {t('shifts.closingPhotoRequired')}
@@ -247,18 +259,15 @@ export function ShiftsPage(): React.JSX.Element {
           <CardTitle>{t('shifts.listTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-col">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={shifts}
-              getRowId={(shift) => shift.id}
-              enableRowSelection
-              onRowClick={(shift) => navigate(`/shifts/${encodeURIComponent(shift.id)}`)}
-              emptyMessage={t('dataTable.emptyMessage')}
-            />
-          )}
+          <DataTable
+            columns={columns}
+            data={shifts}
+            loading={loading}
+            getRowId={(shift) => shift.id}
+            enableRowSelection
+            onRowClick={(shift) => navigate(`/shifts/${encodeURIComponent(shift.id)}`)}
+            emptyMessage={t('dataTable.emptyMessage')}
+          />
         </CardContent>
       </Card>
     </div>

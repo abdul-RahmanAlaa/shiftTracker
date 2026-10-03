@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { SubmitButton } from '@/components/SubmitButton'
 import { DataTable } from '@/components/DataTable'
 import {
   Dialog,
@@ -199,7 +200,7 @@ export function ClientAccountPage(): React.JSX.Element {
                 {t('clientAccount.addPayment')}
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent closeDisabled={paymentForm.formState.isSubmitting}>
               <DialogHeader>
                 <DialogTitle>
                   {editingPaymentId
@@ -264,13 +265,17 @@ export function ClientAccountPage(): React.JSX.Element {
                     )}
                   />
                   <DialogFooter className="md:col-span-2">
-                    <Button type="submit">
+                    <SubmitButton isSubmitting={paymentForm.formState.isSubmitting}>
                       {editingPaymentId
                         ? t('contractorsSettings.saveEdit')
                         : t('clientAccount.submitPayment')}
-                    </Button>
+                    </SubmitButton>
                     <DialogClose asChild>
-                      <Button type="button" variant="outline">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={paymentForm.formState.isSubmitting}
+                      >
                         {t('common.cancel')}
                       </Button>
                     </DialogClose>

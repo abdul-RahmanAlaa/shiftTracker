@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
+import { SubmitButton } from '@/components/SubmitButton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import {
@@ -221,7 +222,7 @@ export function VehiclesSettings(): React.JSX.Element {
               {t('vehiclesSettings.addButton')}
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent closeDisabled={vehicleForm.formState.isSubmitting}>
             <DialogHeader>
               <DialogTitle>
                 {editingVehicleNo !== null
@@ -345,13 +346,18 @@ export function VehiclesSettings(): React.JSX.Element {
                   )}
                 />
                 <DialogFooter className="md:col-span-2">
-                  <Button type="submit">
+                  <SubmitButton isSubmitting={vehicleForm.formState.isSubmitting}>
                     {editingVehicleNo !== null
                       ? t('contractorsSettings.saveEdit')
                       : t('contractorsSettings.addSubmit')}
-                  </Button>
+                  </SubmitButton>
                   <DialogClose asChild>
-                    <Button type="button" variant="outline" onClick={cancelEditingVehicle}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={vehicleForm.formState.isSubmitting}
+                      onClick={cancelEditingVehicle}
+                    >
                       {t('common.cancel')}
                     </Button>
                   </DialogClose>
@@ -361,17 +367,14 @@ export function VehiclesSettings(): React.JSX.Element {
           </DialogContent>
         </Dialog>
         <div className="mt-6">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={vehicles}
-              getRowId={(vehicle) => String(vehicle.vehicleNo)}
-              enableRowSelection
-              sumColumnId="defaultCubic"
-            />
-          )}
+          <DataTable
+            columns={columns}
+            data={vehicles}
+            loading={loading}
+            getRowId={(vehicle) => String(vehicle.vehicleNo)}
+            enableRowSelection
+            sumColumnId="defaultCubic"
+          />
         </div>
       </CardContent>
     </Card>

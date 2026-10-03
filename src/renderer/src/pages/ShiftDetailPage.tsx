@@ -232,64 +232,66 @@ export function ShiftDetailPage(): React.JSX.Element {
     <div className="flex h-full min-h-0 flex-col gap-6">
       <ShiftBreadcrumb currentPage={shiftId} />
       <h1 className="text-2xl font-semibold">{shiftId}</h1>
-      {loading ? (
-        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-      ) : !shift ? (
+      {!loading && !shift ? (
         <p className="text-sm text-muted-foreground">{t('shifts.shiftNotFound')}</p>
       ) : (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('shifts.shiftInfo.number')}</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {t('ledgerEntryForm.fields.driver')}
-                </p>
-                <p>{shift.driverName}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {t('vehiclesSettings.fields.vehicleNo')}
-                </p>
-                <p>{shift.vehicleNo}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('shifts.columns.status')}</p>
-                <Badge>
-                  {t(shift.status === 'OPEN' ? 'shiftStatus.open' : 'shiftStatus.closed')}
-                </Badge>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('createShift.fields.startDate')}</p>
-                <p>{shift.startDate}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('shifts.columns.endDate')}</p>
-                <p>{shift.endDate ?? t('common.emDash')}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {t('createShift.fields.crusherCubic')}
-                </p>
-                <p>{shift.crusherCubicDefault}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">
-                  {t('createShift.fields.clientCubic')}
-                </p>
-                <p>{shift.clientCubicDefault}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">{t('shifts.columns.tripCount')}</p>
-                <p>{shift.actualTripCount}</p>
-              </div>
-            </CardContent>
-          </Card>
+          {shift && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('shifts.shiftInfo.number')}</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {t('ledgerEntryForm.fields.driver')}
+                  </p>
+                  <p>{shift.driverName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {t('vehiclesSettings.fields.vehicleNo')}
+                  </p>
+                  <p>{shift.vehicleNo}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('shifts.columns.status')}</p>
+                  <Badge>
+                    {t(shift.status === 'OPEN' ? 'shiftStatus.open' : 'shiftStatus.closed')}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {t('createShift.fields.startDate')}
+                  </p>
+                  <p>{shift.startDate}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('shifts.columns.endDate')}</p>
+                  <p>{shift.endDate ?? t('common.emDash')}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {t('createShift.fields.crusherCubic')}
+                  </p>
+                  <p>{shift.crusherCubicDefault}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {t('createShift.fields.clientCubic')}
+                  </p>
+                  <p>{shift.clientCubicDefault}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t('shifts.columns.tripCount')}</p>
+                  <p>{shift.actualTripCount}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <Card className="min-h-0 flex-1">
             <CardHeader>
-              <CardTitle>{t('shifts.tripsTitle', { id: shift.id })}</CardTitle>
+              <CardTitle>{t('shifts.tripsTitle', { id: shift?.id ?? shiftId })}</CardTitle>
             </CardHeader>
             <CardContent className="flex min-h-0 flex-col">
               <Dialog
@@ -298,7 +300,10 @@ export function ShiftDetailPage(): React.JSX.Element {
                   if (!open) setEditingTripId(null)
                 }}
               >
-                <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+                <DialogContent
+                  className="max-h-[90vh] overflow-y-auto sm:max-w-4xl"
+                  closeDisabled={editTripForm.formState.isSubmitting}
+                >
                   <DialogHeader>
                     <DialogTitle>{t('shifts.editTripTitle', { id: editingTripId })}</DialogTitle>
                   </DialogHeader>
@@ -315,6 +320,7 @@ export function ShiftDetailPage(): React.JSX.Element {
               <DataTable
                 columns={tripColumns}
                 data={trips}
+                loading={loading}
                 getRowId={(trip) => trip.id}
                 enableRowSelection
                 emptyMessage={t('shifts.emptyTrips')}

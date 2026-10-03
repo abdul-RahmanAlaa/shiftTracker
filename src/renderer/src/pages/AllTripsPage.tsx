@@ -59,18 +59,15 @@ export function AllTripsPage(): React.JSX.Element {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold">{t('allTrips.title')}</h1>
-      {loading ? (
-        <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-      ) : (
-        <DataTable
-          columns={columns}
-          data={trips}
-          getRowId={(row) => row.id}
-          enableRowSelection
-          sumColumnId="effectiveClientCubic"
-          initialSorting={[{ id: 'tripDate', desc: false }]}
-        />
-      )}
+      <DataTable
+        columns={columns}
+        data={trips}
+        loading={loading}
+        getRowId={(row) => row.id}
+        enableRowSelection
+        sumColumnId="effectiveClientCubic"
+        initialSorting={[{ id: 'tripDate', desc: false }]}
+      />
     </div>
   )
 }

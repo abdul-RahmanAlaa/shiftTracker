@@ -258,7 +258,10 @@ export function AllMovementsPage(): React.JSX.Element {
               {t('allMovements.addMovement')}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogContent
+            className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+            closeDisabled={ledgerForm.formState.isSubmitting}
+          >
             <DialogHeader>
               <DialogTitle>
                 {editingEntryId ? t('allMovements.editTitle') : t('allMovements.addMovement')}
@@ -285,17 +288,14 @@ export function AllMovementsPage(): React.JSX.Element {
           <CardTitle>{t('allMovements.entriesTitle')}</CardTitle>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-col">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={entries}
-              getRowId={(entry) => String(entry.id)}
-              enableRowSelection
-              sumColumnId="amount"
-            />
-          )}
+          <DataTable
+            columns={columns}
+            data={entries}
+            loading={loading}
+            getRowId={(entry) => String(entry.id)}
+            enableRowSelection
+            sumColumnId="amount"
+          />
         </CardContent>
       </Card>
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
+import { SubmitButton } from '@/components/SubmitButton'
 import {
   LedgerEntryForm,
   ledgerEntrySchema,
@@ -202,7 +203,10 @@ export function DriverHistoryPage(): React.JSX.Element {
                   {t('allMovements.addMovement')}
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+              <DialogContent
+                className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+                closeDisabled={ledgerForm.formState.isSubmitting}
+              >
                 <DialogHeader>
                   <DialogTitle>{t('allMovements.addMovement')}</DialogTitle>
                 </DialogHeader>
@@ -243,7 +247,10 @@ export function DriverHistoryPage(): React.JSX.Element {
               }
             }}
           >
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+            <DialogContent
+              className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+              closeDisabled={ledgerForm.formState.isSubmitting}
+            >
               <DialogHeader>
                 <DialogTitle>{t('allMovements.editTitle')}</DialogTitle>
               </DialogHeader>
@@ -432,9 +439,15 @@ export function DriverHistoryPage(): React.JSX.Element {
                     )}
                   />
                   <DialogFooter className="md:col-span-2">
-                    <Button type="submit">{t('contractorsSettings.saveEdit')}</Button>
+                    <SubmitButton isSubmitting={ledgerForm.formState.isSubmitting}>
+                      {t('contractorsSettings.saveEdit')}
+                    </SubmitButton>
                     <DialogClose asChild>
-                      <Button type="button" variant="outline">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={ledgerForm.formState.isSubmitting}
+                      >
                         {t('common.cancel')}
                       </Button>
                     </DialogClose>

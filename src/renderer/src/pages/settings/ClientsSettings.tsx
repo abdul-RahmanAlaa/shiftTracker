@@ -6,6 +6,7 @@ import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
+import { SubmitButton } from '@/components/SubmitButton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import {
@@ -184,7 +185,7 @@ export function ClientsSettings(): React.JSX.Element {
               {t('clientsSettings.addButton')}
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent closeDisabled={clientForm.formState.isSubmitting}>
             <DialogHeader>
               <DialogTitle>
                 {editingClientId ? t('clientsSettings.editTitle') : t('clientsSettings.addTitle')}
@@ -229,13 +230,18 @@ export function ClientsSettings(): React.JSX.Element {
                   )}
                 />
                 <DialogFooter>
-                  <Button type="submit">
+                  <SubmitButton isSubmitting={clientForm.formState.isSubmitting}>
                     {editingClientId
                       ? t('contractorsSettings.saveEdit')
                       : t('contractorsSettings.addSubmit')}
-                  </Button>
+                  </SubmitButton>
                   <DialogClose asChild>
-                    <Button type="button" variant="outline" onClick={cancelEditingClient}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={clientForm.formState.isSubmitting}
+                      onClick={cancelEditingClient}
+                    >
                       {t('common.cancel')}
                     </Button>
                   </DialogClose>
@@ -245,16 +251,13 @@ export function ClientsSettings(): React.JSX.Element {
           </DialogContent>
         </Dialog>
         <div className="mt-6">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={clients}
-              getRowId={(client) => String(client.id)}
-              enableRowSelection
-            />
-          )}
+          <DataTable
+            columns={columns}
+            data={clients}
+            loading={loading}
+            getRowId={(client) => String(client.id)}
+            enableRowSelection
+          />
         </div>
       </CardContent>
     </Card>

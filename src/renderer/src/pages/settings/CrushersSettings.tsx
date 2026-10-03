@@ -6,6 +6,7 @@ import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
+import { SubmitButton } from '@/components/SubmitButton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import {
@@ -184,7 +185,7 @@ export function CrushersSettings(): React.JSX.Element {
               {t('crushersSettings.addButton')}
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent closeDisabled={crusherForm.formState.isSubmitting}>
             <DialogHeader>
               <DialogTitle>
                 {editingCrusherId
@@ -231,13 +232,18 @@ export function CrushersSettings(): React.JSX.Element {
                   )}
                 />
                 <DialogFooter>
-                  <Button type="submit">
+                  <SubmitButton isSubmitting={crusherForm.formState.isSubmitting}>
                     {editingCrusherId
                       ? t('contractorsSettings.saveEdit')
                       : t('contractorsSettings.addSubmit')}
-                  </Button>
+                  </SubmitButton>
                   <DialogClose asChild>
-                    <Button type="button" variant="outline" onClick={cancelEditingCrusher}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={crusherForm.formState.isSubmitting}
+                      onClick={cancelEditingCrusher}
+                    >
                       {t('common.cancel')}
                     </Button>
                   </DialogClose>
@@ -247,16 +253,13 @@ export function CrushersSettings(): React.JSX.Element {
           </DialogContent>
         </Dialog>
         <div className="mt-6">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={crushers}
-              getRowId={(crusher) => String(crusher.id)}
-              enableRowSelection
-            />
-          )}
+          <DataTable
+            columns={columns}
+            data={crushers}
+            loading={loading}
+            getRowId={(crusher) => String(crusher.id)}
+            enableRowSelection
+          />
         </div>
       </CardContent>
     </Card>

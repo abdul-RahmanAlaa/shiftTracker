@@ -1,12 +1,11 @@
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Calculator, ClipboardList, List, Settings, Truck, UploadCloud } from 'lucide-react'
+import { Calculator, ClipboardList, List, Settings, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FloatingWindowsProvider } from '@/components/FloatingWindowsProvider'
 import { cn } from '@/lib/utils'
 import { AddTripPage } from '@/pages/AddTripPage'
 import { AccountsPage } from '@/pages/AccountsPage'
-import { ImportPage } from '@/pages/ImportPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ShiftsPage } from '@/pages/ShiftsPage'
 import { ShiftDetailPage } from '@/pages/ShiftDetailPage'
@@ -17,8 +16,7 @@ const navigationItems = [
   { to: '/shifts', label: 'shifts.title', icon: ClipboardList },
   { to: '/all-trips', label: 'allTrips.title', icon: List },
   { to: '/accounts', label: 'accountsPage.title', icon: Calculator },
-  { to: '/settings', label: 'settingsPage.title', icon: Settings },
-  { to: '/import', label: 'importPage.title', icon: UploadCloud }
+  { to: '/settings', label: 'settingsPage.title', icon: Settings }
 ]
 
 function AppLayout(): React.JSX.Element {
@@ -73,7 +71,6 @@ function App(): React.JSX.Element {
             <Route path="all-trips" element={<AllTripsPage />} />
             <Route path="accounts" element={<AccountsPage />} />
             <Route path="settings" element={<SettingsPage />} />
-            <Route path="import" element={<ImportPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
+import { SubmitButton } from '@/components/SubmitButton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import {
@@ -170,7 +171,7 @@ export function DriversSettings(): React.JSX.Element {
               {t('driversSettings.addButton')}
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent closeDisabled={driverForm.formState.isSubmitting}>
             <DialogHeader>
               <DialogTitle>
                 {editingDriverId ? t('driversSettings.editTitle') : t('driversSettings.addTitle')}
@@ -218,13 +219,18 @@ export function DriversSettings(): React.JSX.Element {
                   )}
                 />
                 <DialogFooter>
-                  <Button type="submit">
+                  <SubmitButton isSubmitting={driverForm.formState.isSubmitting}>
                     {editingDriverId
                       ? t('contractorsSettings.saveEdit')
                       : t('contractorsSettings.addSubmit')}
-                  </Button>
+                  </SubmitButton>
                   <DialogClose asChild>
-                    <Button type="button" variant="outline" onClick={cancelEditingDriver}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={driverForm.formState.isSubmitting}
+                      onClick={cancelEditingDriver}
+                    >
                       {t('common.cancel')}
                     </Button>
                   </DialogClose>
@@ -234,16 +240,13 @@ export function DriversSettings(): React.JSX.Element {
           </DialogContent>
         </Dialog>
         <div className="mt-6">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={drivers}
-              getRowId={(driver) => String(driver.id)}
-              enableRowSelection
-            />
-          )}
+          <DataTable
+            columns={columns}
+            data={drivers}
+            loading={loading}
+            getRowId={(driver) => String(driver.id)}
+            enableRowSelection
+          />
         </div>
       </CardContent>
     </Card>

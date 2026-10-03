@@ -15,6 +15,7 @@ import {
 } from '@tanstack/react-table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Command,
   CommandEmpty,
@@ -37,6 +38,7 @@ const emptyFilterValue = '-'
 interface DataTableProps<T> {
   columns: ColumnDef<T, unknown>[]
   data: T[]
+  loading?: boolean
   getRowId?: (row: T) => string
   onRowClick?: (row: T) => void
   enableRowSelection?: boolean
@@ -64,6 +66,7 @@ function getColumnValue<T>(column: ColumnDef<T, unknown>, row: T, index: number)
 function DataTable<T>({
   columns,
   data,
+  loading = false,
   getRowId,
   onRowClick,
   enableRowSelection = false,
@@ -126,7 +129,7 @@ function DataTable<T>({
     getFilteredRowModel: getFilteredRowModel()
   })
 
-  if (data.length === 0) {
+  if (!loading && data.length === 0) {
     return <p className="text-sm text-muted-foreground">{resolvedEmptyMessage}</p>
   }
 
@@ -157,23 +160,28 @@ function DataTable<T>({
             <TableRow key={headerGroup.id}>
               {enableRowSelection && (
                 <TableHead>
-                  <Checkbox
-                    aria-label={t('dataTable.selectAllRows')}
-                    checked={
-                      table.getIsAllRowsSelected()
-                        ? true
-                        : table.getIsSomeRowsSelected()
-                          ? 'indeterminate'
-                          : false
-                    }
-                    onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
-                  />
+                  {loading ? (
+                    <Skeleton className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Checkbox
+                      aria-label={t('dataTable.selectAllRows')}
+                      checked={
+                        table.getIsAllRowsSelected()
+                          ? true
+                          : table.getIsSomeRowsSelected()
+                            ? 'indeterminate'
+                            : false
+                      }
+                      onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
+                    />
+                  )}
                 </TableHead>
               )}
               {headerGroup.headers.map((header) => (
                 <TableHead key={header.id}>
-                  {header.isPlaceholder ? null : header.column.getCanSort() ||
-                    header.column.getCanFilter() ? (
+                  {header.isPlaceholder ? null : loading ? (
+                    flexRender(header.column.columnDef.header, header.getContext())
+                  ) : header.column.getCanSort() || header.column.getCanFilter() ? (
                     <Popover
                       open={openFilterId === header.column.id}
                       onOpenChange={(open) => setOpenFilterId(open ? header.column.id : null)}
@@ -289,7 +297,25 @@ function DataTable<T>({
           ))}
         </TableHeader>
         <TableBody className="max-h-full overflow-y-scroll">
-          {table.getRowModel().rows.length === 0 ? (
+          {loading ? (
+            Array.from({ length: 6 }, (_, rowIndex) => (
+              <TableRow key={`skeleton-${rowIndex}`} aria-hidden="true">
+                {enableRowSelection && (
+                  <TableCell>
+                    <Skeleton className="h-4 w-4" />
+                  </TableCell>
+                )}
+                {table.getVisibleLeafColumns().map((column, columnIndex) => {
+                  const widths = ['w-16', 'w-24', 'w-20', 'w-28', 'w-14']
+                  return (
+                    <TableCell key={column.id}>
+                      <Skeleton className={`h-4 ${widths[columnIndex % widths.length]}`} />
+                    </TableCell>
+                  )
+                })}
+              </TableRow>
+            ))
+          ) : table.getRowModel().rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={columns.length + (enableRowSelection ? 1 : 0)}>
                 <p className="text-sm text-muted-foreground">{emptyMessage}</p>
@@ -328,7 +354,7 @@ function DataTable<T>({
           )}
         </TableBody>
       </Table>
-      {enableRowSelection && sumColumnId && selectedRows.length > 0 && (
+      {!loading && enableRowSelection && sumColumnId && selectedRows.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-4 border-t pt-3 text-sm text-muted-foreground">
           <span>{t('dataTable.selectedRows', { count: selectedRows.length })}</span>
           <span>{t('dataTable.total', { sum: selectedSum })}</span>

@@ -81,8 +81,7 @@ src/main/
                   vehicleRepository, shiftRepository, tripRepository, ledgerRepository, accountsRepository
   use-cases/   — createDriver/createClient/createCrusher/createContractor (كل واحد create+list+update+delete)،
                   createVehicle، createShift، closeShift، createTrip (+update/delete)، createLedgerEntry،
-                  createClientPayment، getAccounts، tripPhoto (save/delete/get)، shiftPhoto (save/delete/get)،
-                  csvImport (PapaParse + transaction)
+                  createClientPayment، getAccounts، tripPhoto (save/delete/get)، shiftPhoto (save/delete/get)
 
 src/preload/  — index.ts + index.d.ts، مكتمل ومتزامن
 
@@ -93,7 +92,9 @@ src/renderer/src/
   App.tsx                       — routes + navbar (الـ navbar ثابت، من غير أي تعديل اختفاء/sticky؛ route `/ledger` حذف، وAccountsPage هو نقطة الدخول الرئيسية)
   components/
     DataTable.tsx                — جدول عام: sorting + multi-select filters بالـ popover + row selection
-                                    + sum اختياري + actions column. عن قصد من غير تحديد خلايا فردية بالسحب.
+                    + sum اختياري + actions column + `loading` skeleton rows.
+    SubmitButton.tsx             — submit موحد: spinner وdisabled من `formState.isSubmitting`.
+    ui/skeleton.tsx              — primitive للـ loading placeholders.
     LedgerEntryForm.tsx           — فورم Ledger مشترك للإضافة، مع قفل اختياري للمقاول أو السائق
     CreateShiftForm.tsx          — shared (createShiftSchema, CreateShiftValues, CreateShiftForm)، بقى Dialog
     ReceiptPhoto.tsx              — مكوّن مشترك لصور النقلة وورقة تقفيل الوردية (رفع/crop/rotate/ضغط/thumbnail/lightbox/delete)
@@ -121,7 +122,6 @@ src/renderer/src/
       AccountTables.tsx                 — shared (AccountCard, AccountSummary, LedgerEntriesTable...)
     SettingsPage.tsx + settings/         — ✅ الخمسة كلهم Dialog + RHF + zod
     AllTripsPage.tsx                      — ✅ DataTable + FloatingWindow للتفاصيل
-    ImportPage.tsx                         — ✅ رفع CSV + نموذج + ملخص + أخطاء صفوف
 ```
 
 ## نمط القائمة والتفاصيل
@@ -131,6 +131,10 @@ src/renderer/src/
 ## أنماط تقنية ثابتة (لازم تتبع بنفس الطريقة في أي تسك جديدة)
 
 **قاعدة i18n ثابتة**: ممنوع أي نص hardcoded، عربي أو غيره، في أي مكان جوه React renderer — كل string ظاهر للمستخدم لازم يعدّي على `react-i18next` باستخدام `useTranslation` / `t()`. ده يشمل labels والأزرار والـ placeholders ورسائل التحقق وtoast/log messages وعناوين الأعمدة وكل حاجة. أي كود جديد بعد القاعدة دي ممنوع يضيف raw string literal في JSX أو component logic لأي حاجة المستخدم هيشوفها.
+
+**Loading للفورمات**: استخدم `SubmitButton` واربطه بـ `form.formState.isSubmitting` بدل state منفصل؛ خلي الزرار disabled ومعاه `Loader2` spinner، وعطّل Cancel واغلاق الـ Dialog (X/Escape/outside click) طول الحفظ.
+
+**Loading للجداول**: مرّر `loading` إلى `DataTable` وخلي headers/table shell ظاهرين؛ الـ body يعرض Skeleton rows لحد وصول البيانات بدل رسالة تحميل منفصلة قبل الجدول.
 
 **Dialog + zod transform لحقل رقمي اختياري (Input بيرجع string دايمًا)**: الفورم بيفضل شغال بالكامل على input strings (`useForm` من غير الاعتماد على تحويل نوع الـ output عبر الـ resolver في الـ generic)، والتحويل الفعلي من string لـ number/undefined بيحصل يدويًا وقت الـ submit بـ `schema.parse(values)` قبل ما تتبعت للـ `window.api`. (السبب: `FormField` من `react-hook-form` في النسخة المستخدمة مبتمررش نوع الـ output الثالث لـ `control` صح — جرّبنا التحويل جوه الـ resolver مباشرة وطلع type error/white screen).
 
@@ -172,8 +176,5 @@ src/renderer/src/
 
 - ✅ اتصلح: `.gitattributes` بقى `* text=auto eol=lf` (كان `core.autocrlf=true` على Windows بيعارض `endOfLine: lf` بتاع Prettier). `npm run lint` بقى 0 errors و0 warnings بعد آخر تنظيف.
 - ✅ اتصلح: الـ`as any` في `AllMovementsPage.tsx` و`ContractorAccountPage.tsx` و`DriverHistoryPage.tsx` اتشالت، بدّلناها بـ `Parameters<typeof window.api.updateLedgerEntry>[0]` / `Parameters<typeof window.api.createLedgerEntry>[0]`.
-- ✅ اتصلح: `ImportPage.tsx` بقت بتستخدم `DataTable` بدل الـ`<Table>` اليدوي لأخطاء الاستيراد.
-- ⏳ لسه باقي: مفيش CSV export حقيقي، فيه بس تنزيل نموذج الاستيراد.
-
 ## آخر جرد شامل للكود
-تم جرد كامل للـ backend والـ preload والـ renderer، وبعده اتعمل تنظيف lint/typecheck كامل، ودُمجت Ledger جوه AccountsPage. الحالة الحالية: الـ backend والـ preload متطابقين بدون أي دالة يتيمة، والـ Ledger بقت قسم "كل الحركات" جوه Accounts. اتضاف `LedgerEntryForm.tsx` وزرار "إضافة حركة" لصفحتَي المقاول والسائق مع قفل الشخص المعروض وإعادة تحميل بيانات الصفحة بعد الحفظ. الباقي: السكرول الداخلي (ملك المستخدم، مش تاسك Copilot)، وصفحات الورديات المستقلة، وCSV export.
+تم جرد كامل للـ backend والـ preload والـ renderer، وبعده اتعمل تنظيف lint/typecheck كامل، ودُمجت Ledger جوه AccountsPage. الحالة الحالية: الـ backend والـ preload متطابقين بدون أي دالة يتيمة، والـ Ledger بقت قسم "كل الحركات" جوه Accounts. اتضاف `LedgerEntryForm.tsx` وزرار "إضافة حركة" لصفحتَي المقاول والسائق مع قفل الشخص المعروض وإعادة تحميل بيانات الصفحة بعد الحفظ. الباقي: السكرول الداخلي (ملك المستخدم، مش تاسك Copilot)، وصفحات الورديات المستقلة.

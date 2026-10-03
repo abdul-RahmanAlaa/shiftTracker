@@ -39,7 +39,6 @@ import {
 import { getClientAccount } from './use-cases/getAccounts'
 import { deleteTripPhoto, getTripPhoto, saveTripPhoto } from './use-cases/tripPhoto'
 import { deleteShiftPhoto, getShiftPhoto, saveShiftPhoto } from './use-cases/shiftPhoto'
-import { importCsvData } from './use-cases/importCsvData'
 
 function createWindow(): void {
   // Create the browser window.
@@ -139,7 +138,6 @@ app.whenReady().then(() => {
   ipcMain.handle('trip:savePhoto', (_event, input) => saveTripPhoto(input))
   ipcMain.handle('trip:deletePhoto', (_event, input) => deleteTripPhoto(input))
   ipcMain.handle('trip:getPhoto', (_event, input) => getTripPhoto(input))
-  ipcMain.handle('data:importCsv', (_event, input) => importCsvData(input))
 
   createWindow()
 

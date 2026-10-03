@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import type { UseFormReturn } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { SubmitButton } from '@/components/SubmitButton'
 import { DatePicker } from '@/components/ui/date-picker'
 import { DialogClose, DialogFooter } from '@/components/ui/dialog'
 import {
@@ -123,8 +124,12 @@ export function LedgerEntryForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="ADVANCE">{t('ledgerEntryForm.movementTypes.custody')}</SelectItem>
-                  <SelectItem value="PAYMENT">{t('ledgerEntryForm.movementTypes.payment')}</SelectItem>
+                  <SelectItem value="ADVANCE">
+                    {t('ledgerEntryForm.movementTypes.custody')}
+                  </SelectItem>
+                  <SelectItem value="PAYMENT">
+                    {t('ledgerEntryForm.movementTypes.payment')}
+                  </SelectItem>
                   <SelectItem value="OTHER">{t('ledgerEntryForm.movementTypes.other')}</SelectItem>
                 </SelectContent>
               </Select>
@@ -275,9 +280,9 @@ export function LedgerEntryForm({
           )}
         />
         <DialogFooter className="md:col-span-2">
-          <Button type="submit">{submitLabel}</Button>
+          <SubmitButton isSubmitting={form.formState.isSubmitting}>{submitLabel}</SubmitButton>
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" disabled={form.formState.isSubmitting}>
               {t('common.cancel')}
             </Button>
           </DialogClose>

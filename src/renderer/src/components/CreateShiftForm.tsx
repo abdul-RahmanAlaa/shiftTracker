@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
+import { SubmitButton } from '@/components/SubmitButton'
 import {
   Form,
   FormControl,
@@ -196,13 +197,17 @@ export function CreateShiftForm({
         {fields}
         {inline ? (
           <div className="md:col-span-2">
-            <Button type="submit">{t('createShift.submit')}</Button>
+            <SubmitButton isSubmitting={form.formState.isSubmitting}>
+              {t('createShift.submit')}
+            </SubmitButton>
           </div>
         ) : (
           <DialogFooter className="md:col-span-2">
-            <Button type="submit">{t('createShift.submit')}</Button>
+            <SubmitButton isSubmitting={form.formState.isSubmitting}>
+              {t('createShift.submit')}
+            </SubmitButton>
             <DialogClose asChild>
-              <Button type="button" variant="outline">
+              <Button type="button" variant="outline" disabled={form.formState.isSubmitting}>
                 {t('common.cancel')}
               </Button>
             </DialogClose>
@@ -225,7 +230,10 @@ export function CreateShiftForm({
       <DialogTrigger asChild>
         <Button type="button">{t('createShift.title')}</Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
+        closeDisabled={form.formState.isSubmitting}
+      >
         <DialogHeader>
           <DialogTitle>{t('createShift.title')}</DialogTitle>
         </DialogHeader>

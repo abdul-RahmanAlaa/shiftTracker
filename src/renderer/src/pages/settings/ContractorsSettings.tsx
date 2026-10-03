@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
+import { SubmitButton } from '@/components/SubmitButton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import {
@@ -160,7 +161,7 @@ export function ContractorsSettings(): React.JSX.Element {
               {t('contractorsSettings.addButton')}
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent closeDisabled={contractorForm.formState.isSubmitting}>
             <DialogHeader>
               <DialogTitle>
                 {editingContractorId
@@ -204,13 +205,18 @@ export function ContractorsSettings(): React.JSX.Element {
                   )}
                 />
                 <DialogFooter>
-                  <Button type="submit">
+                  <SubmitButton isSubmitting={contractorForm.formState.isSubmitting}>
                     {editingContractorId
                       ? t('contractorsSettings.saveEdit')
                       : t('contractorsSettings.addSubmit')}
-                  </Button>
+                  </SubmitButton>
                   <DialogClose asChild>
-                    <Button type="button" variant="outline" onClick={cancelEditingContractor}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={contractorForm.formState.isSubmitting}
+                      onClick={cancelEditingContractor}
+                    >
                       {t('common.cancel')}
                     </Button>
                   </DialogClose>
@@ -220,16 +226,13 @@ export function ContractorsSettings(): React.JSX.Element {
           </DialogContent>
         </Dialog>
         <div className="mt-6">
-          {loading ? (
-            <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={contractors}
-              getRowId={(contractor) => String(contractor.id)}
-              enableRowSelection
-            />
-          )}
+          <DataTable
+            columns={columns}
+            data={contractors}
+            loading={loading}
+            getRowId={(contractor) => String(contractor.id)}
+            enableRowSelection
+          />
         </div>
       </CardContent>
     </Card>
