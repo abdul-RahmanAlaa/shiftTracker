@@ -372,6 +372,40 @@
       "allMovements": "كل الحركات"
     }
   },
+  "statementsPage": {
+    "title": "كشف حساب",
+    "entityType": "نوع الحساب",
+    "client": "عميل",
+    "contractor": "مقاول",
+    "entity": "العميل أو المقاول",
+    "selectEntity": "اختر العميل أو المقاول",
+    "searchEntity": "ابحث بالاسم...",
+    "noMatchingEntities": "لا توجد نتائج مطابقة",
+    "loadingEntities": "جاري تحميل العملاء والمقاولين...",
+    "entitiesError": "تعذر تحميل قائمة العملاء أو المقاولين",
+    "selectPrompt": "اختر نوع الحساب والاسم لعرض كشف الحساب",
+    "loadingStatement": "جاري تحميل كشف الحساب...",
+    "statementError": "تعذر تحميل كشف الحساب",
+    "noRows": "لا توجد بيانات لكشف الحساب",
+    "noMovements": "لا توجد حركات بعد؛ المعروض هو رصيد أول المدة فقط.",
+    "openingBalanceDescription": "رصيد أول المدة",
+    "columns": {
+      "date": "التاريخ",
+      "description": "البيان",
+      "quantity": "الكمية",
+      "price": "السعر",
+      "value": "القيمة",
+      "payment": "الدفعات",
+      "runningBalance": "الرصيد",
+      "notes": "ملاحظات"
+    },
+    "totals": {
+      "quantity": "إجمالي الكمية",
+      "value": "إجمالي القيمة",
+      "payments": "إجمالي الدفعات",
+      "finalBalance": "الرصيد النهائي"
+    }
+  },
   "allTrips": {
     "title": "كل النقلات",
     "detailsTitle": "تفاصيل النقلة {{id}}",

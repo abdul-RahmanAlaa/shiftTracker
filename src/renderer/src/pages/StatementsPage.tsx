@@ -121,10 +121,24 @@ export function StatementsPage(): React.JSX.Element {
     {
       accessorKey: 'description',
       header: t('statementsPage.columns.description'),
-      cell: ({ row }) =>
-        row.original.kind === 'OPENING'
-          ? t('statementsPage.openingBalanceDescription')
-          : (row.original.description ?? t('common.emptyCell'))
+      cell: ({ row }) => {
+        if (row.original.kind === 'OPENING') {
+          return t('statementsPage.openingBalanceDescription')
+        }
+
+        if (entityType === 'contractor' && row.original.kind === 'PAYMENT') {
+          switch (row.original.description) {
+            case 'ADVANCE':
+              return t('ledgerEntryForm.movementTypes.custody')
+            case 'PAYMENT':
+              return t('ledgerEntryForm.movementTypes.payment')
+            case 'OTHER':
+              return t('ledgerEntryForm.movementTypes.other')
+          }
+        }
+
+        return row.original.description ?? t('common.emptyCell')
+      }
     },
     {
       accessorKey: 'quantity',
