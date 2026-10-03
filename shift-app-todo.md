@@ -70,6 +70,7 @@
 - [x] **قائمة وتفاصيل الورديات**: `/shifts` قائمة وDialogs للفتح والقفل، و`/shifts/:shiftId` فقط صفحة تفاصيل ونقلات. اختيار السائق حقل عادي داخل `CreateShiftForm`؛ ده نمط list→detail للكيانات المستقبلية.
 - [x] **Loading feedback**: submit buttons تستخدم `formState.isSubmitting` مع spinner وتعطيل الإغلاق أثناء الحفظ؛ `DataTable` يستخدم `loading` لعرض Skeleton rows مع بقاء headers ظاهرة.
 - [x] **دمج Ledger جوه AccountsPage** كقسم رابع "كل الحركات" وإلغاء `/ledger` من الـ navbar (القرار: الحسابات تبقى الـ main)
+- [x] استعادة حقول موقع/الرصيد الافتتاحي للعميل والمقاول؛ حذفها `e8921fc` بالخطأ لاعتقادها غير مستخدمة، ثم أُعيدت للـ forms والجداول.
 - [x] **سكرول داخلي للجداول**: ملك للمستخدم. لا يخص أي مهمة Copilot، والـ navbar ثابت من غير أي تعديل.
 
 ## ⏳ لسه ماتبدأش (بترتيب التنفيذ المقترح)
@@ -103,6 +104,8 @@
 - [ ] تأثير `space→gap` بصريًا في الصفحات اللي بتستخدم `calendar.tsx` و`card.tsx`
 
 ## 💭 قرارات اتناقشت وأُجّلت أو اترفضت عمدًا
+
+- **Standing caution**: "cleanup/refactor" tasks must never delete a field, form control, table column, or translation key without confirming it has zero real callers across the whole codebase — if uncertain, leave it and report it instead of deleting it.
 
 - **FloatingWindow كنافذة Electron منفصلة (BrowserWindow)**: مؤجلة. العيوب (state منفصل، IPC لكل تحديث، ذاكرة، lifecycle) أكبر من الفايدة من غير سيناريو حقيقي زي شاشتين.
 - **Navbar بيختفي بالسكرول**: مرفوض. الحل هو سكرول داخلي للجداول.

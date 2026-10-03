@@ -144,6 +144,7 @@ src/renderer/src/
 
 ## دروس مستفادة
 
+- `e8921fc` حذف حقول موقع/الرصيد الافتتاحي للعميل والمقاول من الواجهة لاعتقادها غير مستخدمة، رغم اعتماد ميزة كشف الحساب عليها؛ تم استعادتها. **Standing caution**: "cleanup/refactor" tasks must never delete a field, form control, table column, or translation key without confirming it has zero real callers across the whole codebase — if uncertain, leave it and report it instead of deleting it.
 - typecheck/lint نضاف ≠ الصفحة شغالة فعليًا — لازم اختبار يدوي في نافذة Electron الحقيقية
 - اختبار Copilot بـ Playwright على المتصفح مش كافي — مفيش `window.api` حقيقي هناك (preload بس بيجي من Electron)
 - Copilot ممكن يقع في مشاكل تقنية أثناء "apply patch" (تكرار محتوى بدل استبدال) — بيكتشفها ويصلحها بنفسه من الـ typecheck، سلوك مقبول

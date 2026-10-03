@@ -30,16 +30,29 @@ import { Input } from '@/components/ui/input'
 
 const clientSchema = z.object({
   name: z.string().min(1, i18n.t('clientsSettings.validation.nameRequired')),
+  location: z.string().optional(),
   initialPrice: z
     .string()
     .optional()
     .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine((val) => val === undefined || val >= 0, i18n.t('common.validation.positivePrice'))
+    .refine((val) => val === undefined || val >= 0, i18n.t('common.validation.positivePrice')),
+  openingBalance: z
+    .string()
+    .optional()
+    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined)),
+  openingBalanceDate: z.string().optional()
 })
 
 type ClientFormValues = z.infer<typeof clientSchema>
 type ClientFormInput = z.input<typeof clientSchema>
-type Client = { id: number; name: string; initialPrice: number | null }
+type Client = {
+  id: number
+  name: string
+  initialPrice: number | null
+  location: string | null
+  openingBalance: number
+  openingBalanceDate: string | null
+}
 
 export function ClientsSettings(): React.JSX.Element {
   const { t } = useTranslation()
@@ -49,7 +62,13 @@ export function ClientsSettings(): React.JSX.Element {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const clientForm = useForm<ClientFormInput>({
     resolver: zodResolver(clientSchema, undefined, { raw: true }) as Resolver<ClientFormInput>,
-    defaultValues: { name: '', initialPrice: '' }
+    defaultValues: {
+      name: '',
+      location: '',
+      initialPrice: '',
+      openingBalance: '',
+      openingBalanceDate: ''
+    }
   })
 
   async function loadClients(): Promise<void> {
@@ -93,8 +112,8 @@ export function ClientsSettings(): React.JSX.Element {
       await loadClients()
     } else {
       result.errors.forEach((error) => {
-        if (error.field === 'name' || error.field === 'initialPrice') {
-          clientForm.setError(error.field, { message: error.message })
+        if (error.field in clientForm.getValues()) {
+          clientForm.setError(error.field as keyof ClientFormInput, { message: error.message })
         }
       })
     }
@@ -104,7 +123,10 @@ export function ClientsSettings(): React.JSX.Element {
     setEditingClientId(client.id)
     clientForm.reset({
       name: client.name,
-      initialPrice: client.initialPrice === null ? '' : String(client.initialPrice)
+      location: client.location ?? '',
+      initialPrice: client.initialPrice === null ? '' : String(client.initialPrice),
+      openingBalance: String(client.openingBalance ?? 0),
+      openingBalanceDate: client.openingBalanceDate ?? ''
     })
     setIsDialogOpen(true)
   }
@@ -137,6 +159,21 @@ export function ClientsSettings(): React.JSX.Element {
     {
       accessorKey: 'initialPrice',
       header: t('common.defaultPrice'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
+    },
+    {
+      accessorKey: 'location',
+      header: t('clientsSettings.fields.location'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
+    },
+    {
+      accessorKey: 'openingBalance',
+      header: t('common.openingBalance'),
+      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
+    },
+    {
+      accessorKey: 'openingBalanceDate',
+      header: t('common.openingBalanceDate'),
       cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
     },
     {
@@ -224,6 +261,45 @@ export function ClientsSettings(): React.JSX.Element {
                           placeholder={t('common.defaultPrice')}
                           {...field}
                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={clientForm.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('clientsSettings.fields.location')}</FormLabel>
+                      <FormControl>
+                        <Input placeholder={t('clientsSettings.fields.location')} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={clientForm.control}
+                  name="openingBalance"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('common.openingBalance')}</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="any" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={clientForm.control}
+                  name="openingBalanceDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('common.openingBalanceDate')}</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

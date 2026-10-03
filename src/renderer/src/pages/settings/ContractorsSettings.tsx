@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { useForm } from 'react-hook-form'
+import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
@@ -30,11 +30,23 @@ import { Input } from '@/components/ui/input'
 
 const contractorSchema = z.object({
   name: z.string().min(1, i18n.t('contractorsSettings.validation.nameRequired')),
-  phone: z.string().optional()
+  phone: z.string().optional(),
+  openingBalance: z
+    .string()
+    .optional()
+    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined)),
+  openingBalanceDate: z.string().optional()
 })
 
 type ContractorFormValues = z.infer<typeof contractorSchema>
-type Contractor = { id: number; name: string; phone: string | null }
+type ContractorFormInput = z.input<typeof contractorSchema>
+type Contractor = {
+  id: number
+  name: string
+  phone: string | null
+  openingBalance: number
+  openingBalanceDate: string | null
+}
 
 export function ContractorsSettings(): React.JSX.Element {
   const { t } = useTranslation()
@@ -42,9 +54,11 @@ export function ContractorsSettings(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const [editingContractorId, setEditingContractorId] = useState<number | null>(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const contractorForm = useForm<ContractorFormValues>({
-    resolver: zodResolver(contractorSchema),
-    defaultValues: { name: '', phone: '' }
+  const contractorForm = useForm<ContractorFormInput>({
+    resolver: zodResolver(contractorSchema, undefined, {
+      raw: true
+    }) as Resolver<ContractorFormInput>,
+    defaultValues: { name: '', phone: '', openingBalance: '', openingBalanceDate: '' }
   })
 
   async function loadContractors(): Promise<void> {
@@ -61,19 +75,36 @@ export function ContractorsSettings(): React.JSX.Element {
     })
   }, [])
 
-  async function handleSaveContractor(values: ContractorFormValues): Promise<void> {
+  async function handleSaveContractor(values: ContractorFormInput): Promise<void> {
+    let parsedValues: ContractorFormValues
+    try {
+      parsedValues = contractorSchema.parse(values)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        error.issues.forEach((issue) => {
+          const field = issue.path[0]
+          if (typeof field === 'string') {
+            contractorForm.setError(field as keyof ContractorFormInput, { message: issue.message })
+          }
+        })
+        return
+      }
+      throw error
+    }
     const result = editingContractorId
-      ? await window.api.updateContractor({ id: editingContractorId, ...values })
-      : await window.api.createContractor(values)
+      ? await window.api.updateContractor({ id: editingContractorId, ...parsedValues })
+      : await window.api.createContractor(parsedValues)
     if (result.ok) {
       setIsDialogOpen(false)
-      contractorForm.reset({ name: '', phone: '' })
+      contractorForm.reset({ name: '', phone: '', openingBalance: '', openingBalanceDate: '' })
       setEditingContractorId(null)
       await loadContractors()
     } else {
       result.errors.forEach((error) => {
-        if (error.field === 'name' || error.field === 'phone') {
-          contractorForm.setError(error.field, { message: error.message })
+        if (error.field in contractorForm.getValues()) {
+          contractorForm.setError(error.field as keyof ContractorFormInput, {
+            message: error.message
+          })
         }
       })
     }
@@ -81,13 +112,18 @@ export function ContractorsSettings(): React.JSX.Element {
 
   function startEditingContractor(contractor: Contractor): void {
     setEditingContractorId(contractor.id)
-    contractorForm.reset({ name: contractor.name, phone: contractor.phone ?? '' })
+    contractorForm.reset({
+      name: contractor.name,
+      phone: contractor.phone ?? '',
+      openingBalance: String(contractor.openingBalance ?? 0),
+      openingBalanceDate: contractor.openingBalanceDate ?? ''
+    })
     setIsDialogOpen(true)
   }
 
   function cancelEditingContractor(): void {
     setEditingContractorId(null)
-    contractorForm.reset({ name: '', phone: '' })
+    contractorForm.reset({ name: '', phone: '', openingBalance: '', openingBalanceDate: '' })
     setIsDialogOpen(false)
   }
 
@@ -104,7 +140,7 @@ export function ContractorsSettings(): React.JSX.Element {
     setIsDialogOpen(open)
     if (!open) {
       setEditingContractorId(null)
-      contractorForm.reset({ name: '', phone: '' })
+      contractorForm.reset({ name: '', phone: '', openingBalance: '', openingBalanceDate: '' })
     }
   }
 
@@ -199,6 +235,32 @@ export function ContractorsSettings(): React.JSX.Element {
                           placeholder={t('contractorsSettings.phoneNumber')}
                           {...field}
                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={contractorForm.control}
+                  name="openingBalance"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('common.openingBalance')}</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="any" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={contractorForm.control}
+                  name="openingBalanceDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('common.openingBalanceDate')}</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
