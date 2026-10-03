@@ -8,7 +8,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { CreateShiftForm, createShiftSchema } from '@/components/CreateShiftForm'
 import type { CreateShiftValues } from '@/components/CreateShiftForm'
 import { DataTable } from '@/components/DataTable'
-import { ReceiptPhoto } from '@/components/ReceiptPhoto'
+import { AttachmentManager } from '@/components/AttachmentManager'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -27,6 +27,10 @@ type ShiftListRow = Extract<
   Awaited<ReturnType<typeof window.api.listShifts>>,
   { ok: true }
 >['data'][number]
+type AttachmentRow = Extract<
+  Awaited<ReturnType<typeof window.api.listEntityAttachments>>,
+  { ok: true }
+>['data'][number]
 type CloseShiftValues = { shiftId: string; endDate: string }
 
 export function ShiftsPage(): React.JSX.Element {
@@ -38,6 +42,13 @@ export function ShiftsPage(): React.JSX.Element {
     { vehicleNo: number; trailerNo: number; contractorId: number }[]
   >([])
   const [loading, setLoading] = useState(true)
+  const [closingAttachments, setClosingAttachments] = useState<AttachmentRow[]>([])
+  const [tripsMissingAttachments, setTripsMissingAttachments] = useState<string[]>([])
+  const [loadedCloseRequirementsShiftId, setLoadedCloseRequirementsShiftId] = useState<
+    string | null
+  >(null)
+  const [closeShiftErrors, setCloseShiftErrors] = useState<string[]>([])
+  const [attachmentRefreshVersion, setAttachmentRefreshVersion] = useState(0)
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false)
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false)
   const closeShiftForm = useForm<CloseShiftValues>({
@@ -72,6 +83,51 @@ export function ShiftsPage(): React.JSX.Element {
     })
   }, [])
 
+  useEffect(() => {
+    if (!closeShiftId) return
+
+    let cancelled = false
+    void (async () => {
+      const [shiftAttachmentsResult, tripsResult] = await Promise.all([
+        window.api.listEntityAttachments({ entityType: 'SHIFT', entityId: closeShiftId }),
+        window.api.listTripsByShift({ shiftId: closeShiftId })
+      ])
+
+      if (cancelled) return
+      setClosingAttachments(
+        shiftAttachmentsResult.ok
+          ? shiftAttachmentsResult.data.filter((attachment) => attachment.kind === 'CLOSING_SHEET')
+          : []
+      )
+
+      if (tripsResult.ok) {
+        const attachmentResults = await Promise.all(
+          tripsResult.data.map((trip) =>
+            window.api.listEntityAttachments({ entityType: 'TRIP', entityId: trip.id })
+          )
+        )
+
+        if (cancelled) return
+        setTripsMissingAttachments(
+          tripsResult.data
+            .filter((_, index) => {
+              const result = attachmentResults[index]
+              return !result.ok || result.data.length === 0
+            })
+            .map((trip) => trip.id)
+        )
+      } else {
+        setTripsMissingAttachments([])
+      }
+
+      setLoadedCloseRequirementsShiftId(closeShiftId)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [closeShiftId, attachmentRefreshVersion])
+
   async function loadShifts(): Promise<void> {
     const result = await window.api.listShifts()
     if (result.ok) setShifts(result.data)
@@ -95,24 +151,26 @@ export function ShiftsPage(): React.JSX.Element {
     return true
   }
 
-  function handleClosingPhotoChange(shiftId: string, photoPath: string | null): void {
-    setShifts((previous) =>
-      previous.map((shift) =>
-        shift.id === shiftId ? { ...shift, closingPhotoPath: photoPath } : shift
-      )
-    )
-  }
-
   async function handleCloseShift(values: CloseShiftValues): Promise<void> {
+    setCloseShiftErrors([])
     const result = await window.api.closeShift(values)
-    if (!result.ok) return
+    if (!result.ok) {
+      setCloseShiftErrors(result.errors.map((error) => error.message))
+      return
+    }
     setIsCloseDialogOpen(false)
     closeShiftForm.reset()
+    setClosingAttachments([])
+    setTripsMissingAttachments([])
+    setLoadedCloseRequirementsShiftId(null)
+    setCloseShiftErrors([])
     await loadShifts()
   }
 
   const shiftToClose = shifts.find((shift) => shift.id === closeShiftId)
-  const hasClosingPhoto = Boolean(shiftToClose?.closingPhotoPath?.trim())
+  const hasClosingDocument = closingAttachments.length > 0
+  const checkingCloseRequirements =
+    Boolean(closeShiftId) && loadedCloseRequirementsShiftId !== closeShiftId
   const columns: ColumnDef<ShiftListRow, unknown>[] = [
     { accessorKey: 'id', header: t('shifts.shiftInfo.number') },
     { accessorKey: 'driverName', header: t('ledgerEntryForm.fields.driver') },
@@ -219,34 +277,57 @@ export function ShiftsPage(): React.JSX.Element {
                 />
                 {shiftToClose && (
                   <div className="flex flex-col gap-2 md:col-span-2">
-                    <p className="text-sm font-medium">{t('receiptPhoto.labels.shift')}</p>
-                    <ReceiptPhoto
-                      entityKind="shift"
+                    <p className="text-sm font-medium">{t('receiptPhoto.labels.closingSheet')}</p>
+                    <AttachmentManager
+                      entityType="SHIFT"
                       entityId={shiftToClose.id}
-                      photoPath={shiftToClose.closingPhotoPath}
-                      onPhotoChange={(photoPath) =>
-                        handleClosingPhotoChange(shiftToClose.id, photoPath)
-                      }
-                      savePhoto={(entityId, imageBase64) =>
-                        window.api.saveShiftPhoto({ shiftId: entityId, imageBase64 })
-                      }
-                      deletePhoto={(entityId) => window.api.deleteShiftPhoto({ shiftId: entityId })}
-                      getPhoto={(photoPath) => window.api.getShiftPhoto({ photoPath })}
+                      onAttachmentsChange={() => {
+                        setLoadedCloseRequirementsShiftId(null)
+                        setAttachmentRefreshVersion((previous) => previous + 1)
+                      }}
                     />
                   </div>
                 )}
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 md:col-span-2">
                   <SubmitButton
                     isSubmitting={closeShiftForm.formState.isSubmitting}
-                    disabled={!closeShiftId || !endDate || !hasClosingPhoto}
-                    title={!hasClosingPhoto ? t('shifts.closingPhotoRequired') : undefined}
+                    disabled={
+                      !closeShiftId ||
+                      !endDate ||
+                      checkingCloseRequirements ||
+                      !hasClosingDocument ||
+                      tripsMissingAttachments.length > 0
+                    }
+                    title={
+                      !hasClosingDocument
+                        ? t('shifts.closingPhotoRequired')
+                        : tripsMissingAttachments.length > 0
+                          ? t('shifts.tripsMissingAttachments', {
+                              tripIds: tripsMissingAttachments.join(', ')
+                            })
+                          : undefined
+                    }
                   >
                     {t('shifts.closeSubmit')}
                   </SubmitButton>
-                  {!hasClosingPhoto && closeShiftId && (
+                  {!hasClosingDocument && closeShiftId && (
                     <p className="text-sm text-muted-foreground">
                       {t('shifts.closingPhotoRequired')}
                     </p>
+                  )}
+                  {tripsMissingAttachments.length > 0 && (
+                    <p className="text-sm text-muted-foreground">
+                      {t('shifts.tripsMissingAttachments', {
+                        tripIds: tripsMissingAttachments.join(', ')
+                      })}
+                    </p>
+                  )}
+                  {closeShiftErrors.length > 0 && (
+                    <ul className="list-disc space-y-1 pl-5 text-sm text-destructive">
+                      {closeShiftErrors.map((error) => (
+                        <li key={error}>{error}</li>
+                      ))}
+                    </ul>
                   )}
                 </div>
               </form>

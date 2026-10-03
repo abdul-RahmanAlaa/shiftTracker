@@ -2,23 +2,16 @@ import { app } from 'electron'
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
-export type PhotoKind = 'trip' | 'shift'
-
-function directoryFor(kind: PhotoKind): string {
-  return `${kind}s`
-}
-
-export function savePhoto(kind: PhotoKind, id: string, base64Jpeg: string): string {
-  const directory = directoryFor(kind)
-  const dir = join(app.getPath('userData'), 'docs', directory)
+export function saveAttachmentPhoto(attachmentId: number, base64Jpeg: string): string {
+  const dir = join(app.getPath('userData'), 'docs', 'attachments')
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  const filePath = join(dir, `${id}.jpg`)
+  const filePath = join(dir, `${attachmentId}.jpg`)
   writeFileSync(filePath, Buffer.from(base64Jpeg, 'base64'))
-  return join('docs', directory, `${id}.jpg`)
+  return join('docs', 'attachments', `${attachmentId}.jpg`)
 }
 
-export function deletePhoto(kind: PhotoKind, id: string): void {
-  const filePath = join(app.getPath('userData'), 'docs', directoryFor(kind), `${id}.jpg`)
+export function deleteAttachmentPhotoFile(relativePath: string): void {
+  const filePath = join(app.getPath('userData'), relativePath)
   if (existsSync(filePath)) unlinkSync(filePath)
 }
 

@@ -44,7 +44,6 @@ CREATE TABLE IF NOT EXISTS Shift (
   client_cubic_default    REAL NOT NULL,
   start_date              TEXT NOT NULL,
   end_date                TEXT,
-  closing_photo_path      TEXT,
   status                  TEXT NOT NULL CHECK (status IN ('OPEN','CLOSED')),
   reported_destination    TEXT,
   reported_trip_count     INTEGER,
@@ -71,7 +70,6 @@ CREATE TABLE IF NOT EXISTS Trip (
   recipient_name           TEXT,
   client_receipt_no        TEXT,
   notes                    TEXT,
-  receipt_photo_path       TEXT,
   CHECK (
     (crusher_receipt_status = 'PROVIDED' AND crusher_receipt_no IS NOT NULL)
     OR (crusher_receipt_status <> 'PROVIDED' AND crusher_receipt_no IS NULL)
@@ -81,6 +79,17 @@ CREATE TABLE IF NOT EXISTS Trip (
     OR (recipient_name_status = 'UNCLEAR' AND recipient_name IS NULL)
   )
 );
+
+CREATE TABLE Attachment (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('TRIP','SHIFT')),
+  entity_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('CRUSHER_RECEIPT','CLIENT_RECEIPT','CLOSING_SHEET')),
+  photo_path TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_attachment_entity ON Attachment (entity_type, entity_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_crusher_receipt
 ON Trip (crusher_id, crusher_receipt_no)
@@ -126,7 +135,40 @@ CREATE TABLE IF NOT EXISTS ClientPayment (
 );
 `
 
+const MIGRATION_V10_ATTACHMENTS = `
+CREATE TABLE Attachment (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('TRIP','SHIFT')),
+  entity_id TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('CRUSHER_RECEIPT','CLIENT_RECEIPT','CLOSING_SHEET')),
+  photo_path TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_attachment_entity ON Attachment (entity_type, entity_id);
+
+INSERT INTO Attachment (entity_type, entity_id, kind, photo_path)
+SELECT 'TRIP', id, 'CRUSHER_RECEIPT', receipt_photo_path
+FROM Trip WHERE receipt_photo_path IS NOT NULL;
+
+INSERT INTO Attachment (entity_type, entity_id, kind, photo_path)
+SELECT 'SHIFT', id, 'CLOSING_SHEET', closing_photo_path
+FROM Shift WHERE closing_photo_path IS NOT NULL;
+
+ALTER TABLE Trip DROP COLUMN receipt_photo_path;
+ALTER TABLE Shift DROP COLUMN closing_photo_path;
+`
+
 let db: Database.Database
+
+function migrateToV10(): void {
+  db.pragma('foreign_keys = OFF')
+  try {
+    db.transaction(() => db.exec(MIGRATION_V10_ATTACHMENTS))()
+  } finally {
+    db.pragma('foreign_keys = ON')
+  }
+}
 
 export function initDatabase(): Database.Database {
   const dbPath = join(app.getPath('userData'), 'shift-tracker.db')
@@ -139,8 +181,14 @@ export function initDatabase(): Database.Database {
 
   if (currentVersion === 0) {
     db.exec(SCHEMA)
-    db.pragma('user_version = 1')
-    console.log('[db] Schema created (fresh install, all-English enum baseline). user_version = 1')
+    db.pragma('user_version = 10')
+    console.log('[db] Schema created (fresh install, attachments enabled). user_version = 10')
+  } else if (currentVersion === 1 || currentVersion === 9) {
+    migrateToV10()
+    db.pragma('user_version = 10')
+    console.log(
+      `[db] Migration v${currentVersion} -> v10 applied (generic attachments). user_version = 10`
+    )
   } else {
     console.log(`[db] Database up to date. user_version = ${currentVersion}`)
   }

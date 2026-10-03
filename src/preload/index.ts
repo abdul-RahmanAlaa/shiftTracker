@@ -21,10 +21,6 @@ const api = {
   createShift: (input: CreateShiftInput) => ipcRenderer.invoke('shift:create', input),
   closeShift: (input: { shiftId: string; endDate: string }) =>
     ipcRenderer.invoke('shift:close', input),
-  saveShiftPhoto: (input: { shiftId: string; imageBase64: string }) =>
-    ipcRenderer.invoke('shift:savePhoto', input),
-  deleteShiftPhoto: (input: { shiftId: string }) => ipcRenderer.invoke('shift:deletePhoto', input),
-  getShiftPhoto: (input: { photoPath: string }) => ipcRenderer.invoke('shift:getPhoto', input),
   listDrivers: () => ipcRenderer.invoke('driver:list'),
   listContractors: () => ipcRenderer.invoke('contractor:list'),
   listVehicles: () => ipcRenderer.invoke('vehicle:list'),
@@ -138,10 +134,17 @@ const api = {
     notes?: string
   }) => ipcRenderer.invoke('trip:update', input),
   deleteTrip: (input: { id: string }) => ipcRenderer.invoke('trip:delete', input),
-  saveTripPhoto: (input: { tripId: string; imageBase64: string }) =>
-    ipcRenderer.invoke('trip:savePhoto', input),
-  deleteTripPhoto: (input: { tripId: string }) => ipcRenderer.invoke('trip:deletePhoto', input),
-  getTripPhoto: (input: { photoPath: string }) => ipcRenderer.invoke('trip:getPhoto', input)
+  addAttachment: (input: {
+    entityType: 'TRIP' | 'SHIFT'
+    entityId: string
+    kind: 'CRUSHER_RECEIPT' | 'CLIENT_RECEIPT' | 'CLOSING_SHEET'
+    imageBase64: string
+  }) => ipcRenderer.invoke('attachment:add', input),
+  removeAttachment: (input: { id: number }) => ipcRenderer.invoke('attachment:remove', input),
+  listEntityAttachments: (input: { entityType: 'TRIP' | 'SHIFT'; entityId: string }) =>
+    ipcRenderer.invoke('attachment:list', input),
+  getAttachmentPhoto: (input: { photoPath: string }) =>
+    ipcRenderer.invoke('attachment:getPhoto', input)
 }
 
 if (process.contextIsolated) {

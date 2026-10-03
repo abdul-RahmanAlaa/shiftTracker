@@ -81,7 +81,8 @@ src/main/
                   vehicleRepository, shiftRepository, tripRepository, ledgerRepository, accountsRepository
   use-cases/   — createDriver/createClient/createCrusher/createContractor (كل واحد create+list+update+delete)،
                   createVehicle، createShift، closeShift، createTrip (+update/delete)، createLedgerEntry،
-                  createClientPayment، getAccounts، tripPhoto (save/delete/get)، shiftPhoto (save/delete/get)
+                  createClientPayment، getAccounts، tripPhoto (save/delete/get)، shiftPhoto (save/delete/get)،
+                  csvImport (PapaParse + transaction)
 
 src/preload/  — index.ts + index.d.ts، مكتمل ومتزامن
 
@@ -122,6 +123,7 @@ src/renderer/src/
       AccountTables.tsx                 — shared (AccountCard, AccountSummary, LedgerEntriesTable...)
     SettingsPage.tsx + settings/         — ✅ الخمسة كلهم Dialog + RHF + zod
     AllTripsPage.tsx                      — ✅ DataTable + FloatingWindow للتفاصيل
+    ImportPage.tsx                         — ✅ رفع CSV + نموذج + ملخص + أخطاء صفوف
 ```
 
 ## نمط القائمة والتفاصيل
@@ -176,5 +178,8 @@ src/renderer/src/
 
 - ✅ اتصلح: `.gitattributes` بقى `* text=auto eol=lf` (كان `core.autocrlf=true` على Windows بيعارض `endOfLine: lf` بتاع Prettier). `npm run lint` بقى 0 errors و0 warnings بعد آخر تنظيف.
 - ✅ اتصلح: الـ`as any` في `AllMovementsPage.tsx` و`ContractorAccountPage.tsx` و`DriverHistoryPage.tsx` اتشالت، بدّلناها بـ `Parameters<typeof window.api.updateLedgerEntry>[0]` / `Parameters<typeof window.api.createLedgerEntry>[0]`.
+- ✅ اتصلح: `ImportPage.tsx` بقت بتستخدم `DataTable` بدل الـ`<Table>` اليدوي لأخطاء الاستيراد.
+- ⏳ لسه باقي: مفيش CSV export حقيقي، فيه بس تنزيل نموذج الاستيراد.
+
 ## آخر جرد شامل للكود
-تم جرد كامل للـ backend والـ preload والـ renderer، وبعده اتعمل تنظيف lint/typecheck كامل، ودُمجت Ledger جوه AccountsPage. الحالة الحالية: الـ backend والـ preload متطابقين بدون أي دالة يتيمة، والـ Ledger بقت قسم "كل الحركات" جوه Accounts. اتضاف `LedgerEntryForm.tsx` وزرار "إضافة حركة" لصفحتَي المقاول والسائق مع قفل الشخص المعروض وإعادة تحميل بيانات الصفحة بعد الحفظ. الباقي: السكرول الداخلي (ملك المستخدم، مش تاسك Copilot)، وصفحات الورديات المستقلة.
+تم جرد كامل للـ backend والـ preload والـ renderer، وبعده اتعمل تنظيف lint/typecheck كامل، ودُمجت Ledger جوه AccountsPage. الحالة الحالية: الـ backend والـ preload متطابقين بدون أي دالة يتيمة، والـ Ledger بقت قسم "كل الحركات" جوه Accounts. اتضاف `LedgerEntryForm.tsx` وزرار "إضافة حركة" لصفحتَي المقاول والسائق مع قفل الشخص المعروض وإعادة تحميل بيانات الصفحة بعد الحفظ. الباقي: السكرول الداخلي (ملك المستخدم، مش تاسك Copilot)، وصفحات الورديات المستقلة، وCSV export.

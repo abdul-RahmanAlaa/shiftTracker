@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
-import { ReceiptPhoto } from '@/components/ReceiptPhoto'
+import { AttachmentManager } from '@/components/AttachmentManager'
 import { ShiftBreadcrumb } from '@/components/ShiftBreadcrumb'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TripForm, tripSchema } from './AddTripPage'
@@ -153,12 +153,6 @@ export function ShiftDetailPage(): React.JSX.Element {
     if (result.ok) await loadShiftTrips()
   }
 
-  function handlePhotoChange(tripId: string, photoPath: string | null): void {
-    setTrips((previous) =>
-      previous.map((trip) => (trip.id === tripId ? { ...trip, receiptPhotoPath: photoPath } : trip))
-    )
-  }
-
   const isShiftClosed = shift?.status === 'CLOSED'
   const loading = loadedShiftId !== shiftId
   const tripColumns: ColumnDef<TripRow, unknown>[] = [
@@ -180,22 +174,10 @@ export function ShiftDetailPage(): React.JSX.Element {
     { accessorKey: 'clientPrice', header: t('tripForm.fields.clientPrice') },
     {
       id: 'receiptPhoto',
-      header: t('shifts.columns.receiptPhoto'),
+      header: t('tripDetails.attachmentsTitle'),
       enableSorting: false,
       enableColumnFilter: false,
-      cell: ({ row }) => (
-        <ReceiptPhoto
-          entityKind="trip"
-          entityId={row.original.id}
-          photoPath={row.original.receiptPhotoPath}
-          onPhotoChange={(photoPath) => handlePhotoChange(row.original.id, photoPath)}
-          savePhoto={(entityId, imageBase64) =>
-            window.api.saveTripPhoto({ tripId: entityId, imageBase64 })
-          }
-          deletePhoto={(entityId) => window.api.deleteTripPhoto({ tripId: entityId })}
-          getPhoto={(photoPath) => window.api.getTripPhoto({ photoPath })}
-        />
-      )
+      cell: ({ row }) => <AttachmentManager entityType="TRIP" entityId={row.original.id} />
     },
     {
       id: 'actions',

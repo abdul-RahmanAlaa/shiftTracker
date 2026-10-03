@@ -13,18 +13,17 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 
-type EntityKind = 'trip' | 'shift'
-type PhotoResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
+type AttachmentEntityType = 'TRIP' | 'SHIFT'
+type AttachmentRow = Extract<
+  Awaited<ReturnType<typeof window.api.listEntityAttachments>>,
+  { ok: true }
+>['data'][number]
+type AttachmentKind = AttachmentRow['kind']
 
-interface ReceiptPhotoProps {
-  entityKind: EntityKind
+interface AttachmentManagerProps {
+  entityType: AttachmentEntityType
   entityId: string
-  photoPath: string | null
-  onPhotoChange: (newPath: string | null) => void
-  savePhoto: (entityId: string, imageBase64: string) => Promise<PhotoResult<{ path: string }>>
-  deletePhoto: (entityId: string) => Promise<PhotoResult<unknown>>
-  getPhoto: (photoPath: string) => Promise<PhotoResult<{ dataUri: string | null }>>
+  onAttachmentsChange?: () => void
 }
 
 function createImage(source: string): Promise<HTMLImageElement> {
@@ -107,73 +106,72 @@ async function createCroppedImage(
   return outputCanvas.toDataURL('image/jpeg', 0.85)
 }
 
-export function ReceiptPhoto({
-  entityKind,
+export function AttachmentManager({
+  entityType,
   entityId,
-  photoPath,
-  onPhotoChange,
-  savePhoto,
-  deletePhoto,
-  getPhoto
-}: ReceiptPhotoProps): React.JSX.Element {
+  onAttachmentsChange
+}: AttachmentManagerProps): React.JSX.Element {
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const cachedPathRef = useRef<string | null>(null)
-  const cachedDataUriRef = useRef<string | null>(null)
-  const [thumbnailDataUri, setThumbnailDataUri] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [attachments, setAttachments] = useState<AttachmentRow[]>([])
+  const [attachmentPhotos, setAttachmentPhotos] = useState<Record<number, string | null>>({})
+  const [loadedRequestKey, setLoadedRequestKey] = useState<string | null>(null)
   const [isCropDialogOpen, setIsCropDialogOpen] = useState(false)
-  const [isPreviewDialogOpen, setIsPreviewDialogOpen] = useState(false)
   const [imageToCrop, setImageToCrop] = useState<string | null>(null)
+  const [kindToAdd, setKindToAdd] = useState<AttachmentKind | null>(null)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
   const [rotation, setRotation] = useState(0)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [operationError, setOperationError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [refreshToken, setRefreshToken] = useState(0)
+  const [previewAttachment, setPreviewAttachment] = useState<AttachmentRow | null>(null)
 
-  const photoLabel = t(
-    entityKind === 'trip' ? 'receiptPhoto.labels.trip' : 'receiptPhoto.labels.shift'
-  )
+  const tripKinds: AttachmentKind[] = ['CRUSHER_RECEIPT', 'CLIENT_RECEIPT']
+  const requestKey = `${entityType}:${entityId}:${refreshToken}`
+  const isLoading = loadedRequestKey !== requestKey
+
+  function kindLabel(kind: AttachmentKind): string {
+    switch (kind) {
+      case 'CRUSHER_RECEIPT':
+        return t('receiptPhoto.labels.crusherReceipt')
+      case 'CLIENT_RECEIPT':
+        return t('receiptPhoto.labels.clientReceipt')
+      case 'CLOSING_SHEET':
+        return t('receiptPhoto.labels.closingSheet')
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
-    if (!photoPath) {
-      cachedPathRef.current = null
-      cachedDataUriRef.current = null
-      queueMicrotask(() => {
-        if (!cancelled) setThumbnailDataUri(null)
-      })
-      return () => {
-        cancelled = true
-      }
-    }
-    if (cachedPathRef.current === photoPath && cachedDataUriRef.current) {
-      const cachedDataUri = cachedDataUriRef.current
-      queueMicrotask(() => {
-        if (!cancelled) setThumbnailDataUri(cachedDataUri)
-      })
-      return () => {
-        cancelled = true
-      }
-    }
-
-    setIsLoading(true)
-    void getPhoto(photoPath).then((result) => {
+    async function loadAttachments(): Promise<void> {
+      const result = await window.api.listEntityAttachments({ entityType, entityId })
       if (cancelled) return
-      const dataUri = result.ok ? result.data.dataUri : null
-      cachedPathRef.current = photoPath
-      cachedDataUriRef.current = dataUri
-      setThumbnailDataUri(dataUri)
-      setIsLoading(false)
-    })
+      const nextAttachments = result.ok ? result.data : []
+      setAttachments(nextAttachments)
+      const photoResults = await Promise.all(
+        nextAttachments.map(async (attachment) => {
+          const photoResult = await window.api.getAttachmentPhoto({
+            photoPath: attachment.photoPath
+          })
+          return [attachment.id, photoResult.ok ? photoResult.data.dataUri : null] as const
+        })
+      )
+      if (cancelled) return
+      setAttachmentPhotos(Object.fromEntries(photoResults))
+      setLoadedRequestKey(requestKey)
+    }
 
+    void loadAttachments()
     return () => {
       cancelled = true
     }
-  }, [getPhoto, photoPath])
+  }, [entityType, entityId, refreshToken, requestKey])
 
-  function openFilePicker(): void {
+  function openFilePicker(kind: AttachmentKind): void {
+    setKindToAdd(kind)
     fileInputRef.current?.click()
   }
 
@@ -193,6 +191,7 @@ export function ReceiptPhoto({
       setSaveError(null)
       setIsCropDialogOpen(true)
     }
+    reader.onerror = () => setSaveError(t('receiptPhoto.errors.readImage'))
     reader.readAsDataURL(file)
   }
 
@@ -203,25 +202,29 @@ export function ReceiptPhoto({
   function closeCropDialog(): void {
     setIsCropDialogOpen(false)
     setImageToCrop(null)
+    setKindToAdd(null)
     setSaveError(null)
   }
 
   async function handleSave(): Promise<void> {
-    if (!imageToCrop || !croppedAreaPixels) return
+    if (!imageToCrop || !croppedAreaPixels || !kindToAdd) return
     setIsSaving(true)
     setSaveError(null)
     try {
       const dataUri = await createCroppedImage(imageToCrop, croppedAreaPixels, rotation)
       const imageBase64 = dataUri.replace(/^data:image\/jpeg;base64,/, '')
-      const result = await savePhoto(entityId, imageBase64)
+      const result = await window.api.addAttachment({
+        entityType,
+        entityId,
+        kind: kindToAdd,
+        imageBase64
+      })
       if (!result.ok) {
         setSaveError(result.errors.map((error) => error.message).join(', '))
         return
       }
-      cachedPathRef.current = result.data.path
-      cachedDataUriRef.current = dataUri
-      setThumbnailDataUri(dataUri)
-      onPhotoChange(result.data.path)
+      setRefreshToken((previous) => previous + 1)
+      onAttachmentsChange?.()
       closeCropDialog()
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : t('receiptPhoto.errors.saveImage'))
@@ -230,18 +233,50 @@ export function ReceiptPhoto({
     }
   }
 
-  async function handleDelete(): Promise<void> {
-    if (!confirm(t('receiptPhoto.confirmDelete', { label: photoLabel }))) return
-    const result = await deletePhoto(entityId)
-    if (!result.ok) return
-    cachedPathRef.current = null
-    cachedDataUriRef.current = null
-    setThumbnailDataUri(null)
-    onPhotoChange(null)
+  async function handleDelete(attachment: AttachmentRow): Promise<void> {
+    const label = kindLabel(attachment.kind)
+    if (!confirm(t('receiptPhoto.confirmDelete', { label }))) return
+    setOperationError(null)
+    const result = await window.api.removeAttachment({ id: attachment.id })
+    if (!result.ok) {
+      setOperationError(result.errors.map((error) => error.message).join(', '))
+      return
+    }
+    setRefreshToken((previous) => previous + 1)
+    onAttachmentsChange?.()
+  }
+
+  function renderAttachment(attachment: AttachmentRow): React.JSX.Element {
+    const label = kindLabel(attachment.kind)
+    const photoDataUri = attachmentPhotos[attachment.id]
+    return (
+      <div key={attachment.id} className="flex items-center gap-2">
+        {photoDataUri ? (
+          <button
+            type="button"
+            className="overflow-hidden rounded-md border"
+            onClick={() => setPreviewAttachment(attachment)}
+            aria-label={t('receiptPhoto.preview', { label })}
+          >
+            <img src={photoDataUri} alt={label} className="h-16 w-16 object-cover" />
+          </button>
+        ) : (
+          <span className="text-sm text-muted-foreground">{t('receiptPhoto.unavailable')}</span>
+        )}
+        <Button
+          type="button"
+          variant="destructive"
+          size="sm"
+          onClick={() => void handleDelete(attachment)}
+        >
+          {t('common.delete')}
+        </Button>
+      </div>
+    )
   }
 
   return (
-    <div className="flex min-w-32 items-center gap-2">
+    <div className="flex flex-col gap-4">
       <input
         ref={fileInputRef}
         type="file"
@@ -249,44 +284,61 @@ export function ReceiptPhoto({
         className="hidden"
         onChange={handleFileChange}
       />
-      {!photoPath ? (
-        <Button type="button" variant="outline" size="sm" onClick={openFilePicker}>
-          {t('receiptPhoto.upload', { label: photoLabel })}
-        </Button>
+      {isLoading && <p className="text-sm text-muted-foreground">{t('common.loading')}</p>}
+      {entityType === 'TRIP' ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {tripKinds.map((kind) => {
+            const kindAttachments = attachments.filter((attachment) => attachment.kind === kind)
+            const label = kindLabel(kind)
+            return (
+              <section key={kind} className="flex flex-col gap-2">
+                <h3 className="text-sm font-medium">{label}</h3>
+                {kindAttachments.map(renderAttachment)}
+                {kindAttachments.length === 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openFilePicker(kind)}
+                  >
+                    {t('receiptPhoto.upload', { label })}
+                  </Button>
+                )}
+              </section>
+            )
+          })}
+        </div>
       ) : (
-        <>
-          {isLoading ? (
-            <span className="text-sm text-muted-foreground">{t('common.loading')}</span>
-          ) : thumbnailDataUri ? (
-            <button
-              type="button"
-              className="overflow-hidden rounded-md border"
-              onClick={() => setIsPreviewDialogOpen(true)}
-              aria-label={t('receiptPhoto.preview', { label: photoLabel })}
-            >
-              <img src={thumbnailDataUri} alt={photoLabel} className="h-16 w-16 object-cover" />
-            </button>
-          ) : (
-            <span className="text-sm text-muted-foreground">{t('receiptPhoto.unavailable')}</span>
-          )}
-          <Button type="button" variant="outline" size="sm" onClick={openFilePicker}>
-            {t('receiptPhoto.change')}
+        <section className="flex flex-col gap-2">
+          <h3 className="text-sm font-medium">{t('receiptPhoto.closingDocuments')}</h3>
+          {attachments
+            .filter((attachment) => attachment.kind === 'CLOSING_SHEET')
+            .map(renderAttachment)}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={() => openFilePicker('CLOSING_SHEET')}
+          >
+            {t('receiptPhoto.addDocument')}
           </Button>
-          <Button type="button" variant="destructive" size="sm" onClick={() => void handleDelete()}>
-            {t('common.delete')}
-          </Button>
-        </>
+        </section>
       )}
+      {operationError && <p className="text-sm text-destructive">{operationError}</p>}
 
-      <Dialog open={isPreviewDialogOpen} onOpenChange={setIsPreviewDialogOpen}>
+      <Dialog
+        open={previewAttachment !== null}
+        onOpenChange={(open) => !open && setPreviewAttachment(null)}
+      >
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>{photoLabel}</DialogTitle>
+            <DialogTitle>{previewAttachment ? kindLabel(previewAttachment.kind) : ''}</DialogTitle>
           </DialogHeader>
-          {thumbnailDataUri && (
+          {previewAttachment && attachmentPhotos[previewAttachment.id] && (
             <img
-              src={thumbnailDataUri}
-              alt={t('receiptPhoto.fullImageAlt', { label: photoLabel })}
+              src={attachmentPhotos[previewAttachment.id] ?? undefined}
+              alt={t('receiptPhoto.fullImageAlt', { label: kindLabel(previewAttachment.kind) })}
               className="max-h-[75vh] w-full object-contain"
             />
           )}
@@ -296,7 +348,9 @@ export function ReceiptPhoto({
       <Dialog open={isCropDialogOpen} onOpenChange={(open) => !open && closeCropDialog()}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{t('receiptPhoto.editTitle', { label: photoLabel })}</DialogTitle>
+            <DialogTitle>
+              {t('receiptPhoto.editTitle', { label: kindToAdd ? kindLabel(kindToAdd) : '' })}
+            </DialogTitle>
           </DialogHeader>
           {imageToCrop && (
             <>

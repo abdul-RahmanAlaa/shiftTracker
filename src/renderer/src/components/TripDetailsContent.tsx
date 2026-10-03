@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { AttachmentManager } from '@/components/AttachmentManager'
 
 type TripDetailsRow = Extract<
   Awaited<ReturnType<typeof window.api.listAllTrips>>,
@@ -8,22 +8,6 @@ type TripDetailsRow = Extract<
 
 export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JSX.Element {
   const { t } = useTranslation()
-  const [photoDataUri, setPhotoDataUri] = useState<string | null>(null)
-  const [photoLoading, setPhotoLoading] = useState(Boolean(trip.receiptPhotoPath))
-
-  useEffect(() => {
-    let cancelled = false
-    if (!trip.receiptPhotoPath) return
-    void window.api.getTripPhoto({ photoPath: trip.receiptPhotoPath }).then((result) => {
-      if (cancelled) return
-      setPhotoDataUri(result.ok ? result.data.dataUri : null)
-      setPhotoLoading(false)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [trip.receiptPhotoPath])
 
   const crusherReceiptStatus =
     trip.crusherReceiptStatus === 'قيمة'
@@ -70,22 +54,8 @@ export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JS
         ))}
       </dl>
       <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium">{t('shifts.columns.receiptPhoto')}</h3>
-        {photoLoading ? (
-          <p className="text-sm text-muted-foreground">{t('tripDetails.imageLoading')}</p>
-        ) : photoDataUri ? (
-          <img
-            src={photoDataUri}
-            alt={t('tripDetails.receiptImageAlt', { id: trip.id })}
-            className="max-h-80 max-w-full rounded-sm border border-border object-contain"
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {trip.receiptPhotoPath
-              ? t('receiptPhoto.unavailable')
-              : t('tripDetails.noReceiptImage')}
-          </p>
-        )}
+        <h3 className="text-sm font-medium">{t('tripDetails.attachmentsTitle')}</h3>
+        <AttachmentManager entityType="TRIP" entityId={trip.id} />
       </section>
     </div>
   )

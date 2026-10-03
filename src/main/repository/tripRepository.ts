@@ -63,7 +63,6 @@ export interface TripRow {
   recipientName: string | null
   clientReceiptNo: string | null
   notes: string | null
-  receiptPhotoPath: string | null
 }
 
 export interface TripWithContextRow {
@@ -88,7 +87,6 @@ export interface TripWithContextRow {
   recipientNameStatus: string
   recipientName: string | null
   clientReceiptNo: string | null
-  receiptPhotoPath: string | null
   notes: string | null
 }
 
@@ -135,8 +133,7 @@ export function listTripsByShift(shiftId: string): TripRow[] {
         crusher_receipt_status as crusherReceiptStatus, crusher_receipt_no as crusherReceiptNo,
         client_id as clientId, transport_price as transportPrice, client_price as clientPrice,
         recipient_name_status as recipientNameStatus, recipient_name as recipientName,
-        client_receipt_no as clientReceiptNo, notes,
-        receipt_photo_path as receiptPhotoPath
+        client_receipt_no as clientReceiptNo, notes
       FROM Trip
       WHERE shift_id = ?
       ORDER BY trip_date, id
@@ -180,7 +177,6 @@ export function listAllTrips(): TripWithContextRow[] {
         t.recipient_name_status as recipientNameStatus,
         t.recipient_name as recipientName,
         t.client_receipt_no as clientReceiptNo,
-        t.receipt_photo_path as receiptPhotoPath,
         t.notes
       FROM Trip t
       JOIN Shift s ON s.id = t.shift_id
@@ -206,8 +202,7 @@ export function getTripById(id: string): TripRow | undefined {
         crusher_receipt_status as crusherReceiptStatus, crusher_receipt_no as crusherReceiptNo,
         client_id as clientId, transport_price as transportPrice, client_price as clientPrice,
         recipient_name_status as recipientNameStatus, recipient_name as recipientName,
-        client_receipt_no as clientReceiptNo, notes,
-        receipt_photo_path as receiptPhotoPath
+        client_receipt_no as clientReceiptNo, notes
       FROM Trip
       WHERE id = ?
     `
@@ -244,9 +239,4 @@ export function updateTrip(input: UpdateTripInput): void {
 export function deleteTripById(id: string): void {
   const db = getDb()
   db.prepare('DELETE FROM Trip WHERE id = ?').run(id)
-}
-
-export function updateTripPhotoPath(tripId: string, photoPath: string | null): void {
-  const db = getDb()
-  db.prepare('UPDATE Trip SET receipt_photo_path = ? WHERE id = ?').run(photoPath, tripId)
 }

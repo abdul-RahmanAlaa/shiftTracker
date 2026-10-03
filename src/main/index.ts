@@ -37,8 +37,12 @@ import {
   deleteClientPayment
 } from './use-cases/createClientPayment'
 import { getClientAccount } from './use-cases/getAccounts'
-import { deleteTripPhoto, getTripPhoto, saveTripPhoto } from './use-cases/tripPhoto'
-import { deleteShiftPhoto, getShiftPhoto, saveShiftPhoto } from './use-cases/shiftPhoto'
+import {
+  addAttachment,
+  removeAttachment,
+  listEntityAttachments,
+  getAttachmentPhoto
+} from './use-cases/attachmentPhoto'
 
 function createWindow(): void {
   // Create the browser window.
@@ -98,9 +102,6 @@ app.whenReady().then(() => {
   ipcMain.handle('vehicle:create', (_event, input) => createVehicle(input))
   ipcMain.handle('shift:create', (_event, input) => createShift(input))
   ipcMain.handle('shift:close', (_event, input) => closeShift(input))
-  ipcMain.handle('shift:savePhoto', (_event, input) => saveShiftPhoto(input))
-  ipcMain.handle('shift:deletePhoto', (_event, input) => deleteShiftPhoto(input))
-  ipcMain.handle('shift:getPhoto', (_event, input) => getShiftPhoto(input))
   ipcMain.handle('driver:list', () => listDrivers())
   ipcMain.handle('contractor:list', () => listContractors())
   ipcMain.handle('vehicle:list', () => listVehicles())
@@ -135,9 +136,10 @@ app.whenReady().then(() => {
   ipcMain.handle('shift:listAll', () => listShifts())
   ipcMain.handle('trip:update', (_event, input) => updateTrip(input))
   ipcMain.handle('trip:delete', (_event, input) => deleteTrip(input))
-  ipcMain.handle('trip:savePhoto', (_event, input) => saveTripPhoto(input))
-  ipcMain.handle('trip:deletePhoto', (_event, input) => deleteTripPhoto(input))
-  ipcMain.handle('trip:getPhoto', (_event, input) => getTripPhoto(input))
+  ipcMain.handle('attachment:add', (_event, input) => addAttachment(input))
+  ipcMain.handle('attachment:remove', (_event, input) => removeAttachment(input))
+  ipcMain.handle('attachment:list', (_event, input) => listEntityAttachments(input))
+  ipcMain.handle('attachment:getPhoto', (_event, input) => getAttachmentPhoto(input))
 
   createWindow()
 

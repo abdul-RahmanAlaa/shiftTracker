@@ -1,6 +1,6 @@
 # TODO — تطبيق إدارة ورديات نقل السن
 
-آخر تحديث: إزالة CSV import من التطبيق وتعليقه لحين إعادة إدخال الورديات يدويًا.
+آخر تحديث: توحيد loading feedback للفورمات والجداول.
 
 ## 🚩 أولوية قصوى: Full i18n migration — إزالة كل النصوص المضمّنة
 
@@ -22,6 +22,7 @@
 - [x] `FloatingWindow.tsx` (3,477 bytes)
 - [x] `AccountTables.tsx` (5,314 bytes)
 - [x] `CreateShiftForm.tsx` (5,856 bytes)
+- [x] `ImportPage.tsx` (6,266 bytes)
 - [x] `ContractorsSettings.tsx` (7,185 bytes)
 - [x] `DriversSettings.tsx` (7,499 bytes)
 - [x] `ClientsSettings.tsx` (7,925 bytes)
@@ -49,9 +50,21 @@
 - [x] Ledger: create + update + delete، مع قفل التعديل/المسح لو الوردية مقفولة
 - [x] ClientPayment: create + update + delete (من غير قيد وردية لأنه مالوش shift_id)
 - [x] الحسابات: getContractorAccount, getDriverHistory, getClientAccount (مع totalCubic)
+- [x] CSV import كامل (PapaParse + validation + transaction + backup)، والملف التاريخي (~450 صف) اتاستورد بنجاح
 - [x] preload و IPC متطابقين تمامًا (مفيش دالة يتيمة في أي اتجاه)
 
 ### UI
+- [x] `DataTable` عام (sorting + multi-select filters + row selection + sum) على: Ledger، الورديات، كل النقلات، الحسابات، الإعدادات
+- [x] فورمات الإعدادات الخمس + فتح/تعديل وردية + إضافة/تعديل دفعة عميل: كلها Dialog
+- [x] `AddTripPage`: فورم النقلة مكشوف على الصفحة (استثناء متعمد)
+- [x] `LedgerEntryForm.tsx` مشترك؛ إضافة حركة من حساب المقاول مع `contractorId` مقفول، ومن سجل السائق مع `driverId` مقفول و`contractorId` مطلوب ومختار يدويًا
+- [x] `FloatingWindow` + `FloatingWindowsProvider`، مستخدمة في AllTripsPage وLedgerPage
+- [x] زرار "تفاصيل" لكل حركة في LedgerPage (`LedgerEntryDetailsContent`)
+- [x] تعديل/مسح حركات Ledger في LedgerPage وContractorAccountPage وDriverHistoryPage
+- [x] تعديل/مسح دفعات العميل في ClientAccountPage
+- [x] `ImportPage`: رفع CSV + نموذج + ملخص + أخطاء الصفوف
+- [x] `space-*` اتشالت بالكامل واتبدلت بـ `gap`، والـ activity log القديم اتشال
+
 ## ✅ تم إنجازه
 
 - [x] **قائمة وتفاصيل الورديات**: `/shifts` قائمة وDialogs للفتح والقفل، و`/shifts/:shiftId` فقط صفحة تفاصيل ونقلات. اختيار السائق حقل عادي داخل `CreateShiftForm`؛ ده نمط list→detail للكيانات المستقبلية.
@@ -61,7 +74,8 @@
 
 ## ⏳ لسه ماتبدأش (بترتيب التنفيذ المقترح)
 
-1. توثيق رسمي لعملية الـ migration من الإكسل (خطوات + الحالات الشاذة)
+1. CSV export (مفيش حاليًا، فيه بس تنزيل نموذج الاستيراد)
+2. توثيق رسمي لعملية الـ migration من الإكسل (خطوات + الحالات الشاذة)
 
 - Support more than one receipt photo per trip (currently one: `Trip.receipt_photo_path`). Real use case surfaced during manual testing: a trip can have a separate crusher receipt photo and a separate client receipt photo — right now only one slot exists. When we get to this: needs a backend decision first (either a second nullable path column on `Trip` for a second fixed slot, or a proper `Attachment` table with `trip_id` + `kind` if we might need more than two eventually) — this is a Claude/backend task, not something to implement on your own initiative. Not urgent, not scheduled yet.
 
@@ -69,6 +83,7 @@
 
 - [x] `npm run lint` بيفشل: تم توحيد الـ LF via `.gitattributes`، وتم إصلاح الـ 4 errors الحقيقية في الـ renderer. ما زال الـ repo في وضع warnings Prettier CRLF على ملفات قديمة، ولذا الـ warnings متبقية لكن بدون أخطاء.
 - [x] `as any` في `LedgerPage.tsx` و`ContractorAccountPage.tsx` و`DriverHistoryPage.tsx` تم إزالتها باستخدام أنواع صريحة من `window.api`
+- [x] `ImportPage.tsx` تم استبدال الـ `<Table>` اليدوي بـ `DataTable` مع نفس أعمدة الأخطاء
 
 ## ⚠️ محتاج اختبار يدوي حقيقي في نافذة Electron (مسؤوليتك إنت، Copilot مالوش وصول ليها)
 
@@ -104,5 +119,4 @@
 - صاحب السيارة (`ownerName`) مستقل تمامًا عن مقاول النقل (`contractorId`)
 - `Ledger` (عهدة/دفعة/اخرى) هو المصدر الوحيد لفلوس المقاول والسائق، مختلف عمدًا عن `ClientPayment` البسيط
 - عدم دعم تحديد خلايا فردية بالسحب في `DataTable` مقصود
-- CSV import/export: paused — removed from the running app on 2026-09-30, to be restored once the user finishes manually re-entering shifts and asks for it.
 

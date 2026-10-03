@@ -1,5 +1,7 @@
 import { backupDatabase } from '../backup'
 import { getShiftById, getShiftStats, closeShiftInDb } from '../repository/shiftRepository'
+import { listAttachments } from '../repository/attachmentRepository'
+import { listTripsByShift } from '../repository/tripRepository'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
@@ -23,10 +25,29 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
   if (shift.status === 'CLOSED') {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة بالفعل' }] }
   }
-  if (!shift.closingPhotoPath?.trim()) {
+  if (
+    !listAttachments('SHIFT', input.shiftId).some(
+      (attachment) => attachment.kind === 'CLOSING_SHEET'
+    )
+  ) {
     return {
       ok: false,
-      errors: [{ field: 'closingPhotoPath', message: 'لازم ترفع صورة ورقة تقفيل الوردية الأول' }]
+      errors: [{ field: 'closingAttachment', message: 'لازم ترفع صورة ورقة تقفيل الوردية الأول' }]
+    }
+  }
+
+  const tripsMissingAttachments = listTripsByShift(input.shiftId)
+    .filter((trip) => listAttachments('TRIP', trip.id).length === 0)
+    .map((trip) => trip.id)
+  if (tripsMissingAttachments.length > 0) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: 'tripAttachments',
+          message: `كل نقلة لازم يكون لها مستند واحد على الأقل قبل قفل الوردية: ${tripsMissingAttachments.join(', ')}`
+        }
+      ]
     }
   }
 

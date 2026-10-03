@@ -10,6 +10,15 @@ interface FailedUseCaseResult {
   errors: { field: string; message: string }[]
 }
 
+interface AttachmentRow {
+  id: number
+  entityType: 'TRIP' | 'SHIFT'
+  entityId: string
+  kind: 'CRUSHER_RECEIPT' | 'CLIENT_RECEIPT' | 'CLOSING_SHEET'
+  photoPath: string
+  createdAt: string
+}
+
 interface TripRow {
   id: string
   shiftId: string
@@ -30,7 +39,6 @@ interface TripRow {
   recipientName: string | null
   clientReceiptNo: string | null
   notes: string | null
-  receiptPhotoPath: string | null
 }
 
 interface TripWithContextRow {
@@ -55,7 +63,6 @@ interface TripWithContextRow {
   recipientNameStatus: string
   recipientName: string | null
   clientReceiptNo: string | null
-  receiptPhotoPath: string | null
   notes: string | null
 }
 
@@ -119,7 +126,6 @@ interface ShiftListRow {
   status: string
   startDate: string
   endDate: string | null
-  closingPhotoPath: string | null
   actualTripCount: number
 }
 
@@ -190,16 +196,6 @@ interface Api {
     shiftId: string
     endDate: string
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
-  saveShiftPhoto: (input: {
-    shiftId: string
-    imageBase64: string
-  }) => Promise<UseCaseResult<{ path: string }> | FailedUseCaseResult>
-  deleteShiftPhoto: (input: {
-    shiftId: string
-  }) => Promise<UseCaseResult<{ shiftId: string }> | FailedUseCaseResult>
-  getShiftPhoto: (input: {
-    photoPath: string
-  }) => Promise<UseCaseResult<{ dataUri: string | null }> | FailedUseCaseResult>
   listDrivers: () => Promise<
     | UseCaseResult<{ id: number; name: string; phone1: string | null; phone2: string | null }[]>
     | FailedUseCaseResult
@@ -362,14 +358,20 @@ interface Api {
   deleteTrip: (input: {
     id: string
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
-  saveTripPhoto: (input: {
-    tripId: string
+  addAttachment: (input: {
+    entityType: 'TRIP' | 'SHIFT'
+    entityId: string
+    kind: 'CRUSHER_RECEIPT' | 'CLIENT_RECEIPT' | 'CLOSING_SHEET'
     imageBase64: string
-  }) => Promise<UseCaseResult<{ path: string }> | FailedUseCaseResult>
-  deleteTripPhoto: (input: {
-    tripId: string
-  }) => Promise<UseCaseResult<{ tripId: string }> | FailedUseCaseResult>
-  getTripPhoto: (input: {
+  }) => Promise<UseCaseResult<{ id: number; path: string }> | FailedUseCaseResult>
+  removeAttachment: (input: {
+    id: number
+  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  listEntityAttachments: (input: {
+    entityType: 'TRIP' | 'SHIFT'
+    entityId: string
+  }) => Promise<UseCaseResult<AttachmentRow[]> | FailedUseCaseResult>
+  getAttachmentPhoto: (input: {
     photoPath: string
   }) => Promise<UseCaseResult<{ dataUri: string | null }> | FailedUseCaseResult>
   getClientAccount: (input: {

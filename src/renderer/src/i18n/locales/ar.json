@@ -183,9 +183,12 @@
   },
   "receiptPhoto": {
     "labels": {
-      "trip": "إيصال النقلة",
-      "shift": "ورقة تقفيل الوردية"
+      "crusherReceipt": "إيصال الكسارة",
+      "clientReceipt": "إيصال العميل",
+      "closingSheet": "مستند تقفيل"
     },
+    "closingDocuments": "مستندات التقفيل",
+    "addDocument": "إضافة مستند",
     "upload": "رفع صورة {{label}}",
     "confirmDelete": "متأكد إنك عايز تمسح {{label}}؟",
     "preview": "معاينة {{label}}",
@@ -202,7 +205,8 @@
       "prepareImage": "تعذر تجهيز الصورة",
       "cropImage": "تعذر قص الصورة",
       "exportImage": "تعذر تصدير الصورة",
-      "saveImage": "تعذر حفظ الصورة"
+      "saveImage": "تعذر حفظ الصورة",
+      "readImage": "تعذر قراءة الصورة"
     }
   },
   "vehiclesSettings": {
@@ -267,8 +271,10 @@
     "closeCardTitle": "قفل وردية",
     "selectShift": "اختار الوردية",
     "closeDatePlaceholder": "اختر تاريخ القفل",
-    "closingPhotoRequired": "لازم ترفع صورة ورقة التقفيل الأول",
+    "closingPhotoRequired": "لازم تضيف مستند تقفيل للوردية الأول",
     "closeSubmit": "قفل الوردية",
+    "checkingAttachments": "جاري التحقق من المستندات...",
+    "tripsMissingAttachments": "النقلات دي تحتاج إيصالًا واحدًا على الأقل: {{tripIds}}",
     "columns": {
       "status": "الحالة",
       "startDate": "تاريخ البداية",
@@ -336,6 +342,7 @@
     "selectDriver": "اختار السائق",
     "noOpenShift": "مفيش وردية مفتوحة لهذا السائق",
     "tripLogTitle": "سجل النقلات",
+    "attachmentsTitle": "مرفقات النقلة {{id}}",
     "steps": {
       "selectDriver": "الخطوة 1: اختيار السائق",
       "shiftStatus": "الخطوة 2: حالة الوردية",
@@ -383,14 +390,12 @@
     }
   },
   "tripDetails": {
+    "attachmentsTitle": "مرفقات النقلة",
     "fields": {
       "tripNumber": "رقم النقلة",
       "clientCubicReported": "تكعيب العميل المُبلّغ",
       "discountQuantity": "كمية الخصم"
-    },
-    "imageLoading": "جاري تحميل الصورة...",
-    "receiptImageAlt": "صورة إيصال النقلة {{id}}",
-    "noReceiptImage": "لا يوجد إيصال مصوّر"
+    }
   },
   "app": {
     "name": "Shift Tracker",
