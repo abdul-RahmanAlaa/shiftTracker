@@ -41,8 +41,8 @@
 ## ✅ موجود في الكود ومؤكد
 
 ### Backend والبيانات
-- [x] Schema v11 يشمل Attachment وMaterialType وحقول الرصيد الافتتاحي ومكان العميل و`Trip.material_type_id`، بالإضافة إلى الكيانات والحسابات والـ Views الحالية
-- [x] قاعدة البيانات الحالية على `user_version = 11`؛ راجع `shift-tracker-context.md` لملاحظة فجوة migrations المعروفة بين الإصدارات 2 و8
+- [x] Schema كامل (Driver/Client/Crusher/Contractor/Vehicle/Shift/Trip/Ledger/ClientPayment) + Views: ShiftStats, TripAccounting
+- [x] Migration chain كامل حتى v9 (v3 صورة النقلة، v4 هاتف المقاول، v5 stone_price nullable، v6 صورة تقفيل الوردية، v7 Shift.status، v8 recipient name status، v9 ledger + crusher receipt enums)
 - [x] CRUD كامل لـ Driver/Client/Crusher/Contractor/Vehicle، كل واحد بـ repository + use-case مخصص
 - [x] دورة الوردية والنقلة: فتح/قفل/تعديل/مسح، مع منع القفل لو عدد النقلات مش مطابق، وbackup تلقائي عند القفل
 - [x] صورة ورقة تقفيل الوردية إجبارية قبل القفل (شرط backend في `closeShift` + تعطيل الزرار في الـ UI)
@@ -55,11 +55,7 @@
 
 ### UI
 - [x] `DataTable` عام (sorting + multi-select filters + row selection + sum) على: Ledger، الورديات، كل النقلات، الحسابات، الإعدادات
-- [x] فورمات الإعدادات الستة + فتح/تعديل وردية + إضافة/تعديل دفعة عميل: كلها Dialog
-- [x] إعدادات `MaterialType`: CRUD عبر Dialog بنفس نمط إعدادات الكيانات الأخرى
-- [x] حقول `location` / `openingBalance` / `openingBalanceDate` في إعدادات `Client`، وحقلا الرصيد الافتتاحي وتاريخه في إعدادات `Contractor`
-- [x] حقل `materialTypeId` مطلوب في فورم إضافة/تعديل النقلة (`AddTripPage.tsx` و`ShiftDetailPage.tsx`)
-- [x] صفحة `/statements` لكشف حساب العميل أو المقاول، بجدول الرصيد المتدرج والإجماليات؛ منفصلة عمدًا عن `/accounts` (الخزينة)
+- [x] فورمات الإعدادات الخمس + فتح/تعديل وردية + إضافة/تعديل دفعة عميل: كلها Dialog
 - [x] `AddTripPage`: فورم النقلة مكشوف على الصفحة (استثناء متعمد)
 - [x] `LedgerEntryForm.tsx` مشترك؛ إضافة حركة من حساب المقاول مع `contractorId` مقفول، ومن سجل السائق مع `driverId` مقفول و`contractorId` مطلوب ومختار يدويًا
 - [x] `FloatingWindow` + `FloatingWindowsProvider`، مستخدمة في AllTripsPage وLedgerPage
@@ -74,29 +70,14 @@
 - [x] **قائمة وتفاصيل الورديات**: `/shifts` قائمة وDialogs للفتح والقفل، و`/shifts/:shiftId` فقط صفحة تفاصيل ونقلات. اختيار السائق حقل عادي داخل `CreateShiftForm`؛ ده نمط list→detail للكيانات المستقبلية.
 - [x] **Loading feedback**: submit buttons تستخدم `formState.isSubmitting` مع spinner وتعطيل الإغلاق أثناء الحفظ؛ `DataTable` يستخدم `loading` لعرض Skeleton rows مع بقاء headers ظاهرة.
 - [x] **دمج Ledger جوه AccountsPage** كقسم رابع "كل الحركات" وإلغاء `/ledger` من الـ navbar (القرار: الحسابات تبقى الـ main)
-- [x] **إعادة تسمية الحسابات إلى الخزينة** في واجهة المستخدم عبر ترجمة `accountsPage.title`، من غير تغيير المسار أو المعرفات الداخلية.
 - [x] **سكرول داخلي للجداول**: ملك للمستخدم. لا يخص أي مهمة Copilot، والـ navbar ثابت من غير أي تعديل.
 
 ## ⏳ لسه ماتبدأش (بترتيب التنفيذ المقترح)
 
-1. [ ] `CSV export` (مفيش حاليًا، فيه بس تنزيل نموذج الاستيراد)
-2. [ ] توثيق رسمي لعملية الـ migration من الإكسل (خطوات + الحالات الشاذة)
-
-### ملاحظة حالة الـ statement في هذا snapshot
-
-Backend `MaterialType` وstatement موجودان في المصدر مع IPC/preload APIs. صفحة `/statements` في renderer مكتملة للعملاء والمقاولين؛ تظل منفصلة عن `/accounts` المخصصة للخزينة.
+1. CSV export (مفيش حاليًا، فيه بس تنزيل نموذج الاستيراد)
+2. توثيق رسمي لعملية الـ migration من الإكسل (خطوات + الحالات الشاذة)
 
 - Support more than one receipt photo per trip (currently one: `Trip.receipt_photo_path`). Real use case surfaced during manual testing: a trip can have a separate crusher receipt photo and a separate client receipt photo — right now only one slot exists. When we get to this: needs a backend decision first (either a second nullable path column on `Trip` for a second fixed slot, or a proper `Attachment` table with `trip_id` + `kind` if we might need more than two eventually) — this is a Claude/backend task, not something to implement on your own initiative. Not urgent, not scheduled yet.
-
-## ❌ pending/undecided (ما تم حله ولا يتم التعامل معه كـ resolved)
-
-- [ ] `LedgerEntryForm.tsx` — "اتلغى بالغلط" ما زال pending/undecided ولا يتم اعتبارنا أنه تم تنفيذ شيء فيه في هذا التحديث.
-- [ ] أزرار "إضافة حركة" على `ContractorAccountPage` و`DriverHistoryPage` — لا يترتب عليها حل ولا إغلاق، وما زالت فكرة غير مقرّرة في هذا السياق.
-
-## ⏳ ملاحظات التنفيذ التفاعلي / التوثيق
-
-- [ ] إذا وصلت المشروع لأول نسخة shipped حقيقية، سيتم مسح سلسلة الـ migration بالكامل وبدء `v1` clean baseline بدل استمرار الـ historical migration experimental الحالي.
-- [ ] في الـ backend الرمز الحالي، `Attachment` يحل محل حقلَي `Trip.receipt_photo_path` و`Shift.closing_photo_path`؛ APIs statement متصلة بصفحة `/statements` في renderer.
 
 ## 🧹 دين تقني (من الجرد)
 
@@ -123,7 +104,9 @@ Backend `MaterialType` وstatement موجودان في المصدر مع IPC/pre
 
 ## 💭 قرارات اتناقشت وأُجّلت أو اترفضت عمدًا
 
+- **FloatingWindow كنافذة Electron منفصلة (BrowserWindow)**: مؤجلة. العيوب (state منفصل، IPC لكل تحديث، ذاكرة، lifecycle) أكبر من الفايدة من غير سيناريو حقيقي زي شاشتين.
 - **Navbar بيختفي بالسكرول**: مرفوض. الحل هو سكرول داخلي للجداول.
+- **Caching للأرقام المحسوبة**: مرفوض. الخطر (أرقام قديمة) أكبر من الفايدة، و`SUM()` وقت الطلب سريع كفاية.
 - **Lazy loading / virtualization للجداول**: مؤجل لحد ما نقرب من كام ألف صف تراكمي (~2000 نقلة/سنة، مش مشكلة دلوقتي).
 
 ## ملاحظات ثابتة

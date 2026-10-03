@@ -57,7 +57,6 @@ export type ResourceState = {
   vehicles: { vehicleNo: number; trailerNo: number; contractorId: number }[]
   crushers: NamedOption[]
   clients: NamedOption[]
-  materialTypes: NamedOption[]
   locations: string[]
 }
 
@@ -78,7 +77,6 @@ export const tripSchema = z
       .positive(i18n.t('tripForm.validation.crusherReceiptNumberRequired'))
       .optional(),
     clientId: z.number().int().positive(i18n.t('tripForm.validation.clientRequired')),
-    materialTypeId: z.number().int().positive(i18n.t('tripForm.validation.materialTypeRequired')),
     transportPrice: z.number().nonnegative(i18n.t('tripForm.validation.transportPriceRequired')),
     clientPrice: z.number().nonnegative(i18n.t('tripForm.validation.clientPriceRequired')),
     recipientNameStatus: z.enum(['PROVIDED', 'UNCLEAR']),
@@ -151,7 +149,6 @@ export function AddTripPage(): React.JSX.Element {
     vehicles: [],
     crushers: [],
     clients: [],
-    materialTypes: [],
     locations: []
   })
   const [selectedDriverId, setSelectedDriverId] = useState<number>()
@@ -184,7 +181,6 @@ export function AddTripPage(): React.JSX.Element {
       discountReason: '',
       location: '',
       crusherId: undefined,
-      materialTypeId: undefined,
       stonePrice: undefined,
       crusherReceiptStatus: 'UNKNOWN',
       crusherReceiptNo: undefined,
@@ -207,15 +203,13 @@ export function AddTripPage(): React.JSX.Element {
       window.api.listVehicles(),
       window.api.listCrushers(),
       window.api.listClients(),
-      window.api.listMaterialTypes(),
       window.api.listTripLocations()
-    ]).then(([drivers, vehicles, crushers, clients, materialTypes, locations]) => {
+    ]).then(([drivers, vehicles, crushers, clients, locations]) => {
       setResources({
         drivers: drivers.ok ? drivers.data : [],
         vehicles: vehicles.ok ? vehicles.data : [],
         crushers: crushers.ok ? crushers.data : [],
         clients: clients.ok ? clients.data : [],
-        materialTypes: materialTypes.ok ? materialTypes.data : [],
         locations: locations.ok ? locations.data : []
       })
       setResourceLoading(false)
@@ -637,36 +631,6 @@ export function TripForm({
                       {resources.clients.map((client) => (
                         <SelectItem key={client.id} value={String(client.id)}>
                           {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="materialTypeId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    {t('tripForm.fields.materialType')}
-                    {' *'}
-                  </FormLabel>
-                  <Select
-                    value={field.value ? String(field.value) : ''}
-                    onValueChange={(value) => field.onChange(Number(value))}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t('tripForm.placeholders.materialType')} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {resources.materialTypes.map((materialType) => (
-                        <SelectItem key={materialType.id} value={String(materialType.id)}>
-                          {materialType.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

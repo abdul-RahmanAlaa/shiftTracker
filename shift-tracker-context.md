@@ -21,7 +21,6 @@
 
 - Claude (Anthropic) هو الـ backend specialist في المشروع. Claude بيفحص الـ architecture، ويدوّر/يكتب/يراجع كل الـ backend code في `src/main` و`src/preload`، وهو اللي بقرر وقت ومينفع/هيتم تغيّر الـ backend وإزاي.
 - Copilot (أنت) هو senior frontend engineer. نطاقك الأساسي هو `src/renderer` — components، pages، forms، styling، client-side logic.
-- ملاحظة ثابتة عن الـ backend من حساب عمل منفصل: المستخدم بيشتغل على Claude Code في حساب عمل مستقل للـ backend على المشروع، ويعود لهذا chat لما يخلص رصيد الـ token. لو مفيش تغييرات كبيرة حصلت هناك، بيبعت فقط ملفي `shift-tracker-context.md` و`shift-app-todo.md`; لو تغيّرت الـ backend بشكل كبير، بيبعت الـ source كامل كـ zip، وكل جلسة هنا بتتأكد من الحالة الحقيقية في الملفات بدل الاعتماد على الذاكرة أو على تاريخ المحادثات.
 - ممنوع تمامًا إنك تعدّل أي حاجة تحت `src/main` أو `src/preload` من المبادرة الشخصية، حتى لو المهمة بتبان محتاجة كده، ولو كان شيء صغير/تافه. لو المهمة بتحتاج تغيير backend، وقف وارجّعها للمستخدم بدل ما تعدّلها بنفسك — المستخدم هيجيب الـ backend change من Claude بشكل منفصل.
 - الاستثناء الوحيد: لو الـ prompt بيشمل تغييرات ملفات backend صراحة (يعني Claude كاتب/موافق بالفعل على الـ backend change المحدد، وده موجود مباشرة داخل الـ prompt اللي عندك)، فإنت تطبق فقط اللي تم تحديده. ده تصريح واضح للمهمة دي فقط، مش إذن دائم — ما يطلعش على مهام لاحقة.
 - القسمة دي موجودة لأن Copilot عنده أدوات IDE كاملة (search، multi-file edits، terminal، typecheck/lint) وده بيخليه ممتاز جدًا للتكرار السريع في الـ frontend، لكن تغييرات الـ backend في المشروع (schema، migrations، validation logic، IPC contracts) لازم تمر بمراجعة معماريّة موحّدة لتجنب الانحراف — والراعي دايم هو Claude.
@@ -45,11 +44,7 @@
 
 ## نظام الـ Migration
 
-النسخة الحالية في هذا الـ checkout هي `user_version = 11` في `src/main/db.ts`. الـ schema الحالي يشتمل على `Attachment` و`MaterialType` وحقول `opening_balance`/`opening_balance_date` على `Client` و`TransportContractor`، و`Trip.material_type_id`.
-
-بنية الـ migration الحالية فيها فجوة معلومة ومهمّة: الـ chain الحالي يعرّف تعامله صراحة فقط لـ `currentVersion === 0`, `1`, `9`, و`10`; أي قيمة من `2` إلى `8` تقع في الـ `else` وتطبع `Database up to date` من غير أي upgrade. ده خطر صامت، ويفترض إن الـ database الحالي تم مسحه وإعادة بناؤه من `v1` مجددًا. في أي وقت تتغير حالة الـ database الحقيقية قبل إصلاح هذا، لازم يعتبر ده `trap`/`silent migration gap` لا ينسى.
-
-قيمة `user_version` الحالية = 11، لكن لا يوجد ربط كامل للتاريخ الدائم في الـ migrations؛ هيبوست إقليمي فقط، وليس خطة قيد قيد لأن المشروع لا يزال في مرحلة تجريبية. عند الوصول لأول إصدار منتج فعلي، سيتم مسح سلسلة الـ migration بالكامل وبدء baseline واحد نظيف من `v1` بدل استمرار السجل التجريبي.
+`db.ts` حاليًا بيبدأ قاعدة بيانات جديدة بـ schema واحدة و`user_version = 1`؛ منطق migrations القديمة اتشال بعد حذف قاعدة التطوير المحلية. قيم الحالة المخزنة بالإنجليزية: `Shift.status` (`OPEN`/`CLOSED`)، و`Trip.recipient_name_status`، و`Trip.crusher_receipt_status`، و`Ledger.movement_type`.
 
 ## Data Model (الحالة الحالية)
 
@@ -57,23 +52,14 @@
 Vehicle(vehicle_no PK, trailer_no NOT NULL, contractor_id NOT NULL, default_cubic REAL NULL, owner_name TEXT NULL)
 Driver(id PK, name UNIQUE NOT NULL, phone1 TEXT NULL, phone2 TEXT NULL)
 Crusher(id PK, name UNIQUE NOT NULL, initial_price REAL NULL)
-Client(id PK, name UNIQUE NOT NULL, initial_price REAL NULL, location TEXT NULL, opening_balance REAL NOT NULL DEFAULT 0, opening_balance_date TEXT NULL)
-TransportContractor(id PK, name UNIQUE NOT NULL, phone TEXT NULL, opening_balance REAL NOT NULL DEFAULT 0, opening_balance_date TEXT NULL)
-MaterialType(id PK, name UNIQUE NOT NULL)
-Trip(..., stone_price REAL NULL, crusher_receipt_status['PROVIDED'|'CONFIRMED_MISSING'|'UNKNOWN'], crusher_receipt_no INTEGER NULL, recipient_name_status['PROVIDED'|'UNCLEAR'], client_receipt_no TEXT NULL, material_type_id INTEGER NULL REFERENCES MaterialType(id), notes TEXT NULL)
-Shift(..., closing_photo_path لا يوجد، لأن صورة الورقة أصبحت في Attachment table)
-Attachment(id PK, entity_type CHECK ('TRIP','SHIFT'), entity_id TEXT NOT NULL, kind CHECK ('CRUSHER_RECEIPT','CLIENT_RECEIPT','CLOSING_SHEET'), photo_path TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT datetime('now'))
--- ملاحظات هامة: Attachment بدل العمودين القديمين `Trip.receipt_photo_path` و`Shift.closing_photo_path`، مع polymorphic entity كـ entity_type + entity_id + kind.
+Client(id PK, name UNIQUE NOT NULL, initial_price REAL NULL)
+TransportContractor(id PK, name UNIQUE NOT NULL, phone TEXT NULL)
+Trip(..., stone_price REAL NULL, receipt_photo_path TEXT NULL, crusher_receipt_status['PROVIDED'|'CONFIRMED_MISSING'|'UNKNOWN'], recipient_name_status['PROVIDED'|'UNCLEAR'])  -- stone_price بقى nullable للاستيراد التاريخي
+Shift(..., closing_photo_path TEXT NULL)  -- إجباري قبل القفل، شرط backend حقيقي في closeShift
 Ledger(id, entry_date, driver_id NULL, movement_type['ADVANCE'|'PAYMENT'|'OTHER'], amount, shift_id NULL, contractor_id NOT NULL, notes)
 ClientPayment(id, entry_date, client_id, amount, notes)
 Views: ShiftStats, TripAccounting  -- effective_client_cubic = client_cubic_reported - discount_qty
 ```
-
-### Reality check عن الـ statement feature
-
-في هذا الـ checkout، تنفيذ backend لـ `MaterialType` وstatement موجود في `src/main/repository/materialTypeRepository.ts`, `src/main/use-cases/createMaterialType.ts`, `src/main/repository/statementRepository.ts`, `src/main/use-cases/getStatement.ts`، مع IPC/preload APIs بما فيها `getClientStatement` و`getContractorStatement`. واجهة كشف الحساب نفسها ما زالت غير موجودة في renderer.
-
-**حالة renderer الحالية**: صفحة `StatementsPage` على `/statements` تعرض كشف حساب العميل أو المقاول من API الحالي، مع الرصيد الافتتاحي والحركات والإجماليات. “كشف حساب” و“الخزينة” مدخلان منفصلان عمدًا: الأولى كشف مدين/دائن، والثانية سجل الحركات النقدية فقط. صفحة إعدادات `MaterialType` وحقول `Client`/`Contractor` للرصيد الافتتاحي وحقل نوع الصنف الإلزامي في فورم إضافة/تعديل النقلة مكتملة أيضًا.
 
 **قرار مهم يفرّق الـ Ledger عن ClientPayment**: العميل بس بيدفع (علاقة اتجاه واحد، فـ `ClientPayment` بسيط). المقاول/السائق العلاقة أعقد (عهدة سلفة + دفعة تسديد + اخرى)، فمحتاجين `Ledger` بنوع حركة. ده مش هيتغير — الحل لتسهيل الاستخدام هو تسهيل الوصول للـ Ledger من صفحات الحساب، مش دمج المفهومين في بعض.
 
@@ -83,20 +69,19 @@ Views: ShiftStats, TripAccounting  -- effective_client_cubic = client_cubic_repo
 
 ## preload API
 
-`src/preload/index.ts` و`index.d.ts` يعلنان APIs الخاصة بـ `MaterialType` وstatement وحقول list clients/contractors. نقطة لازم نفتكرها: `getClientAccount` بيرجع `payments` (مش `entries` زي `ContractorAccount`). تم تحديث القنوات أيضًا بـ `updateClientPayment` و`deleteClientPayment` للتوافق مع الـ UI، مع الحفاظ على قاعدة: `ClientPayment` لا يملك `shift_id` وبالتالي لا يقيد بالوردية.
+`src/preload/index.ts` و`index.d.ts` مرجعيين ومتزامنين بالكامل — مش هيتكرر تفصيلهم هنا. نقطة لازم نفتكرها: `getClientAccount` بيرجع `payments` (مش `entries` زي `ContractorAccount`). تم تحديث القنوات أيضًا بـ `updateClientPayment` و`deleteClientPayment` للتوافق مع الـ UI، مع الحفاظ على قاعدة: `ClientPayment` لا يملك `shift_id` وبالتالي لا يقيد بالوردية.
 
 ## هيكل الملفات الفعلي (بعد آخر مراجعة)
 
 ```
 src/main/
-  db.ts                        — SCHEMA v11 + migration chain
+  db.ts                        — SCHEMA v9 + migration chain كامل
   photoStorage.ts               — معمم (kind-based: trip/shift)، تخزين userData/docs/{kind}s/{id}.jpg
   repository/  — driverRepository, clientRepository, crusherRepository, contractorRepository,
-                  vehicleRepository, shiftRepository, tripRepository, ledgerRepository, accountsRepository,
-                  materialTypeRepository, statementRepository
+                  vehicleRepository, shiftRepository, tripRepository, ledgerRepository, accountsRepository
   use-cases/   — createDriver/createClient/createCrusher/createContractor (كل واحد create+list+update+delete)،
                   createVehicle، createShift، closeShift، createTrip (+update/delete)، createLedgerEntry،
-                  createClientPayment، getAccounts، createMaterialType، getStatement، tripPhoto (save/delete/get)، shiftPhoto (save/delete/get)،
+                  createClientPayment، getAccounts، tripPhoto (save/delete/get)، shiftPhoto (save/delete/get)،
                   csvImport (PapaParse + transaction)
 
 src/preload/  — index.ts + index.d.ts، مكتمل ومتزامن
@@ -105,7 +90,7 @@ src/renderer/src/
   i18n/
     index.ts                     — تهيئة `i18next` و`react-i18next` على لغة `ar`، محمّلة قبل `App`
     locales/ar.json              — namespace `translation` فارغ كبداية؛ استخراج النصوص مؤجل لكل صفحة/قسم
-  App.tsx                       — routes + navbar (الـ navbar ثابت؛ `/accounts` للخزينة و`/statements` لكشف الحساب كمدخلين منفصلين، وroute `/ledger` محذوف)
+  App.tsx                       — routes + navbar (الـ navbar ثابت، من غير أي تعديل اختفاء/sticky؛ route `/ledger` حذف، وAccountsPage هو نقطة الدخول الرئيسية)
   components/
     DataTable.tsx                — جدول عام: sorting + multi-select filters بالـ popover + row selection
                     + sum اختياري + actions column + `loading` skeleton rows.
@@ -136,10 +121,7 @@ src/renderer/src/
       DriverHistoryPage.tsx           — ✅ DataTable + Dialog "إضافة حركة" بسائق مقفول ومقاول مطلوب حر
       ClientAccountPage.tsx            — ✅ DataTable + totalCubic + Dialog "إضافة دفعة"
       AccountTables.tsx                 — shared (AccountCard, AccountSummary, LedgerEntriesTable...)
-    SettingsPage.tsx + settings/         — ✅ إعدادات الكيانات الستة؛ CRUD لـ MaterialType، وحقول location/الرصيد الافتتاحي للعميل والمقاول
-    AddTripPage.tsx / ShiftDetailPage.tsx — ✅ اختيار MaterialType مطلوب في الإضافة والتعديل
-    StatementsPage.tsx                    — ✅ `/statements`: اختيار عميل/مقاول، كشف حركة برصيد متدرج وإجماليات
-    AccountsPage.tsx                      — ✅ `/accounts` للخزينة؛ منفصلة عمدًا عن صفحة كشف الحساب
+    SettingsPage.tsx + settings/         — ✅ الخمسة كلهم Dialog + RHF + zod
     AllTripsPage.tsx                      — ✅ DataTable + FloatingWindow للتفاصيل
     ImportPage.tsx                         — ✅ رفع CSV + نموذج + ملخص + أخطاء صفوف
 ```
@@ -171,6 +153,8 @@ src/renderer/src/
 
 - **Navbar بيختفي بالسكرول**: مرفوض، الـ navbar ثابت من غير أي تعديل. المشكلة الحقيقية كانت إن السكرول بيمشي على الصفحة كلها (body) بدل منطقة الداتا بس — الحل هو سكرول داخلي لكل قسم، مش لمس الـ navbar.
 - **سكرول داخلي للجداول (لسه مش مطبق)**: اتعمل قبل كده بس اتلغى بالغلط لما رفضت تعديل تاني، والجرد الأخير أكد إنه مش موجود في الكود. القرار نفسه لسه سليم: الـ navbar ثابت من غير أي تعديل، والسكرول يبقى جوه منطقة الجدول بس مش على الصفحة كلها. المطلوب لما نعيده: `.app-shell`/`.app-main` بارتفاع ثابت (`height: 100vh` + `min-height: 0` + `overflow: hidden`)، وغلاف الجدول في `DataTable.tsx` بـ `flex-1 + overflow-y-auto`، و`thead` بـ `sticky top-0`.
+- **FloatingWindow كـ Electron BrowserWindow منفصل فعليًا برّه التطبيق**: اتناقشت بالتفصيل — العيوب (مفيش مشاركة state تلقائية، محتاج IPC صريح لكل تحديث، ذاكرة إضافية لكل نافذة، إدارة lifecycle كاملة، أول ميزة multi-window في المشروع من غير pattern جاهز) أكبر من الفايدة من غير سيناريو استخدام حقيقي (زي الشغل على شاشتين). الوضع الحالي كافي.
+- **Caching للأرقام المحسوبة (`balance`, `totalCubic`, إلخ)**: مرفوض. الخطر (تتنسى تتحدث) أكبر من فايدة الأداء على الحجم الحالي (`SUM()` وقت الطلب سريع كفاية).
 - **Lazy loading / table virtualization**: مؤجل لحد ما نقرب من كام ألف صف تراكمي (~2000 نقلة/سنة، مش مشكلة دلوقتي).
 
 ## استثناءات من الإكسل الأصلي (test cases للـ migration)
@@ -198,4 +182,4 @@ src/renderer/src/
 - ⏳ لسه باقي: مفيش CSV export حقيقي، فيه بس تنزيل نموذج الاستيراد.
 
 ## آخر جرد شامل للكود
-تم جرد كامل للـ backend والـ preload والـ renderer، وبعده اتعمل تنظيف lint/typecheck كامل، ودُمجت Ledger جوه AccountsPage. الحالة الحالية: الـ backend والـ preload متطابقين بدون أي دالة يتيمة، والـ Ledger بقت قسم "كل الحركات" جوه Accounts. اتضاف `LedgerEntryForm.tsx` وزرار "إضافة حركة" لصفحتَي المقاول والسائق مع قفل الشخص المعروض وإعادة تحميل بيانات الصفحة بعد الحفظ. الباقي: السكرول الداخلي (ملك المستخدم، مش تاسك Copilot)، وCSV export.
+تم جرد كامل للـ backend والـ preload والـ renderer، وبعده اتعمل تنظيف lint/typecheck كامل، ودُمجت Ledger جوه AccountsPage. الحالة الحالية: الـ backend والـ preload متطابقين بدون أي دالة يتيمة، والـ Ledger بقت قسم "كل الحركات" جوه Accounts. اتضاف `LedgerEntryForm.tsx` وزرار "إضافة حركة" لصفحتَي المقاول والسائق مع قفل الشخص المعروض وإعادة تحميل بيانات الصفحة بعد الحفظ. الباقي: السكرول الداخلي (ملك المستخدم، مش تاسك Copilot)، وصفحات الورديات المستقلة، وCSV export.

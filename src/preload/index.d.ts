@@ -204,9 +204,9 @@ interface Api {
   }) => Promise<
     UseCaseResult<{ id: number; name: string; initialPrice: number | null }> | FailedUseCaseResult
   >
-  createMaterialType: (input: { name: string }) => Promise<
-    UseCaseResult<MaterialTypeRow> | FailedUseCaseResult
-  >
+  createMaterialType: (input: {
+    name: string
+  }) => Promise<UseCaseResult<MaterialTypeRow> | FailedUseCaseResult>
   createContractor: (input: {
     name: string
     phone?: string
@@ -318,12 +318,13 @@ interface Api {
   deleteCrusher: (input: {
     id: number
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
-  updateMaterialType: (input: { id: number; name: string }) => Promise<
-    UseCaseResult<MaterialTypeRow> | FailedUseCaseResult
-  >
-  deleteMaterialType: (input: { id: number }) => Promise<
-    UseCaseResult<{ id: number }> | FailedUseCaseResult
-  >
+  updateMaterialType: (input: {
+    id: number
+    name: string
+  }) => Promise<UseCaseResult<MaterialTypeRow> | FailedUseCaseResult>
+  deleteMaterialType: (input: {
+    id: number
+  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
   updateContractor: (input: {
     id: number
     name: string
@@ -388,9 +389,7 @@ interface Api {
   listCrushers: () => Promise<
     UseCaseResult<{ id: number; name: string; initialPrice: number | null }[]> | FailedUseCaseResult
   >
-  listMaterialTypes: () => Promise<
-    UseCaseResult<MaterialTypeRow[]> | FailedUseCaseResult
-  >
+  listMaterialTypes: () => Promise<UseCaseResult<MaterialTypeRow[]> | FailedUseCaseResult>
   listClients: () => Promise<
     | UseCaseResult<
         {

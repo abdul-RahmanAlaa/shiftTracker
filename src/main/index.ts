@@ -44,10 +44,10 @@ import {
   getAttachmentPhoto
 } from './use-cases/attachmentPhoto'
 import {
-createMaterialType,
-listMaterialTypes,
-updateMaterialType,
-deleteMaterialType
+  createMaterialType,
+  listMaterialTypes,
+  updateMaterialType,
+  deleteMaterialType
 } from './use-cases/createMaterialType'
 import { getClientStatement, getContractorStatement } from './use-cases/getStatement'
 

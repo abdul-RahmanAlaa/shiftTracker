@@ -12,8 +12,6 @@
     "emDash": "—",
     "emDash": "—",
     "defaultPrice": "السعر الافتراضي",
-    "openingBalance": "الرصيد الافتتاحي",
-    "openingBalanceDate": "تاريخ الرصيد الافتتاحي",
     "lockedShift": "مرتبطة بوردية مقفولة",
     "columns": {
       "id": "id",
@@ -102,8 +100,7 @@
     "editTitle": "تعديل عميل",
     "deleteConfirmation": "متأكد إنك عايز تمسح العميل {{name}}؟",
     "fields": {
-      "name": "اسم العميل",
-      "location": "المكان"
+      "name": "اسم العميل"
     },
     "validation": {
       "nameRequired": "اسم العميل مطلوب"
@@ -305,7 +302,6 @@
       "crusherReceiptStatus": "إيصال الكسارة",
       "crusherReceiptNumber": "رقم إيصال الكسارة",
       "client": "العميل",
-      "materialType": "نوع الصنف",
       "recipientNameStatus": "اسم المستلم",
       "recipientName": "اسم المستلم",
       "clientReceiptNumber": "رقم إيصال العميل"
@@ -315,8 +311,7 @@
       "location": "اختار أو اكتب المكان",
       "typeLocation": "اكتب المكان...",
       "crusher": "اختار الكسارة",
-      "client": "اختار العميل",
-      "materialType": "اختار نوع الصنف"
+      "client": "اختار العميل"
     },
     "locationEmpty": "اكتب قيمة جديدة أو اختار من القائمة",
     "receiptStatuses": {
@@ -336,7 +331,6 @@
       "stonePriceRequired": "سعر الحجر مطلوب",
       "crusherReceiptNumberRequired": "رقم إيصال الكسارة مطلوب",
       "clientRequired": "العميل مطلوب",
-      "materialTypeRequired": "نوع الصنف مطلوب",
       "transportPriceRequired": "سعر النقل مطلوب",
       "clientPriceRequired": "سعر العميل مطلوب",
       "recipientNameRequired": "اسم المستلم مطلوب"
@@ -370,46 +364,12 @@
     "notes": "ملاحظات"
   },
   "accountsPage": {
-    "title": "الخزينة",
+    "title": "الحسابات",
     "sections": {
       "contractor": "حساب المقاول",
       "driver": "سجل السائق",
       "client": "حساب العميل",
       "allMovements": "كل الحركات"
-    }
-  },
-  "statementsPage": {
-    "title": "كشف حساب",
-    "entityType": "نوع الحساب",
-    "client": "عميل",
-    "contractor": "مقاول",
-    "entity": "العميل أو المقاول",
-    "selectEntity": "اختر العميل أو المقاول",
-    "searchEntity": "ابحث بالاسم...",
-    "noMatchingEntities": "لا توجد نتائج مطابقة",
-    "loadingEntities": "جاري تحميل العملاء والمقاولين...",
-    "entitiesError": "تعذر تحميل قائمة العملاء أو المقاولين",
-    "selectPrompt": "اختر نوع الحساب والاسم لعرض كشف الحساب",
-    "loadingStatement": "جاري تحميل كشف الحساب...",
-    "statementError": "تعذر تحميل كشف الحساب",
-    "noRows": "لا توجد بيانات لكشف الحساب",
-    "noMovements": "لا توجد حركات بعد؛ المعروض هو رصيد أول المدة فقط.",
-    "openingBalanceDescription": "رصيد أول المدة",
-    "columns": {
-      "date": "التاريخ",
-      "description": "البيان",
-      "quantity": "الكمية",
-      "price": "السعر",
-      "value": "القيمة",
-      "payment": "الدفعات",
-      "runningBalance": "الرصيد",
-      "notes": "ملاحظات"
-    },
-    "totals": {
-      "quantity": "إجمالي الكمية",
-      "value": "إجمالي القيمة",
-      "payments": "إجمالي الدفعات",
-      "finalBalance": "الرصيد النهائي"
     }
   },
   "allTrips": {
@@ -426,21 +386,7 @@
       "drivers": "السائقون",
       "contractors": "المقاولون",
       "crushers": "الكسارات",
-      "clients": "العملاء",
-      "materialTypes": "أنواع الأصناف"
-    }
-  },
-  "materialTypesSettings": {
-    "title": "أنواع الأصناف",
-    "addButton": "إضافة نوع صنف",
-    "addTitle": "إضافة نوع صنف جديد",
-    "editTitle": "تعديل نوع الصنف",
-    "deleteConfirmation": "متأكد إنك عايز تمسح نوع الصنف {{name}}؟",
-    "fields": {
-      "name": "اسم نوع الصنف"
-    },
-    "validation": {
-      "nameRequired": "اسم نوع الصنف مطلوب"
+      "clients": "العملاء"
     }
   },
   "tripDetails": {
