@@ -73,7 +73,7 @@ Views: ShiftStats, TripAccounting  -- effective_client_cubic = client_cubic_repo
 
 في هذا الـ checkout، تنفيذ backend لـ `MaterialType` وstatement موجود في `src/main/repository/materialTypeRepository.ts`, `src/main/use-cases/createMaterialType.ts`, `src/main/repository/statementRepository.ts`, `src/main/use-cases/getStatement.ts`، مع IPC/preload APIs بما فيها `getClientStatement` و`getContractorStatement`. واجهة كشف الحساب نفسها ما زالت غير موجودة في renderer.
 
-**حالة renderer الحالية**: صفحة إعدادات `MaterialType` وحقول `Client`/`Contractor` للرصيد الافتتاحي، وحقل نوع الصنف الإلزامي في فورم إضافة/تعديل النقلة مكتملة. صفحة “كشف حساب” (client + contractor فقط؛ driver/crusher خارج النطاق) ما زالت pending، رغم توفر backend API.
+**حالة renderer الحالية**: صفحة `StatementsPage` على `/statements` تعرض كشف حساب العميل أو المقاول من API الحالي، مع الرصيد الافتتاحي والحركات والإجماليات. “كشف حساب” و“الخزينة” مدخلان منفصلان عمدًا: الأولى كشف مدين/دائن، والثانية سجل الحركات النقدية فقط. صفحة إعدادات `MaterialType` وحقول `Client`/`Contractor` للرصيد الافتتاحي وحقل نوع الصنف الإلزامي في فورم إضافة/تعديل النقلة مكتملة أيضًا.
 
 **قرار مهم يفرّق الـ Ledger عن ClientPayment**: العميل بس بيدفع (علاقة اتجاه واحد، فـ `ClientPayment` بسيط). المقاول/السائق العلاقة أعقد (عهدة سلفة + دفعة تسديد + اخرى)، فمحتاجين `Ledger` بنوع حركة. ده مش هيتغير — الحل لتسهيل الاستخدام هو تسهيل الوصول للـ Ledger من صفحات الحساب، مش دمج المفهومين في بعض.
 
@@ -83,7 +83,7 @@ Views: ShiftStats, TripAccounting  -- effective_client_cubic = client_cubic_repo
 
 ## preload API
 
-`src/preload/index.ts` و`index.d.ts` يعلنان APIs الخاصة بـ `MaterialType` وstatement. نقطة لازم نفتكرها: `getClientAccount` بيرجع `payments` (مش `entries` زي `ContractorAccount`). تم تحديث القنوات أيضًا بـ `updateClientPayment` و`deleteClientPayment` للتوافق مع الـ UI، مع الحفاظ على قاعدة: `ClientPayment` لا يملك `shift_id` وبالتالي لا يقيد بالوردية. ملاحظة contract: أنواع نتائج `listClients` و`listContractors` في `index.d.ts` لا تتضمن حاليًا حقول الرصيد الافتتاحي (ولا `location` للعميل)، رغم أن main يرجعها؛ renderer يستخدم النوع الفعلي محليًا عند تحرير الصفوف. لا تعدّل preload ضمن مهام renderer فقط.
+`src/preload/index.ts` و`index.d.ts` يعلنان APIs الخاصة بـ `MaterialType` وstatement وحقول list clients/contractors. نقطة لازم نفتكرها: `getClientAccount` بيرجع `payments` (مش `entries` زي `ContractorAccount`). تم تحديث القنوات أيضًا بـ `updateClientPayment` و`deleteClientPayment` للتوافق مع الـ UI، مع الحفاظ على قاعدة: `ClientPayment` لا يملك `shift_id` وبالتالي لا يقيد بالوردية.
 
 ## هيكل الملفات الفعلي (بعد آخر مراجعة)
 
@@ -105,7 +105,7 @@ src/renderer/src/
   i18n/
     index.ts                     — تهيئة `i18next` و`react-i18next` على لغة `ar`، محمّلة قبل `App`
     locales/ar.json              — namespace `translation` فارغ كبداية؛ استخراج النصوص مؤجل لكل صفحة/قسم
-  App.tsx                       — routes + navbar (الـ navbar ثابت، من غير أي تعديل اختفاء/sticky؛ route `/ledger` حذف، وAccountsPage هو نقطة الدخول الرئيسية)
+  App.tsx                       — routes + navbar (الـ navbar ثابت؛ `/accounts` للخزينة و`/statements` لكشف الحساب كمدخلين منفصلين، وroute `/ledger` محذوف)
   components/
     DataTable.tsx                — جدول عام: sorting + multi-select filters بالـ popover + row selection
                     + sum اختياري + actions column + `loading` skeleton rows.
@@ -138,6 +138,8 @@ src/renderer/src/
       AccountTables.tsx                 — shared (AccountCard, AccountSummary, LedgerEntriesTable...)
     SettingsPage.tsx + settings/         — ✅ إعدادات الكيانات الستة؛ CRUD لـ MaterialType، وحقول location/الرصيد الافتتاحي للعميل والمقاول
     AddTripPage.tsx / ShiftDetailPage.tsx — ✅ اختيار MaterialType مطلوب في الإضافة والتعديل
+    StatementsPage.tsx                    — ✅ `/statements`: اختيار عميل/مقاول، كشف حركة برصيد متدرج وإجماليات
+    AccountsPage.tsx                      — ✅ `/accounts` للخزينة؛ منفصلة عمدًا عن صفحة كشف الحساب
     AllTripsPage.tsx                      — ✅ DataTable + FloatingWindow للتفاصيل
     ImportPage.tsx                         — ✅ رفع CSV + نموذج + ملخص + أخطاء صفوف
 ```

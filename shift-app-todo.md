@@ -59,6 +59,7 @@
 - [x] إعدادات `MaterialType`: CRUD عبر Dialog بنفس نمط إعدادات الكيانات الأخرى
 - [x] حقول `location` / `openingBalance` / `openingBalanceDate` في إعدادات `Client`، وحقلا الرصيد الافتتاحي وتاريخه في إعدادات `Contractor`
 - [x] حقل `materialTypeId` مطلوب في فورم إضافة/تعديل النقلة (`AddTripPage.tsx` و`ShiftDetailPage.tsx`)
+- [x] صفحة `/statements` لكشف حساب العميل أو المقاول، بجدول الرصيد المتدرج والإجماليات؛ منفصلة عمدًا عن `/accounts` (الخزينة)
 - [x] `AddTripPage`: فورم النقلة مكشوف على الصفحة (استثناء متعمد)
 - [x] `LedgerEntryForm.tsx` مشترك؛ إضافة حركة من حساب المقاول مع `contractorId` مقفول، ومن سجل السائق مع `driverId` مقفول و`contractorId` مطلوب ومختار يدويًا
 - [x] `FloatingWindow` + `FloatingWindowsProvider`، مستخدمة في AllTripsPage وLedgerPage
@@ -73,19 +74,17 @@
 - [x] **قائمة وتفاصيل الورديات**: `/shifts` قائمة وDialogs للفتح والقفل، و`/shifts/:shiftId` فقط صفحة تفاصيل ونقلات. اختيار السائق حقل عادي داخل `CreateShiftForm`؛ ده نمط list→detail للكيانات المستقبلية.
 - [x] **Loading feedback**: submit buttons تستخدم `formState.isSubmitting` مع spinner وتعطيل الإغلاق أثناء الحفظ؛ `DataTable` يستخدم `loading` لعرض Skeleton rows مع بقاء headers ظاهرة.
 - [x] **دمج Ledger جوه AccountsPage** كقسم رابع "كل الحركات" وإلغاء `/ledger` من الـ navbar (القرار: الحسابات تبقى الـ main)
+- [x] **إعادة تسمية الحسابات إلى الخزينة** في واجهة المستخدم عبر ترجمة `accountsPage.title`، من غير تغيير المسار أو المعرفات الداخلية.
 - [x] **سكرول داخلي للجداول**: ملك للمستخدم. لا يخص أي مهمة Copilot، والـ navbar ثابت من غير أي تعديل.
 
 ## ⏳ لسه ماتبدأش (بترتيب التنفيذ المقترح)
 
-1. [ ] إعادة تسمية `AccountsPage` من "الحسابات" إلى "النقدية" أو "الخزينة": هذا فعلاً ليس صفحة حسابات حقيقية، بل سجل حركات نقدية/ميزان، والقرار ما اتنفذش لحد الآن.
-2. [ ] المتبقي من statement feature في الـ renderer:
-   - [ ] صفحة جديدة "كشف حساب" (client + contractor فقط، وdriver/crusher خارج النطاق حسب قرار المستخدم) تعرض جدول الرصيد المتدرج: صف الافتتاح، صفوف الخصوم/المصروفات، صفوف الدفع/الدفعيات، عمود الرصيد التراكمي.
-3. [ ] `CSV export` (مفيش حاليًا، فيه بس تنزيل نموذج الاستيراد)
-4. [ ] توثيق رسمي لعملية الـ migration من الإكسل (خطوات + الحالات الشاذة)
+1. [ ] `CSV export` (مفيش حاليًا، فيه بس تنزيل نموذج الاستيراد)
+2. [ ] توثيق رسمي لعملية الـ migration من الإكسل (خطوات + الحالات الشاذة)
 
 ### ملاحظة حالة الـ statement في هذا snapshot
 
-Backend `MaterialType` وstatement موجودان في المصدر مع IPC/preload APIs. المنجز في renderer هو CRUD إعدادات `MaterialType`، حقول العميل/المقاول الافتتاحية، وحقل نوع الصنف الإلزامي في إضافة/تعديل النقلة. صفحة "كشف حساب" نفسها ما زالت pending.
+Backend `MaterialType` وstatement موجودان في المصدر مع IPC/preload APIs. صفحة `/statements` في renderer مكتملة للعملاء والمقاولين؛ تظل منفصلة عن `/accounts` المخصصة للخزينة.
 
 - Support more than one receipt photo per trip (currently one: `Trip.receipt_photo_path`). Real use case surfaced during manual testing: a trip can have a separate crusher receipt photo and a separate client receipt photo — right now only one slot exists. When we get to this: needs a backend decision first (either a second nullable path column on `Trip` for a second fixed slot, or a proper `Attachment` table with `trip_id` + `kind` if we might need more than two eventually) — this is a Claude/backend task, not something to implement on your own initiative. Not urgent, not scheduled yet.
 
@@ -97,7 +96,7 @@ Backend `MaterialType` وstatement موجودان في المصدر مع IPC/pre
 ## ⏳ ملاحظات التنفيذ التفاعلي / التوثيق
 
 - [ ] إذا وصلت المشروع لأول نسخة shipped حقيقية، سيتم مسح سلسلة الـ migration بالكامل وبدء `v1` clean baseline بدل استمرار الـ historical migration experimental الحالي.
-- [ ] في الـ backend الرمز الحالي، `Attachment` يحل محل حقلَي `Trip.receipt_photo_path` و`Shift.closing_photo_path`؛ APIs statement موجودة، بينما صفحة كشف الحساب في renderer لم تُنفذ بعد.
+- [ ] في الـ backend الرمز الحالي، `Attachment` يحل محل حقلَي `Trip.receipt_photo_path` و`Shift.closing_photo_path`؛ APIs statement متصلة بصفحة `/statements` في renderer.
 
 ## 🧹 دين تقني (من الجرد)
 

@@ -1,6 +1,6 @@
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Calculator, ClipboardList, List, Settings, Truck } from 'lucide-react'
+import { BookOpen, Calculator, ClipboardList, List, Settings, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FloatingWindowsProvider } from '@/components/FloatingWindowsProvider'
 import { cn } from '@/lib/utils'
@@ -10,12 +10,14 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { ShiftsPage } from '@/pages/ShiftsPage'
 import { ShiftDetailPage } from '@/pages/ShiftDetailPage'
 import { AllTripsPage } from '@/pages/AllTripsPage'
+import { StatementsPage } from '@/pages/StatementsPage'
 
 const navigationItems = [
   { to: '/', label: 'addTrip.title', icon: Truck },
   { to: '/shifts', label: 'shifts.title', icon: ClipboardList },
   { to: '/all-trips', label: 'allTrips.title', icon: List },
   { to: '/accounts', label: 'accountsPage.title', icon: Calculator },
+  { to: '/statements', label: 'statementsPage.title', icon: BookOpen },
   { to: '/settings', label: 'settingsPage.title', icon: Settings }
 ]
 
@@ -70,6 +72,7 @@ function App(): React.JSX.Element {
             <Route path="shifts/:shiftId" element={<ShiftDetailPage />} />
             <Route path="all-trips" element={<AllTripsPage />} />
             <Route path="accounts" element={<AccountsPage />} />
+            <Route path="statements" element={<StatementsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
