@@ -1,125 +1,25 @@
-# TODO — تطبيق إدارة ورديات نقل السن
+# Shift Tracker TODO: Source Audit
 
-آخر تحديث: توحيد loading feedback للفورمات والجداول.
+Updated from checked-out source on 2026-10-03 (`HEAD` `9c5c453`). Checked items confirm code exists; they do not claim every flow was manually tested in Electron.
 
-## 🚩 أولوية قصوى: Full i18n migration — إزالة كل النصوص المضمّنة
+## Implemented in Current Source
 
-1. [x] Scope audit (read-only، ضمن التاسك دي)
-2. [x] Install and configure i18next + react-i18next (renderer only، ضمن التاسك دي؛ لغة ثابتة `ar` ومن غير language detector)
-3. [x] Extract renderer strings into translation files، صفحة/قسم واحد في كل تاسك؛ اكتمل استخراج الملفات المدرجة في القائمة، والـ Arabic regex الباقي في المصدر قيم enum/status ثابتة.
-4. [x] Backend enum values اتنقلت للإنجليزية في `db.ts` v9: `Ledger.movement_type` و`Trip.crusher_receipt_status`، بنفس نمط `Trip.recipient_name_status` (v8) و`Shift.status` (v7)
+- [x] Fresh-install schema contains `MaterialType`, `Attachment`, client/contractor opening-balance fields, and `Trip.material_type_id` (`user_version` target 11).
+- [x] Main-process entity create/list/update/delete use cases and IPC handlers exist for drivers, clients, crushers, contractors, vehicles, and material types.
+- [x] Shift creation/closure and trip create/update/delete are implemented; trip create/update requires `materialTypeId`.
+- [x] Attachment persistence/list/read/remove flows exist; `closeShift` validates attachments and reported trip count.
+- [x] Ledger, client payments, account queries, and client/contractor statement APIs exist.
+- [x] Renderer routes exist for `/`, `/shifts`, `/shifts/:shiftId`, `/all-trips`, `/accounts`, `/statements`, and `/settings`.
+- [x] Settings pages include six entity sections; client location/opening balance/date and contractor opening balance/date are in their forms and tables.
+- [x] `/statements` is implemented for clients and contractors. `/accounts` remains separate and is currently labeled **الحسابات**.
+- [x] Client/Contractor fields removed by `e8921fc` under the mistaken assumption that they were unused have been restored.
 
-### Renderer extraction checklist (file size, smallest first)
+## Gaps Confirmed in Current Source
 
-- [x] `LedgerEntryDetailsContent.tsx` (1,276 bytes)
-- [x] `date-picker.tsx` (1,737 bytes)
-- [x] `AccountsPage.tsx` (2,250 bytes)
-- [x] `AllTripsPage.tsx` (2,357 bytes)
-- [x] `SettingsPage.tsx` (2,441 bytes)
-- [x] `TripDetailsContent.tsx` (3,051 bytes)
-- [x] `App.tsx` (3,108 bytes)
-- [x] `dialog.tsx` (3,308 bytes)
-- [x] `FloatingWindow.tsx` (3,477 bytes)
-- [x] `AccountTables.tsx` (5,314 bytes)
-- [x] `CreateShiftForm.tsx` (5,856 bytes)
-- [x] `ImportPage.tsx` (6,266 bytes)
-- [x] `ContractorsSettings.tsx` (7,185 bytes)
-- [x] `DriversSettings.tsx` (7,499 bytes)
-- [x] `ClientsSettings.tsx` (7,925 bytes)
-- [x] `CrushersSettings.tsx` (8,018 bytes)
-- [x] `LedgerEntryForm.tsx` (9,271 bytes)
-- [x] `ClientAccountPage.tsx` (9,359 bytes)
-- [x] `AllMovementsPage.tsx` (9,538 bytes)
-- [x] `ReceiptPhoto.tsx` (11,872 bytes)
-- [x] `VehiclesSettings.tsx` (12,430 bytes)
-- [x] `DataTable.tsx` (13,219 bytes)
-- [x] `DriverHistoryPage.tsx` (16,261 bytes)
-- [x] `ContractorAccountPage.tsx` (16,627 bytes)
-- [x] `ShiftsPage.tsx` (16,889 bytes)
-- [x] `AddTripPage.tsx` (23,354 bytes)
+1. Define explicit handling or rejection for existing `user_version` values 2 through 8. Startup handles fresh databases, versions 1/9, and 10; other versions fall through without migration.
+2. No CSV import/export workflow is present under `src`: no `ImportPage`, route, IPC handler, or CSV use case. Decide separately whether CSV support is still wanted; the PapaParse dependency is not an implementation.
+3. There is no `npm test` script or tracked test/spec file. Add automated tests as a separately scoped task if desired.
 
-## ✅ موجود في الكود ومؤكد
+## Verification Status Not Derivable from Source
 
-### Backend والبيانات
-- [x] Schema كامل (Driver/Client/Crusher/Contractor/Vehicle/Shift/Trip/Ledger/ClientPayment) + Views: ShiftStats, TripAccounting
-- [x] Migration chain كامل حتى v9 (v3 صورة النقلة، v4 هاتف المقاول، v5 stone_price nullable، v6 صورة تقفيل الوردية، v7 Shift.status، v8 recipient name status، v9 ledger + crusher receipt enums)
-- [x] CRUD كامل لـ Driver/Client/Crusher/Contractor/Vehicle، كل واحد بـ repository + use-case مخصص
-- [x] دورة الوردية والنقلة: فتح/قفل/تعديل/مسح، مع منع القفل لو عدد النقلات مش مطابق، وbackup تلقائي عند القفل
-- [x] صورة ورقة تقفيل الوردية إجبارية قبل القفل (شرط backend في `closeShift` + تعطيل الزرار في الـ UI)
-- [x] صور: إيصال النقلة + ورقة تقفيل الوردية (`photoStorage.ts` kind-based، `ReceiptPhoto.tsx` مشترك)
-- [x] Ledger: create + update + delete، مع قفل التعديل/المسح لو الوردية مقفولة
-- [x] ClientPayment: create + update + delete (من غير قيد وردية لأنه مالوش shift_id)
-- [x] الحسابات: getContractorAccount, getDriverHistory, getClientAccount (مع totalCubic)
-- [x] CSV import كامل (PapaParse + validation + transaction + backup)، والملف التاريخي (~450 صف) اتاستورد بنجاح
-- [x] preload و IPC متطابقين تمامًا (مفيش دالة يتيمة في أي اتجاه)
-
-### UI
-- [x] `DataTable` عام (sorting + multi-select filters + row selection + sum) على: Ledger، الورديات، كل النقلات، الحسابات، الإعدادات
-- [x] فورمات الإعدادات الخمس + فتح/تعديل وردية + إضافة/تعديل دفعة عميل: كلها Dialog
-- [x] `AddTripPage`: فورم النقلة مكشوف على الصفحة (استثناء متعمد)
-- [x] `LedgerEntryForm.tsx` مشترك؛ إضافة حركة من حساب المقاول مع `contractorId` مقفول، ومن سجل السائق مع `driverId` مقفول و`contractorId` مطلوب ومختار يدويًا
-- [x] `FloatingWindow` + `FloatingWindowsProvider`، مستخدمة في AllTripsPage وLedgerPage
-- [x] زرار "تفاصيل" لكل حركة في LedgerPage (`LedgerEntryDetailsContent`)
-- [x] تعديل/مسح حركات Ledger في LedgerPage وContractorAccountPage وDriverHistoryPage
-- [x] تعديل/مسح دفعات العميل في ClientAccountPage
-- [x] `ImportPage`: رفع CSV + نموذج + ملخص + أخطاء الصفوف
-- [x] `space-*` اتشالت بالكامل واتبدلت بـ `gap`، والـ activity log القديم اتشال
-
-## ✅ تم إنجازه
-
-- [x] **قائمة وتفاصيل الورديات**: `/shifts` قائمة وDialogs للفتح والقفل، و`/shifts/:shiftId` فقط صفحة تفاصيل ونقلات. اختيار السائق حقل عادي داخل `CreateShiftForm`؛ ده نمط list→detail للكيانات المستقبلية.
-- [x] **Loading feedback**: submit buttons تستخدم `formState.isSubmitting` مع spinner وتعطيل الإغلاق أثناء الحفظ؛ `DataTable` يستخدم `loading` لعرض Skeleton rows مع بقاء headers ظاهرة.
-- [x] **دمج Ledger جوه AccountsPage** كقسم رابع "كل الحركات" وإلغاء `/ledger` من الـ navbar (القرار: الحسابات تبقى الـ main)
-- [x] استعادة حقول موقع/الرصيد الافتتاحي للعميل والمقاول؛ حذفها `e8921fc` بالخطأ لاعتقادها غير مستخدمة، ثم أُعيدت للـ forms والجداول.
-- [x] **سكرول داخلي للجداول**: ملك للمستخدم. لا يخص أي مهمة Copilot، والـ navbar ثابت من غير أي تعديل.
-
-## ⏳ لسه ماتبدأش (بترتيب التنفيذ المقترح)
-
-1. CSV export (مفيش حاليًا، فيه بس تنزيل نموذج الاستيراد)
-2. توثيق رسمي لعملية الـ migration من الإكسل (خطوات + الحالات الشاذة)
-
-- Support more than one receipt photo per trip (currently one: `Trip.receipt_photo_path`). Real use case surfaced during manual testing: a trip can have a separate crusher receipt photo and a separate client receipt photo — right now only one slot exists. When we get to this: needs a backend decision first (either a second nullable path column on `Trip` for a second fixed slot, or a proper `Attachment` table with `trip_id` + `kind` if we might need more than two eventually) — this is a Claude/backend task, not something to implement on your own initiative. Not urgent, not scheduled yet.
-
-## 🧹 دين تقني (من الجرد)
-
-- [x] `npm run lint` بيفشل: تم توحيد الـ LF via `.gitattributes`، وتم إصلاح الـ 4 errors الحقيقية في الـ renderer. ما زال الـ repo في وضع warnings Prettier CRLF على ملفات قديمة، ولذا الـ warnings متبقية لكن بدون أخطاء.
-- [x] `as any` في `LedgerPage.tsx` و`ContractorAccountPage.tsx` و`DriverHistoryPage.tsx` تم إزالتها باستخدام أنواع صريحة من `window.api`
-- [x] `ImportPage.tsx` تم استبدال الـ `<Table>` اليدوي بـ `DataTable` مع نفس أعمدة الأخطاء
-
-## ⚠️ محتاج اختبار يدوي حقيقي في نافذة Electron (مسؤوليتك إنت، Copilot مالوش وصول ليها)
-
-- [ ] إرسال أي فورم إعدادات يعطّل زر submit ويظهر spinner مؤقتًا.
-- [ ] فتح صفحة فيها جدول يظهر skeleton rows قبل البيانات؛ قد يكون التحميل سريعًا جدًا محليًا مع SQLite.
-- [ ] التأكد من عدم وجود layout jump/shift عند استبدال skeleton rows بالبيانات.
-- [ ] Dialog فتح الوردية: السائق والسيارة وباقي الحقول ظاهرين معًا؛ الإنشاء يقفل Dialog ويحدث القائمة
-- [ ] Dialog قفل الوردية: الصورة إلزامية؛ النجاح يقفل Dialog ويحدث القائمة
-- [ ] النقر على صف وردية يفتح `/shifts/:shiftId` بتفاصيلها ونقلاتها؛ جرّب تعديل/مسح نقلة
-- [ ] Breadcrumb صفحة التفاصيل يرجع إلى `/shifts`
-- [ ] تجربة إنشاء وردية من `AddTripPage` والتحقق أن السائق المحدد مسبقًا موجود بحقل `CreateShiftForm`
-- [ ] `DataTable` على بيانات حقيقية: فرز/فلاتر/تحديد/مجاميع في الصفحات اللي اتعممت عليها
-- [ ] حفظ فعلي من كل Dialog جديد (فتح وردية، إضافة/تعديل حركة، إضافة/تعديل دفعة، تعديل نقلة)
-- [ ] إضافة حركة من حساب المقاول (المقاول مقفول) ومن سجل السائق (السائق مقفول والمقاول مختار يدويًا)، والتأكد من تحديث الرصيد/الجدول فورًا
-- [ ] تعديل/مسح حركات Ledger ودفعات العميل، وقفل الحركات المرتبطة بوردية مقفولة
-- [ ] صورة إيصال النقلة: رفع/crop/rotate/lightbox/مسح، وقراءتها من disk بعد إعادة تشغيل التطبيق
-- [ ] تأثير `space→gap` بصريًا في الصفحات اللي بتستخدم `calendar.tsx` و`card.tsx`
-
-## 💭 قرارات اتناقشت وأُجّلت أو اترفضت عمدًا
-
-- **Standing caution**: "cleanup/refactor" tasks must never delete a field, form control, table column, or translation key without confirming it has zero real callers across the whole codebase — if uncertain, leave it and report it instead of deleting it.
-
-- **FloatingWindow كنافذة Electron منفصلة (BrowserWindow)**: مؤجلة. العيوب (state منفصل، IPC لكل تحديث، ذاكرة، lifecycle) أكبر من الفايدة من غير سيناريو حقيقي زي شاشتين.
-- **Navbar بيختفي بالسكرول**: مرفوض. الحل هو سكرول داخلي للجداول.
-- **Caching للأرقام المحسوبة**: مرفوض. الخطر (أرقام قديمة) أكبر من الفايدة، و`SUM()` وقت الطلب سريع كفاية.
-- **Lazy loading / virtualization للجداول**: مؤجل لحد ما نقرب من كام ألف صف تراكمي (~2000 نقلة/سنة، مش مشكلة دلوقتي).
-
-## ملاحظات ثابتة
-
-- `old_shift_no` في CSV للتجميع فقط، مش بيتخزن كـ Shift id
-- أسماء السائق/الكسارة/العميل/العربية لازم تكون موجودة قبل أي استيراد CSV
-- الورديات المستوردة بتتحفظ "مفتوحة" ليراجعها المستخدم ويقفلها يدويًا
-- تكرار `(crusher_id, crusher_receipt_no)` مرفوض بقيد قاعدة البيانات
-- `effective_client_cubic` = `client_cubic_reported - discount_qty`
-- صاحب السيارة (`ownerName`) مستقل تمامًا عن مقاول النقل (`contractorId`)
-- `Ledger` (عهدة/دفعة/اخرى) هو المصدر الوحيد لفلوس المقاول والسائق، مختلف عمدًا عن `ClientPayment` البسيط
-- عدم دعم تحديد خلايا فردية بالسحب في `DataTable` مقصود
-
+Whether routes and workflows have been manually exercised in the packaged Electron application is not recorded in source. Typecheck/lint results alone do not establish runtime verification.
