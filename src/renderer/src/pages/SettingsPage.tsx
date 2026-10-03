@@ -7,16 +7,19 @@ import { ClientsSettings } from '@/pages/settings/ClientsSettings'
 import { ContractorsSettings } from '@/pages/settings/ContractorsSettings'
 import { CrushersSettings } from '@/pages/settings/CrushersSettings'
 import { DriversSettings } from '@/pages/settings/DriversSettings'
+import { MaterialTypesSettings } from '@/pages/settings/MaterialTypesSettings'
 import { VehiclesSettings } from '@/pages/settings/VehiclesSettings'
 
-type SettingsSection = 'vehicles' | 'drivers' | 'contractors' | 'crushers' | 'clients'
+type SettingsSection =
+  'vehicles' | 'drivers' | 'contractors' | 'crushers' | 'clients' | 'materialTypes'
 
 const settingsItems: { id: SettingsSection; label: string }[] = [
   { id: 'vehicles', label: 'settingsPage.sections.vehicles' },
   { id: 'drivers', label: 'settingsPage.sections.drivers' },
   { id: 'contractors', label: 'settingsPage.sections.contractors' },
   { id: 'crushers', label: 'settingsPage.sections.crushers' },
-  { id: 'clients', label: 'settingsPage.sections.clients' }
+  { id: 'clients', label: 'settingsPage.sections.clients' },
+  { id: 'materialTypes', label: 'settingsPage.sections.materialTypes' }
 ]
 
 export function SettingsPage(): React.JSX.Element {
@@ -54,6 +57,7 @@ export function SettingsPage(): React.JSX.Element {
           {activeSection === 'contractors' && <ContractorsSettings />}
           {activeSection === 'crushers' && <CrushersSettings />}
           {activeSection === 'clients' && <ClientsSettings />}
+          {activeSection === 'materialTypes' && <MaterialTypesSettings />}
         </div>
       </div>
     </div>

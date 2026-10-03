@@ -12,6 +12,8 @@
     "emDash": "—",
     "emDash": "—",
     "defaultPrice": "السعر الافتراضي",
+    "openingBalance": "الرصيد الافتتاحي",
+    "openingBalanceDate": "تاريخ الرصيد الافتتاحي",
     "lockedShift": "مرتبطة بوردية مقفولة",
     "columns": {
       "id": "id",
@@ -100,7 +102,8 @@
     "editTitle": "تعديل عميل",
     "deleteConfirmation": "متأكد إنك عايز تمسح العميل {{name}}؟",
     "fields": {
-      "name": "اسم العميل"
+      "name": "اسم العميل",
+      "location": "المكان"
     },
     "validation": {
       "nameRequired": "اسم العميل مطلوب"
@@ -302,6 +305,7 @@
       "crusherReceiptStatus": "إيصال الكسارة",
       "crusherReceiptNumber": "رقم إيصال الكسارة",
       "client": "العميل",
+      "materialType": "نوع الصنف",
       "recipientNameStatus": "اسم المستلم",
       "recipientName": "اسم المستلم",
       "clientReceiptNumber": "رقم إيصال العميل"
@@ -311,7 +315,8 @@
       "location": "اختار أو اكتب المكان",
       "typeLocation": "اكتب المكان...",
       "crusher": "اختار الكسارة",
-      "client": "اختار العميل"
+      "client": "اختار العميل",
+      "materialType": "اختار نوع الصنف"
     },
     "locationEmpty": "اكتب قيمة جديدة أو اختار من القائمة",
     "receiptStatuses": {
@@ -331,6 +336,7 @@
       "stonePriceRequired": "سعر الحجر مطلوب",
       "crusherReceiptNumberRequired": "رقم إيصال الكسارة مطلوب",
       "clientRequired": "العميل مطلوب",
+      "materialTypeRequired": "نوع الصنف مطلوب",
       "transportPriceRequired": "سعر النقل مطلوب",
       "clientPriceRequired": "سعر العميل مطلوب",
       "recipientNameRequired": "اسم المستلم مطلوب"
@@ -386,7 +392,21 @@
       "drivers": "السائقون",
       "contractors": "المقاولون",
       "crushers": "الكسارات",
-      "clients": "العملاء"
+      "clients": "العملاء",
+      "materialTypes": "أنواع الأصناف"
+    }
+  },
+  "materialTypesSettings": {
+    "title": "أنواع الأصناف",
+    "addButton": "إضافة نوع صنف",
+    "addTitle": "إضافة نوع صنف جديد",
+    "editTitle": "تعديل نوع الصنف",
+    "deleteConfirmation": "متأكد إنك عايز تمسح نوع الصنف {{name}}؟",
+    "fields": {
+      "name": "اسم نوع الصنف"
+    },
+    "validation": {
+      "nameRequired": "اسم نوع الصنف مطلوب"
     }
   },
   "tripDetails": {

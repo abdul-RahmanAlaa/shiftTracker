@@ -5,12 +5,22 @@ import { CreateShiftInput } from '../main/use-cases/createShift'
 const api = {
   createDriver: (input: { name: string; phone1?: string; phone2?: string }) =>
     ipcRenderer.invoke('driver:create', input),
-  createClient: (input: { name: string; initialPrice?: number }) =>
-    ipcRenderer.invoke('client:create', input),
+  createClient: (input: {
+    name: string
+    initialPrice?: number
+    location?: string
+    openingBalance?: number
+    openingBalanceDate?: string
+  }) => ipcRenderer.invoke('client:create', input),
   createCrusher: (input: { name: string; initialPrice?: number }) =>
     ipcRenderer.invoke('crusher:create', input),
-  createContractor: (input: { name: string; phone?: string }) =>
-    ipcRenderer.invoke('contractor:create', input),
+  createMaterialType: (input: { name: string }) => ipcRenderer.invoke('materialType:create', input),
+  createContractor: (input: {
+    name: string
+    phone?: string
+    openingBalance?: number
+    openingBalanceDate?: string
+  }) => ipcRenderer.invoke('contractor:create', input),
   createVehicle: (input: {
     vehicleNo: number
     trailerNo: number
@@ -22,20 +32,35 @@ const api = {
   closeShift: (input: { shiftId: string; endDate: string }) =>
     ipcRenderer.invoke('shift:close', input),
   listDrivers: () => ipcRenderer.invoke('driver:list'),
+  listMaterialTypes: () => ipcRenderer.invoke('materialType:list'),
   listContractors: () => ipcRenderer.invoke('contractor:list'),
   listVehicles: () => ipcRenderer.invoke('vehicle:list'),
   listOpenShifts: () => ipcRenderer.invoke('shift:listOpen'),
   updateDriver: (input: { id: number; name: string; phone1?: string; phone2?: string }) =>
     ipcRenderer.invoke('driver:update', input),
   deleteDriver: (input: { id: number }) => ipcRenderer.invoke('driver:delete', input),
-  updateClient: (input: { id: number; name: string; initialPrice?: number }) =>
-    ipcRenderer.invoke('client:update', input),
+  updateClient: (input: {
+    id: number
+    name: string
+    initialPrice?: number
+    location?: string
+    openingBalance?: number
+    openingBalanceDate?: string
+  }) => ipcRenderer.invoke('client:update', input),
   deleteClient: (input: { id: number }) => ipcRenderer.invoke('client:delete', input),
   updateCrusher: (input: { id: number; name: string; initialPrice?: number }) =>
     ipcRenderer.invoke('crusher:update', input),
   deleteCrusher: (input: { id: number }) => ipcRenderer.invoke('crusher:delete', input),
-  updateContractor: (input: { id: number; name: string; phone?: string }) =>
-    ipcRenderer.invoke('contractor:update', input),
+  updateMaterialType: (input: { id: number; name: string }) =>
+    ipcRenderer.invoke('materialType:update', input),
+  deleteMaterialType: (input: { id: number }) => ipcRenderer.invoke('materialType:delete', input),
+  updateContractor: (input: {
+    id: number
+    name: string
+    phone?: string
+    openingBalance?: number
+    openingBalanceDate?: string
+  }) => ipcRenderer.invoke('contractor:update', input),
   deleteContractor: (input: { id: number }) => ipcRenderer.invoke('contractor:delete', input),
   updateVehicle: (input: {
     vehicleNo: number
@@ -60,6 +85,7 @@ const api = {
     clientId: number
     transportPrice: number
     clientPrice: number
+    materialTypeId: number
     recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
     recipientName?: string
     clientReceiptNo?: string
@@ -97,6 +123,10 @@ const api = {
     ipcRenderer.invoke('account:contractor', input),
   getDriverHistory: (input: { driverId: number }) => ipcRenderer.invoke('account:driver', input),
   getClientAccount: (input: { clientId: number }) => ipcRenderer.invoke('account:client', input),
+  getClientStatement: (input: { clientId: number }) =>
+    ipcRenderer.invoke('statement:client', input),
+  getContractorStatement: (input: { contractorId: number }) =>
+    ipcRenderer.invoke('statement:contractor', input),
   createClientPayment: (input: {
     entryDate: string
     clientId: number
@@ -128,6 +158,7 @@ const api = {
     clientId: number
     transportPrice: number
     clientPrice: number
+    materialTypeId: number
     recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
     recipientName?: string
     clientReceiptNo?: string

@@ -36,6 +36,7 @@ export function ShiftDetailPage(): React.JSX.Element {
     vehicles: [],
     crushers: [],
     clients: [],
+    materialTypes: [],
     locations: []
   })
   const editTripForm = useForm<TripValues>({
@@ -48,6 +49,7 @@ export function ShiftDetailPage(): React.JSX.Element {
       discountReason: '',
       location: '',
       crusherId: undefined,
+      materialTypeId: undefined,
       stonePrice: undefined,
       crusherReceiptStatus: 'UNKNOWN',
       crusherReceiptNo: undefined,
@@ -92,13 +94,15 @@ export function ShiftDetailPage(): React.JSX.Element {
       window.api.listVehicles(),
       window.api.listCrushers(),
       window.api.listClients(),
+      window.api.listMaterialTypes(),
       window.api.listTripLocations()
-    ]).then(([drivers, vehicles, crushers, clients, locations]) => {
+    ]).then(([drivers, vehicles, crushers, clients, materialTypes, locations]) => {
       setResources({
         drivers: drivers.ok ? drivers.data : [],
         vehicles: vehicles.ok ? vehicles.data : [],
         crushers: crushers.ok ? crushers.data : [],
         clients: clients.ok ? clients.data : [],
+        materialTypes: materialTypes.ok ? materialTypes.data : [],
         locations: locations.ok ? locations.data : []
       })
     })
@@ -119,6 +123,7 @@ export function ShiftDetailPage(): React.JSX.Element {
       discountReason: trip.discountReason ?? '',
       location: trip.location ?? '',
       crusherId: trip.crusherId,
+      materialTypeId: trip.materialTypeId ?? undefined,
       stonePrice: trip.stonePrice ?? undefined,
       crusherReceiptStatus: trip.crusherReceiptStatus as TripValues['crusherReceiptStatus'],
       crusherReceiptNo: trip.crusherReceiptNo ?? undefined,

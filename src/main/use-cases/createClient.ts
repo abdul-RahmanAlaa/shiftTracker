@@ -22,6 +22,9 @@ function isSqliteError(err: unknown): err is SqliteError {
 interface ClientInput {
   name: string
   initialPrice?: number
+  location?: string
+  openingBalance?: number
+  openingBalanceDate?: string
 }
 
 function validateClientInput(input: ClientInput): { field: string; message: string }[] {
@@ -39,10 +42,16 @@ export function createClient(input: ClientInput): UseCaseResult<ClientRow> {
 
   const name = input.name.trim()
   const initialPrice = input.initialPrice ?? null
+  const location = input.location?.trim() || null
+  const openingBalance = input.openingBalance ?? 0
+  const openingBalanceDate = input.openingBalanceDate?.trim() || null
 
   try {
-    const id = insertClient(name, initialPrice)
-    return { ok: true, data: { id, name, initialPrice } }
+    const id = insertClient(name, initialPrice, location, openingBalance, openingBalanceDate)
+    return {
+      ok: true,
+      data: { id, name, initialPrice, location, openingBalance, openingBalanceDate }
+    }
   } catch (err: unknown) {
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       return { ok: false, errors: [{ field: 'name', message: 'العميل ده موجود بالفعل' }] }
@@ -61,10 +70,16 @@ export function updateClient(input: ClientInput & { id: number }): UseCaseResult
 
   const name = input.name.trim()
   const initialPrice = input.initialPrice ?? null
+  const location = input.location?.trim() || null
+  const openingBalance = input.openingBalance ?? 0
+  const openingBalanceDate = input.openingBalanceDate?.trim() || null
 
   try {
-    updateClientInDb(input.id, name, initialPrice)
-    return { ok: true, data: { id: input.id, name, initialPrice } }
+    updateClientInDb(input.id, name, initialPrice, location, openingBalance, openingBalanceDate)
+    return {
+      ok: true,
+      data: { id: input.id, name, initialPrice, location, openingBalance, openingBalanceDate }
+    }
   } catch (err: unknown) {
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       return { ok: false, errors: [{ field: 'name', message: 'العميل ده موجود بالفعل' }] }

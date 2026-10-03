@@ -6,7 +6,9 @@ const SCHEMA = `
 CREATE TABLE IF NOT EXISTS TransportContractor (
   id    INTEGER PRIMARY KEY AUTOINCREMENT,
   name  TEXT NOT NULL UNIQUE,
-  phone TEXT
+  phone TEXT,
+  opening_balance REAL NOT NULL DEFAULT 0,
+  opening_balance_date TEXT
 );
 
 CREATE TABLE IF NOT EXISTS Vehicle (
@@ -33,7 +35,15 @@ CREATE TABLE IF NOT EXISTS Crusher (
 CREATE TABLE IF NOT EXISTS Client (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   name           TEXT NOT NULL UNIQUE,
-  initial_price  REAL
+  initial_price  REAL,
+  location       TEXT,
+  opening_balance REAL NOT NULL DEFAULT 0,
+  opening_balance_date TEXT
+);
+
+CREATE TABLE IF NOT EXISTS MaterialType (
+  id    INTEGER PRIMARY KEY AUTOINCREMENT,
+  name  TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS Shift (
@@ -70,6 +80,7 @@ CREATE TABLE IF NOT EXISTS Trip (
   recipient_name           TEXT,
   client_receipt_no        TEXT,
   notes                    TEXT,
+  material_type_id         INTEGER REFERENCES MaterialType(id),
   CHECK (
     (crusher_receipt_status = 'PROVIDED' AND crusher_receipt_no IS NOT NULL)
     OR (crusher_receipt_status <> 'PROVIDED' AND crusher_receipt_no IS NULL)
@@ -80,7 +91,7 @@ CREATE TABLE IF NOT EXISTS Trip (
   )
 );
 
-CREATE TABLE Attachment (
+CREATE TABLE IF NOT EXISTS Attachment (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   entity_type TEXT NOT NULL CHECK (entity_type IN ('TRIP','SHIFT')),
   entity_id TEXT NOT NULL,
@@ -89,7 +100,7 @@ CREATE TABLE Attachment (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_attachment_entity ON Attachment (entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_attachment_entity ON Attachment (entity_type, entity_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_crusher_receipt
 ON Trip (crusher_id, crusher_receipt_no)
@@ -159,6 +170,22 @@ ALTER TABLE Trip DROP COLUMN receipt_photo_path;
 ALTER TABLE Shift DROP COLUMN closing_photo_path;
 `
 
+const MIGRATION_V11_STATEMENT_FIELDS = `
+CREATE TABLE IF NOT EXISTS MaterialType (
+  id    INTEGER PRIMARY KEY AUTOINCREMENT,
+  name  TEXT NOT NULL UNIQUE
+);
+
+ALTER TABLE Client ADD COLUMN location TEXT;
+ALTER TABLE Client ADD COLUMN opening_balance REAL NOT NULL DEFAULT 0;
+ALTER TABLE Client ADD COLUMN opening_balance_date TEXT;
+
+ALTER TABLE TransportContractor ADD COLUMN opening_balance REAL NOT NULL DEFAULT 0;
+ALTER TABLE TransportContractor ADD COLUMN opening_balance_date TEXT;
+
+ALTER TABLE Trip ADD COLUMN material_type_id INTEGER REFERENCES MaterialType(id);
+`
+
 let db: Database.Database
 
 function migrateToV10(): void {
@@ -168,6 +195,10 @@ function migrateToV10(): void {
   } finally {
     db.pragma('foreign_keys = ON')
   }
+}
+
+function migrateToV11(): void {
+  db.exec(MIGRATION_V11_STATEMENT_FIELDS)
 }
 
 export function initDatabase(): Database.Database {
@@ -181,13 +212,22 @@ export function initDatabase(): Database.Database {
 
   if (currentVersion === 0) {
     db.exec(SCHEMA)
-    db.pragma('user_version = 10')
-    console.log('[db] Schema created (fresh install, attachments enabled). user_version = 10')
+    db.pragma('user_version = 11')
+    console.log(
+      '[db] Schema created (fresh install, attachments + statement fields). user_version = 11'
+    )
   } else if (currentVersion === 1 || currentVersion === 9) {
     migrateToV10()
-    db.pragma('user_version = 10')
+    migrateToV11()
+    db.pragma('user_version = 11')
     console.log(
-      `[db] Migration v${currentVersion} -> v10 applied (generic attachments). user_version = 10`
+      `[db] Migration v${currentVersion} -> v10 -> v11 applied (attachments, material types, opening balances). user_version = 11`
+    )
+  } else if (currentVersion === 10) {
+    migrateToV11()
+    db.pragma('user_version = 11')
+    console.log(
+      '[db] Migration v10 -> v11 applied (material types, opening balances). user_version = 11'
     )
   } else {
     console.log(`[db] Database up to date. user_version = ${currentVersion}`)

@@ -20,6 +20,7 @@ interface InsertTripInput {
   recipientName: string | null
   clientReceiptNo: string | null
   notes: string | null
+  materialTypeId: number | null
 }
 
 interface UpdateTripInput {
@@ -41,6 +42,7 @@ interface UpdateTripInput {
   recipientName: string | null
   clientReceiptNo: string | null
   notes: string | null
+  materialTypeId: number | null
 }
 
 export interface TripRow {
@@ -63,6 +65,7 @@ export interface TripRow {
   recipientName: string | null
   clientReceiptNo: string | null
   notes: string | null
+  materialTypeId: number | null
 }
 
 export interface TripWithContextRow {
@@ -88,6 +91,8 @@ export interface TripWithContextRow {
   recipientName: string | null
   clientReceiptNo: string | null
   notes: string | null
+  materialTypeId: number | null
+  materialTypeName: string | null
 }
 
 export function getNextTripId(): string {
@@ -109,36 +114,34 @@ export function insertTrip(input: InsertTripInput): void {
       id, shift_id, trip_date, crusher_cubic, client_cubic_reported,
       discount_qty, discount_reason, location, crusher_id, stone_price,
       crusher_receipt_status, crusher_receipt_no, client_id, transport_price,
-      client_price, recipient_name_status, recipient_name, client_receipt_no, notes
+      client_price, recipient_name_status, recipient_name, client_receipt_no, notes,
+      material_type_id
     ) VALUES (
       @id, @shiftId, @tripDate, @crusherCubic, @clientCubicReported,
       @discountQty, @discountReason, @location, @crusherId, @stonePrice,
       @crusherReceiptStatus, @crusherReceiptNo, @clientId, @transportPrice,
-      @clientPrice, @recipientNameStatus, @recipientName, @clientReceiptNo, @notes
+      @clientPrice, @recipientNameStatus, @recipientName, @clientReceiptNo, @notes,
+      @materialTypeId
     )
   `)
   stmt.run(input)
 }
 
+const TRIP_COLUMNS = `
+  id, shift_id as shiftId, trip_date as tripDate,
+  crusher_cubic as crusherCubic, client_cubic_reported as clientCubicReported,
+  discount_qty as discountQty, discount_reason as discountReason,
+  location, crusher_id as crusherId, stone_price as stonePrice,
+  crusher_receipt_status as crusherReceiptStatus, crusher_receipt_no as crusherReceiptNo,
+  client_id as clientId, transport_price as transportPrice, client_price as clientPrice,
+  recipient_name_status as recipientNameStatus, recipient_name as recipientName,
+  client_receipt_no as clientReceiptNo, notes, material_type_id as materialTypeId
+`
+
 export function listTripsByShift(shiftId: string): TripRow[] {
   const db = getDb()
   return db
-    .prepare(
-      `
-      SELECT
-        id, shift_id as shiftId, trip_date as tripDate,
-        crusher_cubic as crusherCubic, client_cubic_reported as clientCubicReported,
-        discount_qty as discountQty, discount_reason as discountReason,
-        location, crusher_id as crusherId, stone_price as stonePrice,
-        crusher_receipt_status as crusherReceiptStatus, crusher_receipt_no as crusherReceiptNo,
-        client_id as clientId, transport_price as transportPrice, client_price as clientPrice,
-        recipient_name_status as recipientNameStatus, recipient_name as recipientName,
-        client_receipt_no as clientReceiptNo, notes
-      FROM Trip
-      WHERE shift_id = ?
-      ORDER BY trip_date, id
-    `
-    )
+    .prepare(`SELECT ${TRIP_COLUMNS} FROM Trip WHERE shift_id = ? ORDER BY trip_date, id`)
     .all(shiftId) as TripRow[]
 }
 
@@ -177,12 +180,15 @@ export function listAllTrips(): TripWithContextRow[] {
         t.recipient_name_status as recipientNameStatus,
         t.recipient_name as recipientName,
         t.client_receipt_no as clientReceiptNo,
-        t.notes
+        t.notes,
+        t.material_type_id as materialTypeId,
+        mt.name as materialTypeName
       FROM Trip t
       JOIN Shift s ON s.id = t.shift_id
       JOIN Driver d ON d.id = s.driver_id
       JOIN Crusher cr ON cr.id = t.crusher_id
       JOIN Client c ON c.id = t.client_id
+      LEFT JOIN MaterialType mt ON mt.id = t.material_type_id
       ORDER BY t.trip_date ASC, t.id ASC
     `
     )
@@ -191,23 +197,7 @@ export function listAllTrips(): TripWithContextRow[] {
 
 export function getTripById(id: string): TripRow | undefined {
   const db = getDb()
-  return db
-    .prepare(
-      `
-      SELECT
-        id, shift_id as shiftId, trip_date as tripDate,
-        crusher_cubic as crusherCubic, client_cubic_reported as clientCubicReported,
-        discount_qty as discountQty, discount_reason as discountReason,
-        location, crusher_id as crusherId, stone_price as stonePrice,
-        crusher_receipt_status as crusherReceiptStatus, crusher_receipt_no as crusherReceiptNo,
-        client_id as clientId, transport_price as transportPrice, client_price as clientPrice,
-        recipient_name_status as recipientNameStatus, recipient_name as recipientName,
-        client_receipt_no as clientReceiptNo, notes
-      FROM Trip
-      WHERE id = ?
-    `
-    )
-    .get(id) as TripRow | undefined
+  return db.prepare(`SELECT ${TRIP_COLUMNS} FROM Trip WHERE id = ?`).get(id) as TripRow | undefined
 }
 
 export function updateTrip(input: UpdateTripInput): void {
@@ -230,7 +220,8 @@ export function updateTrip(input: UpdateTripInput): void {
       recipient_name_status = @recipientNameStatus,
       recipient_name = @recipientName,
       client_receipt_no = @clientReceiptNo,
-      notes = @notes
+      notes = @notes,
+      material_type_id = @materialTypeId
     WHERE id = @id
   `)
   stmt.run(input)

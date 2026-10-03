@@ -41,8 +41,8 @@
 ## ✅ موجود في الكود ومؤكد
 
 ### Backend والبيانات
-- [x] Schema كامل (Driver/Client/Crusher/Contractor/Vehicle/Shift/Trip/Ledger/ClientPayment) + Views: ShiftStats, TripAccounting
-- [x] Migration chain كامل حتى v9 (v3 صورة النقلة، v4 هاتف المقاول، v5 stone_price nullable، v6 صورة تقفيل الوردية، v7 Shift.status، v8 recipient name status، v9 ledger + crusher receipt enums)
+- [x] Schema v11 يشمل Attachment وMaterialType وحقول الرصيد الافتتاحي ومكان العميل و`Trip.material_type_id`، بالإضافة إلى الكيانات والحسابات والـ Views الحالية
+- [x] قاعدة البيانات الحالية على `user_version = 11`؛ راجع `shift-tracker-context.md` لملاحظة فجوة migrations المعروفة بين الإصدارات 2 و8
 - [x] CRUD كامل لـ Driver/Client/Crusher/Contractor/Vehicle، كل واحد بـ repository + use-case مخصص
 - [x] دورة الوردية والنقلة: فتح/قفل/تعديل/مسح، مع منع القفل لو عدد النقلات مش مطابق، وbackup تلقائي عند القفل
 - [x] صورة ورقة تقفيل الوردية إجبارية قبل القفل (شرط backend في `closeShift` + تعطيل الزرار في الـ UI)
@@ -55,7 +55,10 @@
 
 ### UI
 - [x] `DataTable` عام (sorting + multi-select filters + row selection + sum) على: Ledger، الورديات، كل النقلات، الحسابات، الإعدادات
-- [x] فورمات الإعدادات الخمس + فتح/تعديل وردية + إضافة/تعديل دفعة عميل: كلها Dialog
+- [x] فورمات الإعدادات الستة + فتح/تعديل وردية + إضافة/تعديل دفعة عميل: كلها Dialog
+- [x] إعدادات `MaterialType`: CRUD عبر Dialog بنفس نمط إعدادات الكيانات الأخرى
+- [x] حقول `location` / `openingBalance` / `openingBalanceDate` في إعدادات `Client`، وحقلا الرصيد الافتتاحي وتاريخه في إعدادات `Contractor`
+- [x] حقل `materialTypeId` مطلوب في فورم إضافة/تعديل النقلة (`AddTripPage.tsx` و`ShiftDetailPage.tsx`)
 - [x] `AddTripPage`: فورم النقلة مكشوف على الصفحة (استثناء متعمد)
 - [x] `LedgerEntryForm.tsx` مشترك؛ إضافة حركة من حساب المقاول مع `contractorId` مقفول، ومن سجل السائق مع `driverId` مقفول و`contractorId` مطلوب ومختار يدويًا
 - [x] `FloatingWindow` + `FloatingWindowsProvider`، مستخدمة في AllTripsPage وLedgerPage
@@ -74,10 +77,27 @@
 
 ## ⏳ لسه ماتبدأش (بترتيب التنفيذ المقترح)
 
-1. CSV export (مفيش حاليًا، فيه بس تنزيل نموذج الاستيراد)
-2. توثيق رسمي لعملية الـ migration من الإكسل (خطوات + الحالات الشاذة)
+1. [ ] إعادة تسمية `AccountsPage` من "الحسابات" إلى "النقدية" أو "الخزينة": هذا فعلاً ليس صفحة حسابات حقيقية، بل سجل حركات نقدية/ميزان، والقرار ما اتنفذش لحد الآن.
+2. [ ] المتبقي من statement feature في الـ renderer:
+   - [ ] صفحة جديدة "كشف حساب" (client + contractor فقط، وdriver/crusher خارج النطاق حسب قرار المستخدم) تعرض جدول الرصيد المتدرج: صف الافتتاح، صفوف الخصوم/المصروفات، صفوف الدفع/الدفعيات، عمود الرصيد التراكمي.
+3. [ ] `CSV export` (مفيش حاليًا، فيه بس تنزيل نموذج الاستيراد)
+4. [ ] توثيق رسمي لعملية الـ migration من الإكسل (خطوات + الحالات الشاذة)
+
+### ملاحظة حالة الـ statement في هذا snapshot
+
+Backend `MaterialType` وstatement موجودان في المصدر مع IPC/preload APIs. المنجز في renderer هو CRUD إعدادات `MaterialType`، حقول العميل/المقاول الافتتاحية، وحقل نوع الصنف الإلزامي في إضافة/تعديل النقلة. صفحة "كشف حساب" نفسها ما زالت pending.
 
 - Support more than one receipt photo per trip (currently one: `Trip.receipt_photo_path`). Real use case surfaced during manual testing: a trip can have a separate crusher receipt photo and a separate client receipt photo — right now only one slot exists. When we get to this: needs a backend decision first (either a second nullable path column on `Trip` for a second fixed slot, or a proper `Attachment` table with `trip_id` + `kind` if we might need more than two eventually) — this is a Claude/backend task, not something to implement on your own initiative. Not urgent, not scheduled yet.
+
+## ❌ pending/undecided (ما تم حله ولا يتم التعامل معه كـ resolved)
+
+- [ ] `LedgerEntryForm.tsx` — "اتلغى بالغلط" ما زال pending/undecided ولا يتم اعتبارنا أنه تم تنفيذ شيء فيه في هذا التحديث.
+- [ ] أزرار "إضافة حركة" على `ContractorAccountPage` و`DriverHistoryPage` — لا يترتب عليها حل ولا إغلاق، وما زالت فكرة غير مقرّرة في هذا السياق.
+
+## ⏳ ملاحظات التنفيذ التفاعلي / التوثيق
+
+- [ ] إذا وصلت المشروع لأول نسخة shipped حقيقية، سيتم مسح سلسلة الـ migration بالكامل وبدء `v1` clean baseline بدل استمرار الـ historical migration experimental الحالي.
+- [ ] في الـ backend الرمز الحالي، `Attachment` يحل محل حقلَي `Trip.receipt_photo_path` و`Shift.closing_photo_path`؛ APIs statement موجودة، بينما صفحة كشف الحساب في renderer لم تُنفذ بعد.
 
 ## 🧹 دين تقني (من الجرد)
 

@@ -19,6 +19,29 @@ interface AttachmentRow {
   createdAt: string
 }
 
+interface MaterialTypeRow {
+  id: number
+  name: string
+}
+
+interface StatementRow {
+  date: string
+  kind: 'OPENING' | 'CHARGE' | 'PAYMENT'
+  description: string | null
+  quantity: number | null
+  price: number | null
+  value: number | null
+  payment: number | null
+  notes: string | null
+  runningBalance: number
+}
+
+interface Statement {
+  entityName: string
+  rows: StatementRow[]
+  finalBalance: number
+}
+
 interface TripRow {
   id: string
   shiftId: string
@@ -39,6 +62,7 @@ interface TripRow {
   recipientName: string | null
   clientReceiptNo: string | null
   notes: string | null
+  materialTypeId: number | null
 }
 
 interface TripWithContextRow {
@@ -64,6 +88,8 @@ interface TripWithContextRow {
   recipientName: string | null
   clientReceiptNo: string | null
   notes: string | null
+  materialTypeId: number | null
+  materialTypeName: string | null
 }
 
 interface ShiftFullRow {
@@ -110,6 +136,7 @@ interface CreateTripInput {
   clientId: number
   transportPrice: number
   clientPrice: number
+  materialTypeId: number
   recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
   recipientName?: string
   clientReceiptNo?: string
@@ -157,8 +184,19 @@ interface Api {
   createClient: (input: {
     name: string
     initialPrice?: number
+    location?: string
+    openingBalance?: number
+    openingBalanceDate?: string
   }) => Promise<
-    UseCaseResult<{ id: number; name: string; initialPrice: number | null }> | FailedUseCaseResult
+    | UseCaseResult<{
+        id: number
+        name: string
+        initialPrice: number | null
+        location: string | null
+        openingBalance: number
+        openingBalanceDate: string | null
+      }>
+    | FailedUseCaseResult
   >
   createCrusher: (input: {
     name: string
@@ -166,11 +204,23 @@ interface Api {
   }) => Promise<
     UseCaseResult<{ id: number; name: string; initialPrice: number | null }> | FailedUseCaseResult
   >
+  createMaterialType: (input: { name: string }) => Promise<
+    UseCaseResult<MaterialTypeRow> | FailedUseCaseResult
+  >
   createContractor: (input: {
     name: string
     phone?: string
+    openingBalance?: number
+    openingBalanceDate?: string
   }) => Promise<
-    UseCaseResult<{ id: number; name: string; phone: string | null }> | FailedUseCaseResult
+    | UseCaseResult<{
+        id: number
+        name: string
+        phone: string | null
+        openingBalance: number
+        openingBalanceDate: string | null
+      }>
+    | FailedUseCaseResult
   >
   createVehicle: (input: {
     vehicleNo: number
@@ -201,7 +251,16 @@ interface Api {
     | FailedUseCaseResult
   >
   listContractors: () => Promise<
-    UseCaseResult<{ id: number; name: string; phone: string | null }[]> | FailedUseCaseResult
+    | UseCaseResult<
+        {
+          id: number
+          name: string
+          phone: string | null
+          openingBalance: number
+          openingBalanceDate: string | null
+        }[]
+      >
+    | FailedUseCaseResult
   >
   listVehicles: () => Promise<
     | UseCaseResult<
@@ -232,8 +291,19 @@ interface Api {
     id: number
     name: string
     initialPrice?: number
+    location?: string
+    openingBalance?: number
+    openingBalanceDate?: string
   }) => Promise<
-    UseCaseResult<{ id: number; name: string; initialPrice: number | null }> | FailedUseCaseResult
+    | UseCaseResult<{
+        id: number
+        name: string
+        initialPrice: number | null
+        location: string | null
+        openingBalance: number
+        openingBalanceDate: string | null
+      }>
+    | FailedUseCaseResult
   >
   deleteClient: (input: {
     id: number
@@ -248,12 +318,27 @@ interface Api {
   deleteCrusher: (input: {
     id: number
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  updateMaterialType: (input: { id: number; name: string }) => Promise<
+    UseCaseResult<MaterialTypeRow> | FailedUseCaseResult
+  >
+  deleteMaterialType: (input: { id: number }) => Promise<
+    UseCaseResult<{ id: number }> | FailedUseCaseResult
+  >
   updateContractor: (input: {
     id: number
     name: string
     phone?: string
+    openingBalance?: number
+    openingBalanceDate?: string
   }) => Promise<
-    UseCaseResult<{ id: number; name: string; phone: string | null }> | FailedUseCaseResult
+    | UseCaseResult<{
+        id: number
+        name: string
+        phone: string | null
+        openingBalance: number
+        openingBalanceDate: string | null
+      }>
+    | FailedUseCaseResult
   >
   deleteContractor: (input: {
     id: number
@@ -286,6 +371,7 @@ interface Api {
     clientId: number
     transportPrice: number
     clientPrice: number
+    materialTypeId: number
     recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
     recipientName?: string
     clientReceiptNo?: string
@@ -302,8 +388,21 @@ interface Api {
   listCrushers: () => Promise<
     UseCaseResult<{ id: number; name: string; initialPrice: number | null }[]> | FailedUseCaseResult
   >
+  listMaterialTypes: () => Promise<
+    UseCaseResult<MaterialTypeRow[]> | FailedUseCaseResult
+  >
   listClients: () => Promise<
-    UseCaseResult<{ id: number; name: string; initialPrice: number | null }[]> | FailedUseCaseResult
+    | UseCaseResult<
+        {
+          id: number
+          name: string
+          initialPrice: number | null
+          location: string | null
+          openingBalance: number
+          openingBalanceDate: string | null
+        }[]
+      >
+    | FailedUseCaseResult
   >
   createLedgerEntry: (input: {
     entryDate: string
@@ -350,6 +449,7 @@ interface Api {
     clientId: number
     transportPrice: number
     clientPrice: number
+    materialTypeId: number
     recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
     recipientName?: string
     clientReceiptNo?: string
@@ -377,6 +477,12 @@ interface Api {
   getClientAccount: (input: {
     clientId: number
   }) => Promise<UseCaseResult<ClientAccount> | FailedUseCaseResult>
+  getClientStatement: (input: {
+    clientId: number
+  }) => Promise<UseCaseResult<Statement> | FailedUseCaseResult>
+  getContractorStatement: (input: {
+    contractorId: number
+  }) => Promise<UseCaseResult<Statement> | FailedUseCaseResult>
   createClientPayment: (input: {
     entryDate: string
     clientId: number

@@ -34,6 +34,7 @@ interface TripFieldsInput {
   clientId: number
   transportPrice: number
   clientPrice: number
+  materialTypeId: number
   recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
   recipientName?: string
   clientReceiptNo?: string
@@ -50,6 +51,7 @@ function validateTripFields(input: TripFieldsInput): { field: string; message: s
   if (!input.crusherId) errors.push({ field: 'crusherId', message: 'الكسارة مطلوبة' })
   if (!input.stonePrice) errors.push({ field: 'stonePrice', message: 'سعر الحجر مطلوب' })
   if (!input.clientId) errors.push({ field: 'clientId', message: 'العميل مطلوب' })
+  if (!input.materialTypeId) errors.push({ field: 'materialTypeId', message: 'نوع الصنف مطلوب' })
   if (!input.transportPrice) errors.push({ field: 'transportPrice', message: 'سعر النقل مطلوب' })
   if (!input.clientPrice) errors.push({ field: 'clientPrice', message: 'سعر العميل مطلوب' })
 
@@ -114,7 +116,8 @@ export function createTrip(input: CreateTripInput): UseCaseResult<{ id: string }
       recipientNameStatus,
       recipientName: recipientNameStatus === 'PROVIDED' ? (input.recipientName ?? null) : null,
       clientReceiptNo: input.clientReceiptNo ?? null,
-      notes: input.notes ?? null
+      notes: input.notes ?? null,
+      materialTypeId: input.materialTypeId
     })
     return { ok: true, data: { id } }
   } catch (err: unknown) {
@@ -181,7 +184,8 @@ export function updateTrip(input: UpdateTripInput): UseCaseResult<{ id: string }
       recipientNameStatus,
       recipientName: recipientNameStatus === 'PROVIDED' ? (input.recipientName ?? null) : null,
       clientReceiptNo: input.clientReceiptNo ?? null,
-      notes: input.notes ?? null
+      notes: input.notes ?? null,
+      materialTypeId: input.materialTypeId
     })
     return { ok: true, data: { id: input.id } }
   } catch (err: unknown) {

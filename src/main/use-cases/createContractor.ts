@@ -22,12 +22,24 @@ function isSqliteError(err: unknown): err is SqliteError {
 interface ContractorInput {
   name: string
   phone?: string
+  openingBalance?: number
+  openingBalanceDate?: string
 }
 
-function normalizeInput(input: ContractorInput): { name: string; phone: string | null } | null {
+function normalizeInput(input: ContractorInput): {
+  name: string
+  phone: string | null
+  openingBalance: number
+  openingBalanceDate: string | null
+} | null {
   const name = input.name?.trim()
   if (!name) return null
-  return { name, phone: input.phone?.trim() || null }
+  return {
+    name,
+    phone: input.phone?.trim() || null,
+    openingBalance: input.openingBalance ?? 0,
+    openingBalanceDate: input.openingBalanceDate?.trim() || null
+  }
 }
 
 export function createContractor(input: ContractorInput): UseCaseResult<ContractorRow> {
@@ -37,7 +49,12 @@ export function createContractor(input: ContractorInput): UseCaseResult<Contract
   }
 
   try {
-    const id = insertContractor(values.name, values.phone)
+    const id = insertContractor(
+      values.name,
+      values.phone,
+      values.openingBalance,
+      values.openingBalanceDate
+    )
     return { ok: true, data: { id, ...values } }
   } catch (err: unknown) {
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -60,7 +77,13 @@ export function updateContractor(
   }
 
   try {
-    updateContractorInDb(input.id, values.name, values.phone)
+    updateContractorInDb(
+      input.id,
+      values.name,
+      values.phone,
+      values.openingBalance,
+      values.openingBalanceDate
+    )
     return { ok: true, data: { id: input.id, ...values } }
   } catch (err: unknown) {
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_UNIQUE') {

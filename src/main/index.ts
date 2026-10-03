@@ -43,6 +43,13 @@ import {
   listEntityAttachments,
   getAttachmentPhoto
 } from './use-cases/attachmentPhoto'
+import {
+createMaterialType,
+listMaterialTypes,
+updateMaterialType,
+deleteMaterialType
+} from './use-cases/createMaterialType'
+import { getClientStatement, getContractorStatement } from './use-cases/getStatement'
 
 function createWindow(): void {
   // Create the browser window.
@@ -114,6 +121,10 @@ app.whenReady().then(() => {
   ipcMain.handle('crusher:delete', (_event, input) => deleteCrusher(input))
   ipcMain.handle('contractor:update', (_event, input) => updateContractor(input))
   ipcMain.handle('contractor:delete', (_event, input) => deleteContractor(input))
+  ipcMain.handle('materialType:create', (_event, input) => createMaterialType(input))
+  ipcMain.handle('materialType:list', () => listMaterialTypes())
+  ipcMain.handle('materialType:update', (_event, input) => updateMaterialType(input))
+  ipcMain.handle('materialType:delete', (_event, input) => deleteMaterialType(input))
   ipcMain.handle('vehicle:update', (_event, input) => updateVehicle(input))
   ipcMain.handle('vehicle:delete', (_event, input) => deleteVehicle(input))
   ipcMain.handle('trip:create', (_event, input) => createTrip(input))
@@ -129,6 +140,8 @@ app.whenReady().then(() => {
   ipcMain.handle('ledger:list', () => listLedgerEntries())
   ipcMain.handle('account:contractor', (_event, input) => getContractorAccount(input))
   ipcMain.handle('account:driver', (_event, input) => getDriverHistory(input))
+  ipcMain.handle('statement:client', (_event, input) => getClientStatement(input))
+  ipcMain.handle('statement:contractor', (_event, input) => getContractorStatement(input))
   ipcMain.handle('client:payment:create', (_event, input) => createClientPayment(input))
   ipcMain.handle('client:payment:update', (_event, input) => updateClientPayment(input))
   ipcMain.handle('client:payment:delete', (_event, input) => deleteClientPayment(input))
