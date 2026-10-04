@@ -215,3 +215,7 @@ hook أو helper واحد `useApiAction/callApi(fn)` بيحوّل الرفض ل�
 3. B5 + B6 لسلامة المرفقات وقفل الوردية.
 4. B7 + B9 + B3 + B10 + B11 لسلوك الواجهة والتعديلات.
 5. بعد ذلك المخاطر حسب الأولوية: contractor snapshot على الوردية، المبالغ بالقرش، تحقق Zod في main، وقرار إشارة المقاول.
+
+## 6. Found while working
+
+Issues discovered during other tasks. Do not fix here; schedule explicitly.

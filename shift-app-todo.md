@@ -4,6 +4,10 @@
 
 New chat: attach [shift-tracker-context.md](shift-tracker-context.md), [shift-app-todo.md](shift-app-todo.md), [code-review-backlog.md](code-review-backlog.md).
 
+## Standing Rules
+
+Rules live in `.github/copilot-instructions.md`. Follow them and the Doc Sync rule on every task.
+
 Updated from the current working tree. This file is the operational source-of-truth for the project status and is intentionally aligned to the code in the repo rather than stale historical notes.
 
 ## 📋 Code Review Backlog
@@ -34,13 +38,6 @@ Full text: [code-review-backlog.md](code-review-backlog.md).
 - [x] Renderer routes exist for `/`, `/shifts`, `/shifts/:shiftId`, `/all-trips`, `/accounts`, `/statements`, and `/settings`.
 - [x] Settings pages include the entity sections for vehicles, drivers, contractors, crushers, clients, and material types.
 - [x] `/statements` is implemented for clients and contractors; `/accounts` is a separate page labeled `حركة النقدية`.
-
-### Fixed in Current Source
-
-- [x] B2 fixed.
-- [x] B5 fixed.
-- [x] B6 fixed.
-- [x] B8 fixed by policy reset and legacy DB refusal.
 
 ### Gaps Confirmed in Current Source
 
