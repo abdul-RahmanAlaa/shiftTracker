@@ -34,7 +34,7 @@
 
 فرّق بين `undefined = سيب القيمة` و`null = امسحها`، وفي الـ SQL استخدم `COALESCE(@x, col)` للحقول اللي ماجتش. ضيف حقول `openingBalance` (رقم) و`openingBalanceDate` (DatePicker) و`location` للفورمين، وحمّلهم في `startEditing`. ضيف اختبار: edit بدون الحقول مايغيّرش الرصيد.
 
-**Status:** Fixed in code, verified in current source; not manually tested. Client and contractor update use cases preserve omitted values. The requested manual preservation test is still pending.
+**Status:** Fixed in code; manually verified by user. Client and contractor update use cases preserve omitted values.
 
 ### B3. صفحتين تفاصيل بتعرض بيانات غلط بسبب مقارنة بقيم عربي قديمة
 
@@ -78,7 +78,7 @@
 
 في `deleteTrip` امسح الصور والـ rows في transaction واحدة. والأفضل نهائيًا: مفتاح داخلي `INTEGER AUTOINCREMENT` للنقلة، والـ `TRP-xxxx` عمود للعرض. على الأقل استخدم جدول counters أو `sqlite_sequence` عشان الـ id مايتكررش أبدًا.
 
-**Status:** Fixed in code, not manually tested. `TripIdCounter` issues monotonic IDs. The trip and attachment rows are deleted in one SQLite transaction; photo files are unlinked immediately after that transaction, so filesystem deletion itself is not part of the SQLite transaction.
+**Status:** Fixed in code; manually verified by user. `TripIdCounter` issues monotonic IDs. The trip and attachment rows are deleted in one SQLite transaction; photo files are unlinked immediately after that transaction, so filesystem deletion itself is not part of the SQLite transaction.
 
 ### B6. addAttachment / getAttachmentPhoto: مفيش تحقق وفيه path traversal
 
@@ -94,7 +94,7 @@
 
 غيّر `getAttachmentPhoto` لـ `{attachmentId}`، وجيب المسار من الـ DB فقط، وتأكد إن `resolve(path)` يبدأ بـ `userData/docs`. تحقق من `entityType` و`kind` بـ zod enum، وتحقق إن الـ entity موجودة وإن kind مناسب للنوع (`TRIP`→receipts، `SHIFT`→`CLOSING_SHEET`). ارفض لو الوردية المرتبطة `CLOSED`. حدد الحجم (مثلًا 5MB) وتأكد من magic bytes الـ JPEG. اعمل الكتابة كده: اكتب الملف أولًا بـ uuid، وبعدين `INSERT` بالمسار الكامل في transaction، ولو فشل امسح الملف. و`closeShift` يتأكد كمان إن الملف موجود فعلًا.
 
-**Status:** Fixed in code, not manually tested. Current implementation uses the `attachmentId` contract, a 5MB limit, JPEG magic-byte validation, safe attachment paths, entity/kind and entity-existence checks, closed-shift protection, and a file-exists check in `closeShift`. One approved renderer exception is the contract update in `AttachmentManager.tsx`. Note: implementation writes the attachment row before the file and removes the row if the file save fails; it does not use the proposed UUID-first sequence.
+**Status:** Fixed in code; manually verified by user. Current implementation uses the `attachmentId` contract, a 5MB limit, JPEG magic-byte validation, safe attachment paths, entity/kind and entity-existence checks, closed-shift protection, and a file-exists check in `closeShift`. One approved renderer exception is the contract update in `AttachmentManager.tsx`. Note: implementation writes the attachment row before the file and removes the row if the file save fails; it does not use the proposed UUID-first sequence.
 
 ### B7. updateLedgerEntry وupdateClientPayment مش بيقدروا "يمسحوا" قيمة
 

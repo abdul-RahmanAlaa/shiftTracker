@@ -13,11 +13,11 @@ Updated from the current working tree. This file is the operational source-of-tr
 ## 📋 Code Review Backlog
 
 - [x] B1: fixed; manually verified.
-- [ ] B2: fixed in code and verified in source; not manually tested.
+- [x] B2: fixed in code; manually verified by user.
 - [ ] B3: open; detail components still compare enum values to old Arabic strings.
 - [x] B4: fixed; manually verified. Follow-up remains open for six unused i18n keys and a missing-key check script.
-- [ ] B5: fixed in code (`TripIdCounter` and attachment-row cleanup in the trip-delete transaction); not manually tested.
-- [ ] B6: fixed in code (attachmentId, 5MB/JPEG validation, closed-shift guard, closeShift file-exists check); not manually tested. Approved renderer exception: one line in `AttachmentManager.tsx`.
+- [x] B5: fixed in code (`TripIdCounter` and attachment-row cleanup in the trip-delete transaction); manually verified by user.
+- [x] B6: fixed in code (attachmentId, 5MB/JPEG validation, closed-shift guard, closeShift file-exists check); manually verified by user. Approved renderer exception: one line in `AttachmentManager.tsx`.
 - [ ] B7: open; decision pending on PUT versus PATCH semantics for ledger/clientPayment updates.
 - [x] B8: resolved by decision; migration chain removed, old DBs refused, fresh DB required. No backup is made before schema initialization; the post-close backup risk remains open below.
 - [ ] B9: open; delete failures and rejected IPC calls still need user-visible handling.
@@ -46,7 +46,7 @@ Full text: [code-review-backlog.md](code-review-backlog.md).
 
 ### Verification Status
 
-Source inspection confirms the current implementation, but it cannot prove runtime behavior in the packaged Electron app. A real manual app run remains required for final runtime verification.
+The user confirmed all Manual Test Checklist scenarios passed in Electron using a fresh `shift-tracker.db`. This runtime result is user-reported and cannot be independently derived from source.
 
 ## Operational Notes
 
@@ -72,10 +72,10 @@ Source inspection confirms the current implementation, but it cannot prove runti
 
 ## Manual Test Checklist
 
-- [ ] Delete the local `shift-tracker.db` first.
-- [ ] Delete a trip with an attachment; verify attachment rows and the file are removed, and the trip ID is not reused.
-- [ ] Open an attachment photo through `attachmentId`.
-- [ ] Verify adding and removing attachments on a closed shift are rejected.
-- [ ] Verify uploads larger than 5MB and non-JPEG uploads are rejected.
-- [ ] Verify `closeShift` fails when a required attachment row exists but its file is missing.
-- [ ] Update a client without `location`, `openingBalance`, or `openingBalanceDate`, and a contractor without `phone`, `openingBalance`, or `openingBalanceDate`; verify existing values are preserved.
+- [x] Delete the local `shift-tracker.db` first.
+- [x] Delete a trip with an attachment; verify attachment rows and the file are removed, and the trip ID is not reused.
+- [x] Open an attachment photo through `attachmentId`.
+- [x] Verify adding and removing attachments on a closed shift are rejected.
+- [x] Verify uploads larger than 5MB and non-JPEG uploads are rejected.
+- [x] Verify `closeShift` fails when a required attachment row exists but its file is missing.
+- [x] Update a client without `location`, `openingBalance`, or `openingBalanceDate`, and a contractor without `phone`, `openingBalance`, or `openingBalanceDate`; verify existing values are preserved.

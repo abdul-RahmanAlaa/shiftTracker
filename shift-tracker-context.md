@@ -80,7 +80,7 @@ The final user-facing name for the accounts page is `حركة النقدية`. T
 
 - There is no CSV import/export route or implementation in the tracked `src` tree.
 - There is no `npm test` script or repository test suite in the current source.
-- Runtime verification in the actual Electron app still requires a real manual smoke test, because source inspection cannot prove UI behavior in a packaged app.
+- The user confirmed all Manual Test Checklist scenarios passed in Electron using a fresh `shift-tracker.db`. This runtime result is user-reported and cannot be independently derived from source.
 
 ## Decisions
 
