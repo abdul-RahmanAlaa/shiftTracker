@@ -43,9 +43,15 @@ Constraints and derived objects in `SCHEMA`:
 
 ### Version Handling
 
-The source targets `user_version = 11`. Fresh installs execute `SCHEMA` and set 11. Existing versions 1 or 9 run the v10 attachment migration followed by v11 statement fields; version 10 runs the v11 migration. The fallback branch logs the current version as up to date without upgrading it, so versions 2 through 8 have no explicit migration path. Source identifies the target version but does not reveal a running user's database version.
+The schema is now a single clean baseline at `user_version = 1`. There is no upgrade path from any prior experimental database version; any older local SQLite database must be deleted manually before starting the app. This reset was intentionally done now at first real ship rather than deferred.
 
-The v10 migration copies legacy trip/shift photo paths to `Attachment` and drops `Trip.receipt_photo_path` / `Shift.closing_photo_path`. The v11 migration adds `MaterialType`, client location/opening-balance fields, contractor opening-balance fields, and `Trip.material_type_id`.
+The project no longer maintains a multi-version migration chain, so the previous `versions 2–8 unsupported` gap no longer applies because there is no migration chain left to have gaps in. Old local databases are treated as incompatible state and must be replaced with a fresh database created from the current schema.
+
+### Backend Update Rules
+
+B2 is fixed in the current backend: optional update fields are treated as patch semantics. If a caller omits an optional value on update, the existing row value is preserved instead of being replaced with `0`, `null`, or an empty string. This applies to client and contractor updates, including `location`, `openingBalance`, `openingBalanceDate`, and `phone` when those fields are not explicitly provided.
+
+B8 is resolved via the database reset: migration safety is handled by refusing any old database and requiring a clean fresh start at `user_version = 1` instead of carrying stale migration history forward.
 
 ## Renderer Routes and Labels
 

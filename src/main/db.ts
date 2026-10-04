@@ -1,6 +1,8 @@
 import Database from 'better-sqlite3'
-import { app } from 'electron'
+import { app, dialog } from 'electron'
 import { join } from 'path'
+
+const CURRENT_VERSION = 1
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS TransportContractor (
@@ -75,7 +77,7 @@ CREATE TABLE IF NOT EXISTS Trip (
   crusher_receipt_no      INTEGER,
   client_id               INTEGER NOT NULL REFERENCES Client(id),
   transport_price         REAL NOT NULL,
-  client_price             REAL NOT NULL,
+  client_price            REAL NOT NULL,
   recipient_name_status    TEXT NOT NULL DEFAULT 'UNCLEAR' CHECK (recipient_name_status IN ('PROVIDED','UNCLEAR')),
   recipient_name           TEXT,
   client_receipt_no        TEXT,
@@ -146,96 +148,43 @@ CREATE TABLE IF NOT EXISTS ClientPayment (
 );
 `
 
-const MIGRATION_V10_ATTACHMENTS = `
-CREATE TABLE Attachment (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('TRIP','SHIFT')),
-  entity_id TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('CRUSHER_RECEIPT','CLIENT_RECEIPT','CLOSING_SHEET')),
-  photo_path TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE INDEX idx_attachment_entity ON Attachment (entity_type, entity_id);
-
-INSERT INTO Attachment (entity_type, entity_id, kind, photo_path)
-SELECT 'TRIP', id, 'CRUSHER_RECEIPT', receipt_photo_path
-FROM Trip WHERE receipt_photo_path IS NOT NULL;
-
-INSERT INTO Attachment (entity_type, entity_id, kind, photo_path)
-SELECT 'SHIFT', id, 'CLOSING_SHEET', closing_photo_path
-FROM Shift WHERE closing_photo_path IS NOT NULL;
-
-ALTER TABLE Trip DROP COLUMN receipt_photo_path;
-ALTER TABLE Shift DROP COLUMN closing_photo_path;
-`
-
-const MIGRATION_V11_STATEMENT_FIELDS = `
-CREATE TABLE IF NOT EXISTS MaterialType (
-  id    INTEGER PRIMARY KEY AUTOINCREMENT,
-  name  TEXT NOT NULL UNIQUE
-);
-
-ALTER TABLE Client ADD COLUMN location TEXT;
-ALTER TABLE Client ADD COLUMN opening_balance REAL NOT NULL DEFAULT 0;
-ALTER TABLE Client ADD COLUMN opening_balance_date TEXT;
-
-ALTER TABLE TransportContractor ADD COLUMN opening_balance REAL NOT NULL DEFAULT 0;
-ALTER TABLE TransportContractor ADD COLUMN opening_balance_date TEXT;
-
-ALTER TABLE Trip ADD COLUMN material_type_id INTEGER REFERENCES MaterialType(id);
-`
-
 let db: Database.Database
-
-function migrateToV10(): void {
-  db.pragma('foreign_keys = OFF')
-  try {
-    db.transaction(() => db.exec(MIGRATION_V10_ATTACHMENTS))()
-  } finally {
-    db.pragma('foreign_keys = ON')
-  }
-}
-
-function migrateToV11(): void {
-  db.exec(MIGRATION_V11_STATEMENT_FIELDS)
-}
 
 export function initDatabase(): Database.Database {
   const dbPath = join(app.getPath('userData'), 'shift-tracker.db')
-  db = new Database(dbPath)
 
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
+  try {
+    db = new Database(dbPath)
+    db.pragma('journal_mode = WAL')
+    db.pragma('foreign_keys = ON')
 
-  const currentVersion = db.pragma('user_version', { simple: true }) as number
+    const currentVersion = db.pragma('user_version', { simple: true }) as number
 
-  if (currentVersion === 0) {
-    db.exec(SCHEMA)
-    db.pragma('user_version = 11')
-    console.log(
-      '[db] Schema created (fresh install, attachments + statement fields). user_version = 11'
+    if (currentVersion === 0) {
+      db.exec(SCHEMA)
+      db.pragma(`user_version = ${CURRENT_VERSION}`)
+      console.log(`[db] Schema created (fresh install). user_version = ${CURRENT_VERSION}`)
+    } else if (currentVersion === CURRENT_VERSION) {
+      console.log(`[db] Database up to date. user_version = ${currentVersion}`)
+    } else {
+      db.close()
+      throw new Error(
+        `[db] Found an existing database at user_version ${currentVersion}, but this build only supports a fresh install (user_version ${CURRENT_VERSION}) with no upgrade path from older experimental schemas. Delete the database file at "${dbPath}" and restart the app to start fresh.`
+      )
+    }
+
+    console.log('[db] Database path:', dbPath)
+    return db
+  } catch (err) {
+    console.error('[db] initDatabase failed:', err)
+    dialog.showErrorBox(
+      'خطأ في قاعدة البيانات',
+      'تعذر فتح قاعدة البيانات. لو كانت نسخة قديمة من مرحلة التطوير، احذف ملف قاعدة البيانات وشغّل التطبيق تاني.\n\n' +
+        (err instanceof Error ? err.message : String(err))
     )
-  } else if (currentVersion === 1 || currentVersion === 9) {
-    migrateToV10()
-    migrateToV11()
-    db.pragma('user_version = 11')
-    console.log(
-      `[db] Migration v${currentVersion} -> v10 -> v11 applied (attachments, material types, opening balances). user_version = 11`
-    )
-  } else if (currentVersion === 10) {
-    migrateToV11()
-    db.pragma('user_version = 11')
-    console.log(
-      '[db] Migration v10 -> v11 applied (material types, opening balances). user_version = 11'
-    )
-  } else {
-    console.log(`[db] Database up to date. user_version = ${currentVersion}`)
+    app.quit()
+    throw err
   }
-
-  console.log('[db] Database path:', dbPath)
-
-  return db
 }
 
 export function getDb(): Database.Database {

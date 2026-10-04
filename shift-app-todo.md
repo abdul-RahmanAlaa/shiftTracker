@@ -14,11 +14,15 @@ Updated from checked-out source on 2026-10-03 (`HEAD` `9c5c453`). Checked items 
 - [x] `/statements` is implemented for clients and contractors. `/accounts` remains separate and is currently labeled **الحسابات**.
 - [x] Client/Contractor fields removed by `e8921fc` under the mistaken assumption that they were unused have been restored.
 
+## Fixed in Current Source
+
+- [x] B2: Optional update fields preserve existing values when omitted, rather than resetting to `0`/`null` during client and contractor updates.
+- [x] B8: Migration safety is resolved by resetting the schema to a single clean baseline at `user_version = 1`. Any old local database must be deleted manually; there is no historical migration chain left to support or gap-fill.
+
 ## Gaps Confirmed in Current Source
 
-1. Define explicit handling or rejection for existing `user_version` values 2 through 8. Startup handles fresh databases, versions 1/9, and 10; other versions fall through without migration.
-2. No CSV import/export workflow is present under `src`: no `ImportPage`, route, IPC handler, or CSV use case. Decide separately whether CSV support is still wanted; the PapaParse dependency is not an implementation.
-3. There is no `npm test` script or tracked test/spec file. Add automated tests as a separately scoped task if desired.
+1. No CSV import/export workflow is present under `src`: no `ImportPage`, route, IPC handler, or CSV use case. Decide separately whether CSV support is still wanted; the PapaParse dependency is not an implementation.
+2. There is no `npm test` script or tracked test/spec file. Add automated tests as a separately scoped task if desired.
 
 ## Verification Status Not Derivable from Source
 

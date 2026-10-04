@@ -1,6 +1,7 @@
 import {
   insertContractor,
   listContractors as listContractorsInDb,
+  getContractorById,
   updateContractor as updateContractorInDb,
   deleteContractor as deleteContractorInDb,
   ContractorRow
@@ -71,7 +72,17 @@ export function listContractors(): UseCaseResult<ContractorRow[]> {
 export function updateContractor(
   input: ContractorInput & { id: number }
 ): UseCaseResult<ContractorRow> {
-  const values = normalizeInput(input)
+  const existing = getContractorById(input.id)
+  const values = normalizeInput({
+    name: input.name,
+    phone: input.phone !== undefined ? input.phone : (existing?.phone ?? undefined),
+    openingBalance: input.openingBalance ?? existing?.openingBalance ?? 0,
+    openingBalanceDate:
+      input.openingBalanceDate !== undefined
+        ? input.openingBalanceDate
+        : (existing?.openingBalanceDate ?? undefined)
+  })
+
   if (!values) {
     return { ok: false, errors: [{ field: 'name', message: 'اسم المقاول مطلوب' }] }
   }
