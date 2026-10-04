@@ -11,8 +11,9 @@ Updated from checked-out source on 2026-10-03 (`HEAD` `9c5c453`). Checked items 
 - [x] Ledger, client payments, account queries, and client/contractor statement APIs exist.
 - [x] Renderer routes exist for `/`, `/shifts`, `/shifts/:shiftId`, `/all-trips`, `/accounts`, `/statements`, and `/settings`.
 - [x] Settings pages include six entity sections; client location/opening balance/date and contractor opening balance/date are in their forms and tables.
-- [x] `/statements` is implemented for clients and contractors. `/accounts` remains separate and is currently labeled **الحسابات**.
+- [x] `/statements` is implemented for clients and contractors. `/accounts` remains separate and is now labeled **حركة النقدية**.
 - [x] Client/Contractor fields removed by `e8921fc` under the mistaken assumption that they were unused have been restored.
+- [x] إعادة تسمية الحسابات: تم اعتماد الاسم النهائي **حركة النقدية**، وليس **الخزينة**، وهو الاسم الذي سيتم الاحتفاظ به وعدم إعادة مناقشته.
 
 ## Fixed in Current Source
 
