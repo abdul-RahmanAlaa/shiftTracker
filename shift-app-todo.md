@@ -1,32 +1,84 @@
-# Shift Tracker TODO: Source Audit
+# Shift Tracker TODO
 
-Updated from checked-out source on 2026-10-03 (`HEAD` `9c5c453`). Checked items confirm code exists; they do not claim every flow was manually tested in Electron.
+## Resume Instructions
 
-## Implemented in Current Source
+New chat: attach [shift-tracker-context.md](shift-tracker-context.md), [shift-app-todo.md](shift-app-todo.md), [code-review-backlog.md](code-review-backlog.md).
 
-- [x] Fresh-install schema contains `MaterialType`, `Attachment`, client/contractor opening-balance fields, and `Trip.material_type_id` (`user_version` target 11).
-- [x] Main-process entity create/list/update/delete use cases and IPC handlers exist for drivers, clients, crushers, contractors, vehicles, and material types.
-- [x] Shift creation/closure and trip create/update/delete are implemented; trip create/update requires `materialTypeId`.
+Updated from the current working tree. This file is the operational source-of-truth for the project status and is intentionally aligned to the code in the repo rather than stale historical notes.
+
+## 📋 Code Review Backlog
+
+- [x] B1: fixed; manually verified.
+- [ ] B2: fixed in code and verified in source; not manually tested.
+- [ ] B3: open; detail components still compare enum values to old Arabic strings.
+- [x] B4: fixed; manually verified. Follow-up remains open for six unused i18n keys and a missing-key check script.
+- [ ] B5: fixed in code (`TripIdCounter` and attachment-row cleanup in the trip-delete transaction); not manually tested.
+- [ ] B6: fixed in code (attachmentId, 5MB/JPEG validation, closed-shift guard, closeShift file-exists check); not manually tested. Approved renderer exception: one line in `AttachmentManager.tsx`.
+- [ ] B7: open; decision pending on PUT versus PATCH semantics for ledger/clientPayment updates.
+- [x] B8: resolved by decision; migration chain removed, old DBs refused, fresh DB required. No backup is made before schema initialization; the post-close backup risk remains open below.
+- [ ] B9: open; delete failures and rejected IPC calls still need user-visible handling.
+- [ ] B10: open; contractor/driver edit forms remain duplicated and unlocked.
+- [ ] B11: open; table empty state, account number formatting, balance consistency, and duplicate payment notes need follow-up.
+
+Full text: [code-review-backlog.md](code-review-backlog.md).
+
+## Source Audit
+
+### Implemented in Current Source
+
+- [x] Fresh-install schema includes MaterialType, Attachment, client/contractor opening-balance fields, and `Trip.material_type_id`.
+- [x] Main-process create/list/update/delete use cases and IPC handlers exist for drivers, clients, crushers, contractors, vehicles, and material types.
+- [x] Shift creation/closure and trip create/update/delete are implemented.
 - [x] Attachment persistence/list/read/remove flows exist; `closeShift` validates attachments and reported trip count.
 - [x] Ledger, client payments, account queries, and client/contractor statement APIs exist.
 - [x] Renderer routes exist for `/`, `/shifts`, `/shifts/:shiftId`, `/all-trips`, `/accounts`, `/statements`, and `/settings`.
-- [x] Settings pages include six entity sections; client location/opening balance/date and contractor opening balance/date are in their forms and tables.
-- [x] `/statements` is implemented for clients and contractors. `/accounts` remains separate and is now labeled **حركة النقدية**.
-- [x] Client/Contractor fields removed by `e8921fc` under the mistaken assumption that they were unused have been restored.
-- [x] إعادة تسمية الحسابات: تم اعتماد الاسم النهائي **حركة النقدية**، وليس **الخزينة**، وهو الاسم الذي سيتم الاحتفاظ به وعدم إعادة مناقشته.
+- [x] Settings pages include the entity sections for vehicles, drivers, contractors, crushers, clients, and material types.
+- [x] `/statements` is implemented for clients and contractors; `/accounts` is a separate page labeled `حركة النقدية`.
 
-## Fixed in Current Source
+### Fixed in Current Source
 
-- [x] B2: Optional update fields preserve existing values when omitted, rather than resetting to `0`/`null` during client and contractor updates.
-- [x] B5: Deleted trips no longer reuse IDs; `TripIdCounter` provides a monotonic ID source, and trip deletion removes attachment rows plus stored photo files in the same operation.
-- [x] B6: Attachment path traversal is blocked, validator checks reject invalid JPEGs and invalid entity/kind pairs, closed-shift attachment edits are blocked, and `getAttachmentPhoto` now relies on `attachmentId` instead of raw paths.
-- [x] B8: Migration safety is resolved by resetting the schema to a single clean baseline at `user_version = 1`. Any old local database must be deleted manually; there is no historical migration chain left to support or gap-fill.
+- [x] B2 fixed.
+- [x] B5 fixed.
+- [x] B6 fixed.
+- [x] B8 fixed by policy reset and legacy DB refusal.
 
-## Gaps Confirmed in Current Source
+### Gaps Confirmed in Current Source
 
-1. No CSV import/export workflow is present under `src`: no `ImportPage`, route, IPC handler, or CSV use case. Decide separately whether CSV support is still wanted; the PapaParse dependency is not an implementation.
-2. There is no `npm test` script or tracked test/spec file. Add automated tests as a separately scoped task if desired.
+1. No CSV import/export workflow is present under `src`.
+2. There is no `npm test` script or tracked test suite.
 
-## Verification Status Not Derivable from Source
+### Verification Status
 
-Whether routes and workflows have been manually exercised in the packaged Electron application is not recorded in source. Typecheck/lint results alone do not establish runtime verification.
+Source inspection confirms the current implementation, but it cannot prove runtime behavior in the packaged Electron app. A real manual app run remains required for final runtime verification.
+
+## Operational Notes
+
+- `CURRENT_VERSION` is `2` in `src/main/db.ts`.
+- A legacy database is rejected with an explicit error message telling the user to delete the local DB file and restart the app.
+- No backup is created before schema initialization; `closeShift` still runs backup after closing without `try/catch`.
+- The current UI label for the accounts page is `حركة النقدية`, not `الحسابات`.
+- No migration path is retained in the source for earlier experimental schemas.
+
+## Decisions
+
+- Contractor balance sign is the reverse of client sign, using the same formula: client positive means the client owes us; contractor positive means we owe the contractor. This must be documented in the contractor statement UI. `StatementsPage` currently has no such note; this is an open task.
+- Execution order: B2 + B8, then B6 + B7, then the rest.
+- The Accounts page final name is `حركة النقدية`. Do not reopen this naming decision.
+
+## Next Up
+
+1. B7: decide PUT versus PATCH semantics for ledger and clientPayment updates, then address the finding.
+2. B3: correct enum labels in detail views.
+3. B9: show deletion errors and handle rejected IPC calls.
+4. B10: use the shared ledger form for edits with locked IDs.
+5. B11: fix the remaining smaller UI/accounting inconsistencies.
+
+## Manual Test Checklist
+
+- [ ] Delete the local `shift-tracker.db` first.
+- [ ] Delete a trip with an attachment; verify attachment rows and the file are removed, and the trip ID is not reused.
+- [ ] Open an attachment photo through `attachmentId`.
+- [ ] Verify adding and removing attachments on a closed shift are rejected.
+- [ ] Verify uploads larger than 5MB and non-JPEG uploads are rejected.
+- [ ] Verify `closeShift` fails when a required attachment row exists but its file is missing.
+- [ ] Update a client without `location`, `openingBalance`, or `openingBalanceDate`, and a contractor without `phone`, `openingBalance`, or `openingBalanceDate`; verify existing values are preserved.
