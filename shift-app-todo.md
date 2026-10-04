@@ -61,6 +61,8 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - Contractor balance sign is the reverse of client sign, using the same formula: client positive means the client owes us; contractor positive means we owe the contractor. This must be documented in the contractor statement UI. `StatementsPage` currently has no such note; this is an open task.
 - Execution order: B2 + B8, then B6 + B7, then the rest.
 - The Accounts page final name is `حركة النقدية`. Do not reopen this naming decision.
+- The project uses a fresh-install database policy: schema reset is the supported path. Legacy migration logic is not retained; older local databases are refused.
+- The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
 
 ## Next Up
 
