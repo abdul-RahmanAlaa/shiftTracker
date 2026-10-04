@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import {
   deleteClientPayment as deleteClientPaymentInDb,
   getClientPaymentById,
@@ -8,64 +9,106 @@ import {
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
 
-export interface CreateClientPaymentInput {
-  entryDate: string
-  clientId: number
-  amount: number
-  notes?: string
+interface SqliteError extends Error {
+  code: string
+}
+
+function isSqliteError(err: unknown): err is SqliteError {
+  return err instanceof Error && 'code' in err && typeof err.code === 'string'
+}
+
+function isRealDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const date = new Date(`${value}T00:00:00.000Z`)
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+const positiveIdSchema = z
+  .number({ error: 'المعرف لازم يكون رقمًا صحيحًا موجبًا' })
+  .int()
+  .positive()
+const dateSchema = z
+  .string({ error: 'التاريخ مطلوب' })
+  .refine(isRealDate, 'أدخل تاريخًا صحيحًا بصيغة YYYY-MM-DD')
+const amountSchema = z
+  .number({ error: 'المبلغ لازم يكون رقمًا موجبًا' })
+  .finite('المبلغ لازم يكون رقمًا موجبًا')
+  .positive('المبلغ لازم يكون رقمًا موجبًا')
+const nullableNotesSchema = z.string().nullable()
+
+const createClientPaymentInputSchema = z.object({
+  entryDate: dateSchema,
+  clientId: positiveIdSchema,
+  amount: amountSchema,
+  notes: nullableNotesSchema.optional()
+})
+
+const updateClientPaymentInputSchema = createClientPaymentInputSchema.extend({
+  id: positiveIdSchema,
+  notes: nullableNotesSchema
+})
+
+export type CreateClientPaymentInput = z.infer<typeof createClientPaymentInputSchema>
+export type UpdateClientPaymentInput = z.infer<typeof updateClientPaymentInputSchema>
+
+function validationErrors(error: z.ZodError): { field: string; message: string }[] {
+  return error.issues.map((issue) => ({
+    field: issue.path[0] === undefined ? 'entryDate' : String(issue.path[0]),
+    message: issue.message
+  }))
+}
+
+function paymentWriteFailure(err: unknown): UseCaseResult<{ id: number }> {
+  if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
+    return { ok: false, errors: [{ field: 'clientId', message: 'العميل غير موجود' }] }
+  }
+  return { ok: false, errors: [{ field: 'root', message: 'تعذر حفظ دفعة العميل' }] }
 }
 
 export function createClientPayment(
   input: CreateClientPaymentInput
 ): UseCaseResult<{ id: number }> {
-  const errors: { field: string; message: string }[] = []
+  const parsed = createClientPaymentInputSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, errors: validationErrors(parsed.error) }
+  const values = parsed.data
 
-  if (!input.entryDate?.trim()) errors.push({ field: 'entryDate', message: 'التاريخ مطلوب' })
-  if (!input.clientId) errors.push({ field: 'clientId', message: 'العميل مطلوب' })
-  if (!input.amount) errors.push({ field: 'amount', message: 'المبلغ مطلوب' })
-
-  if (errors.length > 0) return { ok: false, errors }
-
-  const id = insertClientPayment({
-    entryDate: input.entryDate,
-    clientId: input.clientId,
-    amount: input.amount,
-    notes: input.notes ?? null
-  })
-
-  return { ok: true, data: { id } }
-}
-
-export interface UpdateClientPaymentInput extends CreateClientPaymentInput {
-  id: number
+  try {
+    const id = insertClientPayment({
+      entryDate: values.entryDate,
+      clientId: values.clientId,
+      amount: values.amount,
+      notes: values.notes ?? null
+    })
+    return { ok: true, data: { id } }
+  } catch (err: unknown) {
+    return paymentWriteFailure(err)
+  }
 }
 
 export function updateClientPayment(
   input: UpdateClientPaymentInput
 ): UseCaseResult<{ id: number }> {
-  const errors: { field: string; message: string }[] = []
+  const parsed = updateClientPaymentInputSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, errors: validationErrors(parsed.error) }
+  const values = parsed.data
 
-  if (!input.id) errors.push({ field: 'id', message: 'رقم الدفعة مطلوب' })
-  if (!input.entryDate?.trim()) errors.push({ field: 'entryDate', message: 'التاريخ مطلوب' })
-  if (!input.clientId) errors.push({ field: 'clientId', message: 'العميل مطلوب' })
-  if (!input.amount) errors.push({ field: 'amount', message: 'المبلغ مطلوب' })
-
-  if (errors.length > 0) return { ok: false, errors }
-
-  const existingPayment = getClientPaymentById(input.id)
+  const existingPayment = getClientPaymentById(values.id)
   if (!existingPayment) {
     return { ok: false, errors: [{ field: 'id', message: 'الدفعة دي مش موجودة' }] }
   }
 
-  updateClientPaymentInDb({
-    id: input.id,
-    entryDate: input.entryDate,
-    clientId: input.clientId,
-    amount: input.amount,
-    notes: input.notes ?? existingPayment.notes ?? null
-  })
-
-  return { ok: true, data: { id: input.id } }
+  try {
+    updateClientPaymentInDb({
+      id: values.id,
+      entryDate: values.entryDate,
+      clientId: values.clientId,
+      amount: values.amount,
+      notes: values.notes
+    })
+    return { ok: true, data: { id: values.id } }
+  } catch (err: unknown) {
+    return paymentWriteFailure(err)
+  }
 }
 
 export function deleteClientPayment(input: { id: number }): UseCaseResult<{ id: number }> {

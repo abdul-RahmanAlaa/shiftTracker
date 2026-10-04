@@ -18,7 +18,7 @@ Updated from the current working tree. This file is the operational source-of-tr
 - [x] B4: fixed; manually verified. Follow-up remains open for six unused i18n keys and a missing-key check script.
 - [x] B5: fixed in code (`TripIdCounter` and attachment-row cleanup in the trip-delete transaction); manually verified by user.
 - [x] B6: fixed in code (attachmentId, 5MB/JPEG validation, closed-shift guard, closeShift file-exists check); manually verified by user. Approved renderer exception: one line in `AttachmentManager.tsx`.
-- [ ] B7: open; decision pending on PUT versus PATCH semantics for ledger/clientPayment updates.
+- [ ] B7: fixed in code (PUT semantics for ledger/clientPayment updates; FK errors returned as field errors); not manually tested.
 - [x] B8: resolved by decision; migration chain removed, old DBs refused, fresh DB required. No backup is made before schema initialization; the post-close backup risk remains open below.
 - [ ] B9: open; delete failures and rejected IPC calls still need user-visible handling.
 - [ ] B10: open; contractor/driver edit forms remain duplicated and unlocked.
@@ -63,14 +63,14 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - The Accounts page final name is `حركة النقدية`. Do not reopen this naming decision.
 - The project uses a fresh-install database policy: schema reset is the supported path. Legacy migration logic is not retained; older local databases are refused.
 - The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
+- B7 update semantics are PUT: update requests carry the full row state; every nullable field is required and must be sent as a value or `null`, where `null` clears nullable columns. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. No update field falls back to its existing value.
 
 ## Next Up
 
-1. B7: decide PUT versus PATCH semantics for ledger and clientPayment updates, then address the finding.
-2. B3: correct enum labels in detail views.
-3. B9: show deletion errors and handle rejected IPC calls.
-4. B10: use the shared ledger form for edits with locked IDs.
-5. B11: fix the remaining smaller UI/accounting inconsistencies.
+1. B3: correct enum labels in detail views.
+2. B9: show deletion errors and handle rejected IPC calls.
+3. B10: use the shared ledger form for edits with locked IDs.
+4. B11: fix the remaining smaller UI/accounting inconsistencies.
 
 ## Manual Test Checklist
 
@@ -81,3 +81,9 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - [x] Verify uploads larger than 5MB and non-JPEG uploads are rejected.
 - [x] Verify `closeShift` fails when a required attachment row exists but its file is missing.
 - [x] Update a client without `location`, `openingBalance`, or `openingBalanceDate`, and a contractor without `phone`, `openingBalance`, or `openingBalanceDate`; verify existing values are preserved.
+- [ ] Edit a ledger entry that has a shift: choose "no shift", save, reopen: shift is empty.
+- [ ] Clear the driver where the page allows it and clear notes on a ledger entry; save and reopen to verify both are empty.
+- [ ] Edit a ledger entry changing only the amount; verify shift, driver, contractor, and notes are unchanged.
+- [ ] Edit a client payment: clear notes, save, reopen: notes are empty.
+- [ ] Edit a client payment changing only the amount; verify notes are unchanged.
+- [ ] Try saving a ledger entry that violates an existing rule (for example a movement type that requires a contractor, without one): a field error appears next to the field, no crash.

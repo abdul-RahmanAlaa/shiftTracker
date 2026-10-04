@@ -117,7 +117,11 @@ export function AllMovementsPage(): React.JSX.Element {
     const result = editingEntryId
       ? await window.api.updateLedgerEntry({
           id: editingEntryId,
-          ...values
+          ...values,
+          driverId: values.driverId ?? null,
+          shiftId: values.shiftId ?? null,
+          contractorId: values.contractorId ?? null,
+          notes: values.notes?.trim() || null
         } satisfies Parameters<typeof window.api.updateLedgerEntry>[0])
       : await window.api.createLedgerEntry(
           values satisfies Parameters<typeof window.api.createLedgerEntry>[0]

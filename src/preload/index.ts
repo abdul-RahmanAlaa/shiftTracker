@@ -110,12 +110,12 @@ const api = {
   updateLedgerEntry: (input: {
     id: number
     entryDate: string
-    driverId?: number
+    driverId: number | null
     movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
     amount: number
-    shiftId?: string
-    contractorId?: number
-    notes?: string
+    shiftId: string | null
+    contractorId: number | null
+    notes: string | null
   }) => ipcRenderer.invoke('ledger:update', input),
   deleteLedgerEntry: (input: { id: number }) => ipcRenderer.invoke('ledger:delete', input),
   listLedgerEntries: () => ipcRenderer.invoke('ledger:list'),
@@ -138,7 +138,7 @@ const api = {
     entryDate: string
     clientId: number
     amount: number
-    notes?: string
+    notes: string | null
   }) => ipcRenderer.invoke('client:payment:update', input),
   deleteClientPayment: (input: { id: number }) =>
     ipcRenderer.invoke('client:payment:delete', input),

@@ -415,12 +415,12 @@ interface Api {
   updateLedgerEntry: (input: {
     id: number
     entryDate: string
-    driverId?: number
+    driverId: number | null
     movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
     amount: number
-    shiftId?: string
-    contractorId?: number
-    notes?: string
+    shiftId: string | null
+    contractorId: number | null
+    notes: string | null
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
   deleteLedgerEntry: (input: {
     id: number
@@ -493,7 +493,7 @@ interface Api {
     entryDate: string
     clientId: number
     amount: number
-    notes?: string
+    notes: string | null
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
   deleteClientPayment: (input: {
     id: number

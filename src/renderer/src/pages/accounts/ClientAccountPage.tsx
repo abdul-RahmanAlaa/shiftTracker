@@ -96,7 +96,8 @@ export function ClientAccountPage(): React.JSX.Element {
       ? await window.api.updateClientPayment({
           id: editingPaymentId,
           clientId: selectedClientId,
-          ...values
+          ...values,
+          notes: values.notes?.trim() || null
         })
       : await window.api.createClientPayment({ clientId: selectedClientId, ...values })
 

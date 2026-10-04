@@ -108,7 +108,7 @@
 
 الـ update لازم يستبدل الكل (PUT semantics) من غير fallback للقيمة القديمة. وللـ nullable استخدم `null` صريحة في العقد. لقّط FK في الاتنين وارجع errors بالحقل.
 
-**Status:** Open. Current use cases still fall back to existing nullable fields and do not catch the described foreign-key errors.
+**Status:** Fixed in code (PUT semantics for ledger/clientPayment updates; FK errors returned as field errors); not manually tested. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so updates derive it from a selected shift or require it when no shift is selected; clearing that column is not supported without a schema change.
 
 ### B8. Migrations: فجوات وخطر فشل
 

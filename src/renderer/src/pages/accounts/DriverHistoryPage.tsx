@@ -137,7 +137,11 @@ export function DriverHistoryPage(): React.JSX.Element {
     const result = editingEntry
       ? await window.api.updateLedgerEntry({
           id: editingEntry.id,
-          ...values
+          ...values,
+          driverId: values.driverId ?? null,
+          shiftId: values.shiftId ?? null,
+          contractorId: values.contractorId ?? null,
+          notes: values.notes?.trim() || null
         } satisfies Parameters<typeof window.api.updateLedgerEntry>[0])
       : await window.api.createLedgerEntry(
           values satisfies Parameters<typeof window.api.createLedgerEntry>[0]
