@@ -97,14 +97,14 @@ export interface TripWithContextRow {
 
 export function getNextTripId(): string {
   const db = getDb()
-  const row = db
-    .prepare(
-      `SELECT id FROM Trip WHERE id LIKE 'TRP-%' ORDER BY CAST(SUBSTR(id, 5) AS INTEGER) DESC LIMIT 1`
-    )
-    .get() as { id: string } | undefined
-
-  const lastNumber = row ? parseInt(row.id.slice(4), 10) : 0
-  return `TRP-${String(lastNumber + 1).padStart(4, '0')}`
+  const next = db.transaction(() => {
+    const row = db.prepare('SELECT next_number FROM TripIdCounter WHERE id = 1').get() as {
+      next_number: number
+    }
+    db.prepare('UPDATE TripIdCounter SET next_number = next_number + 1 WHERE id = 1').run()
+    return row.next_number
+  })()
+  return `TRP-${String(next).padStart(4, '0')}`
 }
 
 export function insertTrip(input: InsertTripInput): void {

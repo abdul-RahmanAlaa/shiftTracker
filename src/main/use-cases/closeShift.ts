@@ -2,6 +2,7 @@ import { backupDatabase } from '../backup'
 import { getShiftById, getShiftStats, closeShiftInDb } from '../repository/shiftRepository'
 import { listAttachments } from '../repository/attachmentRepository'
 import { listTripsByShift } from '../repository/tripRepository'
+import { attachmentFileExists } from '../photoStorage'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
@@ -25,11 +26,10 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
   if (shift.status === 'CLOSED') {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة بالفعل' }] }
   }
-  if (
-    !listAttachments('SHIFT', input.shiftId).some(
-      (attachment) => attachment.kind === 'CLOSING_SHEET'
-    )
-  ) {
+  const closingAttachment = listAttachments('SHIFT', input.shiftId).find(
+    (attachment) => attachment.kind === 'CLOSING_SHEET'
+  )
+  if (!closingAttachment || !attachmentFileExists(closingAttachment.photoPath)) {
     return {
       ok: false,
       errors: [{ field: 'closingAttachment', message: 'لازم ترفع صورة ورقة تقفيل الوردية الأول' }]

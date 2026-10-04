@@ -154,7 +154,7 @@ export function AttachmentManager({
       const photoResults = await Promise.all(
         nextAttachments.map(async (attachment) => {
           const photoResult = await window.api.getAttachmentPhoto({
-            photoPath: attachment.photoPath
+            attachmentId: attachment.id
           })
           return [attachment.id, photoResult.ok ? photoResult.data.dataUri : null] as const
         })

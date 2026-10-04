@@ -47,9 +47,15 @@ The schema is now a single clean baseline at `user_version = 1`. There is no upg
 
 The project no longer maintains a multi-version migration chain, so the previous `versions 2–8 unsupported` gap no longer applies because there is no migration chain left to have gaps in. Old local databases are treated as incompatible state and must be replaced with a fresh database created from the current schema.
 
+The current schema version was bumped to `CURRENT_VERSION = 2` for the new `TripIdCounter` baseline and the stricter attachment guards. Any existing local database must be deleted again before the next manual test, because the app intentionally refuses legacy local data rather than trying to preserve it.
+
 ### Backend Update Rules
 
 B2 is fixed in the current backend: optional update fields are treated as patch semantics. If a caller omits an optional value on update, the existing row value is preserved instead of being replaced with `0`, `null`, or an empty string. This applies to client and contractor updates, including `location`, `openingBalance`, `openingBalanceDate`, and `phone` when those fields are not explicitly provided.
+
+B5 is fixed: trip IDs now come from the monotonic `TripIdCounter` table instead of reusing deleted IDs, and deleting a trip removes its attachment rows and photo files in the same transaction.
+
+B6 is fixed: attachment files are validated and saved under the attachments directory only, path traversal is blocked, the `getAttachmentPhoto({ attachmentId })` contract replaces any path-based contract, invalid/empty JPEG data is rejected, closed shifts reject attachment changes, and invalid entity/kind combinations are rejected.
 
 B8 is resolved via the database reset: migration safety is handled by refusing any old database and requiring a clean fresh start at `user_version = 1` instead of carrying stale migration history forward.
 

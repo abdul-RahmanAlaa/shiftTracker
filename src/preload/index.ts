@@ -174,7 +174,7 @@ const api = {
   removeAttachment: (input: { id: number }) => ipcRenderer.invoke('attachment:remove', input),
   listEntityAttachments: (input: { entityType: 'TRIP' | 'SHIFT'; entityId: string }) =>
     ipcRenderer.invoke('attachment:list', input),
-  getAttachmentPhoto: (input: { photoPath: string }) =>
+  getAttachmentPhoto: (input: { attachmentId: number }) =>
     ipcRenderer.invoke('attachment:getPhoto', input)
 }
 

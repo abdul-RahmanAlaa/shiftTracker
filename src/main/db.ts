@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { app, dialog } from 'electron'
 import { join } from 'path'
 
-const CURRENT_VERSION = 1
+const CURRENT_VERSION = 2
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS TransportContractor (
@@ -146,6 +146,13 @@ CREATE TABLE IF NOT EXISTS ClientPayment (
   amount      REAL NOT NULL,
   notes       TEXT
 );
+
+CREATE TABLE IF NOT EXISTS TripIdCounter (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  next_number INTEGER NOT NULL
+);
+
+INSERT OR IGNORE INTO TripIdCounter (id, next_number) VALUES (1, 1);
 `
 
 let db: Database.Database

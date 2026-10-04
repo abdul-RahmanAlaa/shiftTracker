@@ -6,6 +6,9 @@ import {
   deleteTripById
 } from '../repository/tripRepository'
 import { getShiftById } from '../repository/shiftRepository'
+import { listAttachments, deleteAttachment } from '../repository/attachmentRepository'
+import { deleteAttachmentPhotoFile } from '../photoStorage'
+import { getDb } from '../db'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
@@ -223,6 +226,18 @@ export function deleteTrip(input: { id: string }): UseCaseResult<{ id: string }>
     }
   }
 
-  deleteTripById(input.id)
+  const attachments = listAttachments('TRIP', input.id)
+
+  getDb().transaction(() => {
+    deleteTripById(input.id)
+    for (const attachment of attachments) {
+      deleteAttachment(attachment.id)
+    }
+  })()
+
+  for (const attachment of attachments) {
+    deleteAttachmentPhotoFile(attachment.photoPath)
+  }
+
   return { ok: true, data: { id: input.id } }
 }

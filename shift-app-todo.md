@@ -18,6 +18,8 @@ Updated from checked-out source on 2026-10-03 (`HEAD` `9c5c453`). Checked items 
 ## Fixed in Current Source
 
 - [x] B2: Optional update fields preserve existing values when omitted, rather than resetting to `0`/`null` during client and contractor updates.
+- [x] B5: Deleted trips no longer reuse IDs; `TripIdCounter` provides a monotonic ID source, and trip deletion removes attachment rows plus stored photo files in the same operation.
+- [x] B6: Attachment path traversal is blocked, validator checks reject invalid JPEGs and invalid entity/kind pairs, closed-shift attachment edits are blocked, and `getAttachmentPhoto` now relies on `attachmentId` instead of raw paths.
 - [x] B8: Migration safety is resolved by resetting the schema to a single clean baseline at `user_version = 1`. Any old local database must be deleted manually; there is no historical migration chain left to support or gap-fill.
 
 ## Gaps Confirmed in Current Source

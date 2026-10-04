@@ -471,7 +471,7 @@ interface Api {
     entityId: string
   }) => Promise<UseCaseResult<AttachmentRow[]> | FailedUseCaseResult>
   getAttachmentPhoto: (input: {
-    photoPath: string
+    attachmentId: number
   }) => Promise<UseCaseResult<{ dataUri: string | null }> | FailedUseCaseResult>
   getClientAccount: (input: {
     clientId: number
