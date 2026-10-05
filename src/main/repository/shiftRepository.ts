@@ -72,12 +72,14 @@ export function insertImportedShift(input: {
 interface ShiftRow {
   id: string
   status: string
+  endDate: string | null
 }
 
 export function getShiftById(shiftId: string): ShiftRow | undefined {
   const db = getDb()
-  return db.prepare('SELECT id, status FROM Shift WHERE id = ?').get(shiftId) as
-    ShiftRow | undefined
+  return db
+    .prepare('SELECT id, status, end_date as endDate FROM Shift WHERE id = ?')
+    .get(shiftId) as ShiftRow | undefined
 }
 
 interface ShiftStatsRow {
@@ -93,7 +95,11 @@ export function getShiftStats(shiftId: string): ShiftStatsRow | undefined {
     ShiftStatsRow | undefined
 }
 
-export function reopenShiftInDb(shiftId: string, reason: string, previousEndDate: string | null): void {
+export function reopenShiftInDb(
+  shiftId: string,
+  reason: string,
+  previousEndDate: string | null
+): void {
   const db = getDb()
   db.transaction(() => {
     db.prepare(
@@ -104,10 +110,14 @@ export function reopenShiftInDb(shiftId: string, reason: string, previousEndDate
   })()
 }
 
-export function closeShiftInDb(shiftId: string, endDate: string): void {
+export function closeShiftInDb(shiftId: string, endDate: string, reportedTripCount?: number): void {
   const db = getDb()
   db.transaction(() => {
-    db.prepare(`UPDATE Shift SET status = 'CLOSED', end_date = ? WHERE id = ?`).run(endDate, shiftId)
+    db.prepare(
+      `UPDATE Shift
+       SET status = 'CLOSED', end_date = ?, reported_trip_count = COALESCE(?, reported_trip_count)
+       WHERE id = ?`
+    ).run(endDate, reportedTripCount ?? null, shiftId)
     const reopenLog = db
       .prepare(
         `SELECT id FROM ShiftReopenLog
@@ -118,7 +128,9 @@ export function closeShiftInDb(shiftId: string, endDate: string): void {
       .get(shiftId) as { id: number } | undefined
 
     if (reopenLog) {
-      db.prepare(`UPDATE ShiftReopenLog SET closed_again_at = datetime('now') WHERE id = ?`).run(reopenLog.id)
+      db.prepare(`UPDATE ShiftReopenLog SET closed_again_at = datetime('now') WHERE id = ?`).run(
+        reopenLog.id
+      )
     }
   })()
 }
@@ -167,6 +179,7 @@ export interface ShiftListRow {
   startDate: string
   endDate: string | null
   actualTripCount: number
+  reportedTripCount: number | null
 }
 
 export function listAllShifts(): ShiftListRow[] {
@@ -179,7 +192,8 @@ export function listAllShifts(): ShiftListRow[] {
         s.crusher_cubic_default as crusherCubicDefault,
         s.client_cubic_default as clientCubicDefault, s.status,
         s.start_date as startDate, s.end_date as endDate,
-        (SELECT COUNT(*) FROM Trip t WHERE t.shift_id = s.id) as actualTripCount
+        (SELECT COUNT(*) FROM Trip t WHERE t.shift_id = s.id) as actualTripCount,
+        s.reported_trip_count as reportedTripCount
       FROM Shift s
       JOIN Driver d ON d.id = s.driver_id
       ORDER BY s.start_date DESC, s.id DESC

@@ -16,6 +16,7 @@ import { DatePicker } from '@/components/ui/date-picker'
 import { SubmitButton } from '@/components/SubmitButton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -32,7 +33,7 @@ type AttachmentRow = Extract<
   Awaited<ReturnType<typeof window.api.listEntityAttachments>>,
   { ok: true }
 >['data'][number]
-type CloseShiftValues = { shiftId: string; endDate: string }
+type CloseShiftValues = { shiftId: string; endDate: string; reportedTripCount?: number }
 
 export function ShiftsPage(): React.JSX.Element {
   const { t } = useTranslation()
@@ -49,6 +50,7 @@ export function ShiftsPage(): React.JSX.Element {
     string | null
   >(null)
   const [closeShiftErrors, setCloseShiftErrors] = useState<string[]>([])
+  const [reopenShiftRootError, setReopenShiftRootError] = useState<string | null>(null)
   const [attachmentRefreshVersion, setAttachmentRefreshVersion] = useState(0)
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false)
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false)
@@ -58,10 +60,12 @@ export function ShiftsPage(): React.JSX.Element {
   })
   const closeShiftId = useWatch({ control: closeShiftForm.control, name: 'shiftId' })
   const endDate = useWatch({ control: closeShiftForm.control, name: 'endDate' })
+  const reportedTripCount = useWatch({ control: closeShiftForm.control, name: 'reportedTripCount' })
   const reopenShiftForm = useForm<{ shiftId: string; reason: string }>({
     defaultValues: { shiftId: '', reason: '' }
   })
   const reopenShiftId = useWatch({ control: reopenShiftForm.control, name: 'shiftId' })
+  const reopenReason = useWatch({ control: reopenShiftForm.control, name: 'reason' })
   const createShiftForm = useForm<CreateShiftValues>({
     resolver: zodResolver(createShiftSchema),
     defaultValues: {
@@ -159,9 +163,25 @@ export function ShiftsPage(): React.JSX.Element {
 
   async function handleCloseShift(values: CloseShiftValues): Promise<void> {
     setCloseShiftErrors([])
-    const result = await window.api.closeShift(values)
+    const result = await window.api.closeShift({
+      shiftId: values.shiftId,
+      endDate: values.endDate,
+      ...(shiftToClose?.status === 'REOPENED'
+        ? { reportedTripCount: values.reportedTripCount }
+        : {})
+    })
     if (!result.ok) {
-      setCloseShiftErrors(result.errors.map((error) => error.message))
+      const tripCountError = result.errors.find(
+        (error) => error.field === 'reportedTripCount' || error.field === 'tripCount'
+      )
+      if (tripCountError) {
+        closeShiftForm.setError('reportedTripCount', { message: tripCountError.message })
+      }
+      setCloseShiftErrors(
+        result.errors
+          .filter((error) => error.field !== 'reportedTripCount' && error.field !== 'tripCount')
+          .map((error) => error.message)
+      )
       return
     }
     setIsCloseDialogOpen(false)
@@ -174,6 +194,7 @@ export function ShiftsPage(): React.JSX.Element {
   }
 
   async function handleReopenShift(values: { shiftId: string; reason: string }): Promise<void> {
+    setReopenShiftRootError(null)
     const result = await window.api.reopenShift(values)
     if (!result.ok) {
       result.errors.forEach((error) => {
@@ -181,6 +202,8 @@ export function ShiftsPage(): React.JSX.Element {
           reopenShiftForm.setError(error.field, {
             message: error.message
           })
+        } else if (error.field === 'root') {
+          setReopenShiftRootError(error.message)
         }
       })
       return
@@ -259,7 +282,10 @@ export function ShiftsPage(): React.JSX.Element {
             open={isReopenDialogOpen}
             onOpenChange={(open) => {
               setIsReopenDialogOpen(open)
-              if (!open) reopenShiftForm.reset()
+              if (!open) {
+                reopenShiftForm.reset()
+                setReopenShiftRootError(null)
+              }
             }}
           >
             <Button type="button" variant="outline" onClick={() => setIsReopenDialogOpen(true)}>
@@ -301,7 +327,7 @@ export function ShiftsPage(): React.JSX.Element {
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">{t('shifts.reason')}</label>
                   <Textarea
-                    value={reopenShiftForm.watch('reason')}
+                    value={reopenReason}
                     onChange={(event) => reopenShiftForm.setValue('reason', event.target.value)}
                     placeholder={t('shifts.reopenReasonPlaceholder')}
                   />
@@ -313,10 +339,15 @@ export function ShiftsPage(): React.JSX.Element {
                 </div>
                 <SubmitButton
                   isSubmitting={reopenShiftForm.formState.isSubmitting}
-                  disabled={!reopenShiftId || !reopenShiftForm.watch('reason')?.trim()}
+                  disabled={!reopenShiftId || !reopenReason?.trim()}
                 >
                   {t('shifts.reopenSubmit')}
                 </SubmitButton>
+                {reopenShiftRootError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {reopenShiftRootError}
+                  </p>
+                )}
               </form>
             </DialogContent>
           </Dialog>
@@ -344,7 +375,17 @@ export function ShiftsPage(): React.JSX.Element {
               >
                 <Select
                   value={closeShiftId}
-                  onValueChange={(value) => closeShiftForm.setValue('shiftId', value)}
+                  onValueChange={(value) => {
+                    const selectedShift = shifts.find((shift) => shift.id === value)
+                    closeShiftForm.setValue('shiftId', value)
+                    closeShiftForm.clearErrors('reportedTripCount')
+                    closeShiftForm.setValue(
+                      'reportedTripCount',
+                      selectedShift?.status === 'REOPENED'
+                        ? (selectedShift.reportedTripCount ?? selectedShift.actualTripCount)
+                        : undefined
+                    )
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder={t('shifts.selectShift')} />
@@ -359,6 +400,35 @@ export function ShiftsPage(): React.JSX.Element {
                       ))}
                   </SelectContent>
                 </Select>
+                {shiftToClose?.status === 'REOPENED' && (
+                  <div className="grid gap-2">
+                    <label htmlFor="reported-trip-count" className="text-sm font-medium">
+                      {t('shifts.reportedTripCount')}
+                    </label>
+                    <Input
+                      id="reported-trip-count"
+                      type="number"
+                      step="any"
+                      required
+                      value={reportedTripCount ?? ''}
+                      aria-invalid={Boolean(closeShiftForm.formState.errors.reportedTripCount)}
+                      onChange={(event) => {
+                        const value = event.currentTarget.value
+                        closeShiftForm.setValue(
+                          'reportedTripCount',
+                          value === '' ? undefined : Number(value),
+                          { shouldDirty: true, shouldValidate: true }
+                        )
+                        closeShiftForm.clearErrors('reportedTripCount')
+                      }}
+                    />
+                    {closeShiftForm.formState.errors.reportedTripCount?.message && (
+                      <p role="alert" className="text-sm text-destructive">
+                        {closeShiftForm.formState.errors.reportedTripCount.message}
+                      </p>
+                    )}
+                  </div>
+                )}
                 <DatePicker
                   value={endDate}
                   onChange={(value) => closeShiftForm.setValue('endDate', value)}

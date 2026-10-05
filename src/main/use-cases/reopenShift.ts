@@ -1,4 +1,3 @@
-import { getDb } from '../db'
 import { getShiftById, reopenShiftInDb } from '../repository/shiftRepository'
 
 type UseCaseResult<T> =
@@ -10,12 +9,17 @@ export interface ReopenShiftInput {
 }
 
 export function reopenShift(input: ReopenShiftInput): UseCaseResult<{ id: string }> {
+  if (typeof input !== 'object' || input === null) {
+    return { ok: false, errors: [{ field: 'shiftId', message: 'رقم الوردية مطلوب' }] }
+  }
+
   const errors: { field: string; message: string }[] = []
 
-  if (!input.shiftId?.trim()) errors.push({ field: 'shiftId', message: 'رقم الوردية مطلوب' })
+  if (typeof input.shiftId !== 'string' || !input.shiftId.trim()) {
+    errors.push({ field: 'shiftId', message: 'رقم الوردية مطلوب' })
+  }
 
-  const trimmedReason = input.reason?.trim() ?? ''
-  if (!trimmedReason) {
+  if (typeof input.reason !== 'string' || !input.reason.trim()) {
     errors.push({ field: 'reason', message: 'سبب إعادة الفتح مطلوب' })
   }
 
@@ -23,29 +27,24 @@ export function reopenShift(input: ReopenShiftInput): UseCaseResult<{ id: string
     return { ok: false, errors }
   }
 
-  const shift = getShiftById(input.shiftId)
-  if (!shift) {
-    return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مش موجودة' }] }
-  }
-
-  if (shift.status !== 'CLOSED') {
-    return {
-      ok: false,
-      errors: [{ field: 'shiftId', message: 'الوردية دي مش مقفولة، مينفعش تفتحها من جديد' }]
-    }
-  }
-
-  const previousEndDate = getDb()
-    .prepare('SELECT end_date FROM Shift WHERE id = ?')
-    .get(input.shiftId) as { end_date: string | null } | undefined
-
   try {
-    getDb().transaction(() => {
-      reopenShiftInDb(input.shiftId, trimmedReason, previousEndDate?.end_date ?? null)
-    })()
+    const shift = getShiftById(input.shiftId)
+    if (!shift) {
+      return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مش موجودة' }] }
+    }
+
+    if (shift.status !== 'CLOSED') {
+      return {
+        ok: false,
+        errors: [{ field: 'shiftId', message: 'الوردية دي مش مقفولة، مينفعش تفتحها من جديد' }]
+      }
+    }
+
+    reopenShiftInDb(input.shiftId, input.reason.trim(), shift.endDate)
+
     return { ok: true, data: { id: input.shiftId } }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'تعذر إعادة فتح الوردية'
-    return { ok: false, errors: [{ field: 'root', message }] }
+    console.error('[reopenShift] Failed to reopen shift:', err)
+    return { ok: false, errors: [{ field: 'root', message: 'تعذر إعادة فتح الوردية' }] }
   }
 }

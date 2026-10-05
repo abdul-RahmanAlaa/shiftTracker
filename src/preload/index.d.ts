@@ -154,6 +154,7 @@ interface ShiftListRow {
   startDate: string
   endDate: string | null
   actualTripCount: number
+  reportedTripCount: number | null
 }
 
 interface ClientPaymentRow {
@@ -245,6 +246,7 @@ interface Api {
   closeShift: (input: {
     shiftId: string
     endDate: string
+    reportedTripCount?: number
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
   reopenShift: (input: {
     shiftId: string

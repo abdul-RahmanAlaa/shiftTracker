@@ -219,8 +219,9 @@ hook أو helper واحد `useApiAction/callApi(fn)` بيحوّل الرفض ل�
 ## 6. Found while working
 Issues discovered during other tasks. Do not fix here; schedule explicitly.
 - `src/renderer/src/pages/ShiftDetailPage.tsx:245`: reopen log reason/history has no renderer viewer; severity medium.
-- `src/renderer/src/pages/AddTripPage.tsx:229`: the Add Trip flow fetches only an OPEN shift, so the renderer has no screen to add a trip to a REOPENED shift; severity medium.
-- `src/main/use-cases/closeShift.ts:58`: re-closing after adding a trip to a reopened shift fails when the reported trip count no longer matches; severity high.
+- `src/renderer/src/pages/AddTripPage.tsx:229`: Add Trip still fetches only OPEN shifts; the REOPENED-only detail-page add path is fixed in code, not manually tested; severity medium.
+- `src/main/use-cases/closeShift.ts:80`: re-closing after adding a trip to a reopened shift now accepts the re-entered reported count and still rejects mismatches; fixed in code, not manually tested; severity high.
+- `src/main/use-cases/closeShift.ts:95`: backup still runs after the close transaction and can fail after the shift is already persisted as CLOSED; severity medium.
 - `src/main/use-cases/getAccounts.ts:34,49`: no account-to-account transfer use case exists; feature idea, low.
 - `src/main/db.ts:31,142`: Crusher is an entity, but no crusher/supplier account or supplier-payment table/use case exists; feature gap, low.
 - `src/main/use-cases/getStatement.ts:89; src/main/repository/statementRepository.ts:69`: all contractor ledger movement types are subtracted uniformly; negative amounts reverse that effect regardless of ADVANCE/PAYMENT/OTHER; informational sign behavior, low. Signed account sums and table totals preserve negatives; no ABS/positive-amount filters or amount-based ordering were found.

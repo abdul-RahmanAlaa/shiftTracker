@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import type { ColumnDef } from '@tanstack/react-table'
+import { Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -24,6 +25,10 @@ type ShiftListRow = Extract<
   { ok: true }
 >['data'][number]
 
+function isTripFormField(field: string): field is keyof TripValues {
+  return Object.hasOwn(tripSchema.shape, field)
+}
+
 export function ShiftDetailPage(): React.JSX.Element {
   const { t } = useTranslation()
   const { shiftId = '' } = useParams()
@@ -31,6 +36,7 @@ export function ShiftDetailPage(): React.JSX.Element {
   const [trips, setTrips] = useState<TripRow[]>([])
   const [loadedShiftId, setLoadedShiftId] = useState('')
   const [editingTripId, setEditingTripId] = useState<string | null>(null)
+  const [isAddTripDialogOpen, setIsAddTripDialogOpen] = useState(false)
   const [resources, setResources] = useState<ResourceState>({
     drivers: [],
     vehicles: [],
@@ -62,12 +68,43 @@ export function ShiftDetailPage(): React.JSX.Element {
       notes: ''
     }
   })
+  const addTripForm = useForm<TripValues>({
+    resolver: zodResolver(tripSchema),
+    defaultValues: {
+      tripDate: '',
+      crusherCubic: 0,
+      clientCubicReported: 0,
+      discountQty: 0,
+      discountReason: '',
+      location: '',
+      crusherId: undefined,
+      materialTypeId: undefined,
+      stonePrice: undefined,
+      crusherReceiptStatus: 'UNKNOWN',
+      crusherReceiptNo: undefined,
+      clientId: undefined,
+      transportPrice: undefined,
+      clientPrice: undefined,
+      recipientNameStatus: 'UNCLEAR',
+      recipientName: '',
+      clientReceiptNo: '',
+      notes: ''
+    }
+  })
   const editCrusherReceiptStatus = useWatch({
     control: editTripForm.control,
     name: 'crusherReceiptStatus'
   })
   const editRecipientNameStatus = useWatch({
     control: editTripForm.control,
+    name: 'recipientNameStatus'
+  })
+  const addCrusherReceiptStatus = useWatch({
+    control: addTripForm.control,
+    name: 'crusherReceiptStatus'
+  })
+  const addRecipientNameStatus = useWatch({
+    control: addTripForm.control,
     name: 'recipientNameStatus'
   })
 
@@ -110,7 +147,54 @@ export function ShiftDetailPage(): React.JSX.Element {
 
   async function loadShiftTrips(): Promise<void> {
     const result = await window.api.listTripsByShift({ shiftId })
-    setTrips(result.ok ? result.data : [])
+    if (result.ok) {
+      setTrips(result.data)
+      setShift((current) =>
+        current ? { ...current, actualTripCount: result.data.length } : current
+      )
+    } else {
+      setTrips([])
+    }
+  }
+
+  function openAddTripDialog(): void {
+    addTripForm.reset({
+      tripDate: '',
+      crusherCubic: shift?.crusherCubicDefault ?? 0,
+      clientCubicReported: shift?.clientCubicDefault ?? 0,
+      discountQty: 0,
+      discountReason: '',
+      location: '',
+      crusherId: undefined,
+      materialTypeId: undefined,
+      stonePrice: undefined,
+      crusherReceiptStatus: 'UNKNOWN',
+      crusherReceiptNo: undefined,
+      clientId: undefined,
+      transportPrice: undefined,
+      clientPrice: undefined,
+      recipientNameStatus: 'UNCLEAR',
+      recipientName: '',
+      clientReceiptNo: '',
+      notes: ''
+    })
+    setIsAddTripDialogOpen(true)
+  }
+
+  async function handleCreateTrip(values: TripValues): Promise<void> {
+    const result = await window.api.createTrip({ shiftId, ...values })
+    if (!result.ok) {
+      result.errors.forEach((error) => {
+        if (isTripFormField(error.field)) {
+          addTripForm.setError(error.field, { message: error.message })
+        }
+      })
+      return
+    }
+
+    setIsAddTripDialogOpen(false)
+    addTripForm.reset()
+    await loadShiftTrips()
   }
 
   function startEditingTrip(trip: TripRow): void {
@@ -283,10 +367,40 @@ export function ShiftDetailPage(): React.JSX.Element {
             </Card>
           )}
           <Card className="min-h-0 flex-1">
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-3">
               <CardTitle>{t('shifts.tripsTitle', { id: shift?.id ?? shiftId })}</CardTitle>
+              {shift?.status === 'REOPENED' && (
+                <Button type="button" variant="outline" onClick={openAddTripDialog}>
+                  <Plus className="h-4 w-4" />
+                  {t('shifts.addTrip')}
+                </Button>
+              )}
             </CardHeader>
             <CardContent className="flex min-h-0 flex-col">
+              <Dialog
+                open={isAddTripDialogOpen}
+                onOpenChange={(open) => {
+                  setIsAddTripDialogOpen(open)
+                  if (!open) addTripForm.reset()
+                }}
+              >
+                <DialogContent
+                  className="max-h-[90vh] overflow-y-auto sm:max-w-4xl"
+                  closeDisabled={addTripForm.formState.isSubmitting}
+                >
+                  <DialogHeader>
+                    <DialogTitle>{t('shifts.addTrip')}</DialogTitle>
+                  </DialogHeader>
+                  <TripForm
+                    form={addTripForm}
+                    resources={resources}
+                    locations={resources.locations}
+                    crusherReceiptStatus={addCrusherReceiptStatus}
+                    recipientNameStatus={addRecipientNameStatus}
+                    onSubmit={handleCreateTrip}
+                  />
+                </DialogContent>
+              </Dialog>
               <Dialog
                 open={editingTripId !== null}
                 onOpenChange={(open) => {
