@@ -408,7 +408,8 @@ export function ShiftsPage(): React.JSX.Element {
                     <Input
                       id="reported-trip-count"
                       type="number"
-                      step="any"
+                      step="1"
+                      min="0"
                       required
                       value={reportedTripCount ?? ''}
                       aria-invalid={Boolean(closeShiftForm.formState.errors.reportedTripCount)}

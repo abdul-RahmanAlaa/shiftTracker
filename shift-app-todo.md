@@ -98,6 +98,9 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - [ ] Reopen a closed shift with a reason: badge shows the reopened state and the shift becomes editable again.
 - [ ] Reopen dialog displays returned `shiftId` and `reason` field errors beneath their controls.
 - [ ] Add a forgotten trip with its attachment to a reopened shift from the detail page.
+- [ ] Reopened trip-count input uses integer steps and a minimum of zero.
+- [ ] Closing a CLOSED shift with a reported count still shows the already-closed `shiftId` error.
+- [ ] A non-trip-field create error appears in the add-trip dialog and clears on resubmit or close.
 - [ ] Reject reopening with an empty reason.
 - [ ] While a shift is reopened, the driver can start a new shift.
 - [ ] Re-close the reopened shift and verify the close checks still run and the backup is created.

@@ -62,7 +62,7 @@ The current source contains the following enforced fixes:
 - B8 is fixed by decision: the migration chain was removed from the source and the app refuses old local databases instead of trying to preserve unsupported data.
 - B7 update contract: ledger and client payment updates require the complete row state. Nullable update fields are required and accept explicit `null` to clear nullable columns; `undefined` is rejected and no field falls back to its stored value. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. Create and update validate runtime types, finite non-zero amounts (negative values allowed), IDs, enum values, and real `YYYY-MM-DD` dates; SQLite foreign-key failures return field errors.
 - Ledger entries cannot be created on a closed shift; updates are rejected if either the existing entry shift or requested destination shift is closed; deletions on closed shifts remain rejected. Creating an OTHER entry without a shift remains allowed when a contractor is supplied.
-- `closeShift` accepts optional `reportedTripCount` only for a `REOPENED` shift and validates it as an integer >= 0. If supplied, the trip-count mismatch check uses that value before any write; the shift count/status and active reopen-log timestamp are updated in one transaction. If omitted, the stored reported count is used.
+- `closeShift` accepts optional `reportedTripCount` only for a `REOPENED` shift and validates it as an integer >= 0. The already-CLOSED check runs first. If supplied, the trip-count mismatch check uses that value before any write; the shift count/status and active reopen-log timestamp are updated in one transaction. If omitted, the stored reported count is used. The close dialog's reopened count input uses integer steps and a zero minimum.
 
 ## Renderer Routes and Labels
 
@@ -80,7 +80,7 @@ The current renderer routes are declared in `src/renderer/src/App.tsx`:
 
 The final user-facing name for the accounts page is `حركة النقدية`. The old Arabic wording `الحسابات` is not the current source-of-truth label and was removed from the renderer locale.
 
-- The Add Trip page retrieves only a driver's `OPEN` shift. Shift Detail has a `REOPENED`-only add-trip dialog that reuses the shared `TripForm`.
+- The Add Trip page retrieves only a driver's `OPEN` shift. Shift Detail has a `REOPENED`-only add-trip dialog that reuses the shared `TripForm`; non-field create errors are displayed as an alert and cleared on resubmit or dialog close.
 
 ## Source-Verified Gaps
 

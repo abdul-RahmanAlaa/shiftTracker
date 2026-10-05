@@ -221,6 +221,9 @@ Issues discovered during other tasks. Do not fix here; schedule explicitly.
 - `src/renderer/src/pages/ShiftDetailPage.tsx:245`: reopen log reason/history has no renderer viewer; severity medium.
 - `src/renderer/src/pages/AddTripPage.tsx:229`: Add Trip still fetches only OPEN shifts; the REOPENED-only detail-page add path is fixed in code, not manually tested; severity medium.
 - `src/main/use-cases/closeShift.ts:80`: re-closing after adding a trip to a reopened shift now accepts the re-entered reported count and still rejects mismatches; fixed in code, not manually tested; severity high.
+- `src/renderer/src/pages/ShiftsPage.tsx:411`: reopened reported-count input allowed fractional steps and lacked a zero minimum; fixed in code, not manually tested; severity medium.
+- `src/main/use-cases/closeShift.ts:46`: a CLOSED shift with `reportedTripCount` returned the count-eligibility error instead of the existing already-closed error; fixed in code, not manually tested; severity low.
+- `src/renderer/src/pages/ShiftDetailPage.tsx:184,404`: non-trip-field errors from add-trip were dropped instead of shown in the dialog; fixed in code, not manually tested; severity medium.
 - `src/main/use-cases/closeShift.ts:95`: backup still runs after the close transaction and can fail after the shift is already persisted as CLOSED; severity medium.
 - `src/main/use-cases/getAccounts.ts:34,49`: no account-to-account transfer use case exists; feature idea, low.
 - `src/main/db.ts:31,142`: Crusher is an entity, but no crusher/supplier account or supplier-payment table/use case exists; feature gap, low.

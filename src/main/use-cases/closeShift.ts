@@ -43,6 +43,9 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
   if (!shift) {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مش موجودة' }] }
   }
+  if (shift.status === 'CLOSED') {
+    return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة بالفعل' }] }
+  }
   if (input.reportedTripCount !== undefined && shift.status !== 'REOPENED') {
     return {
       ok: false,
@@ -53,9 +56,6 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
         }
       ]
     }
-  }
-  if (shift.status === 'CLOSED') {
-    return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة بالفعل' }] }
   }
   if (shift.status !== 'OPEN' && shift.status !== 'REOPENED') {
     return {

@@ -182,13 +182,23 @@ export function ShiftDetailPage(): React.JSX.Element {
   }
 
   async function handleCreateTrip(values: TripValues): Promise<void> {
+    addTripForm.clearErrors('root')
     const result = await window.api.createTrip({ shiftId, ...values })
     if (!result.ok) {
+      const generalErrors: string[] = []
       result.errors.forEach((error) => {
         if (isTripFormField(error.field)) {
           addTripForm.setError(error.field, { message: error.message })
+        } else {
+          generalErrors.push(error.message)
         }
       })
+      if (generalErrors.length > 0) {
+        addTripForm.setError('root', {
+          type: 'server',
+          message: generalErrors.join(' ')
+        })
+      }
       return
     }
 
@@ -391,6 +401,12 @@ export function ShiftDetailPage(): React.JSX.Element {
                   <DialogHeader>
                     <DialogTitle>{t('shifts.addTrip')}</DialogTitle>
                   </DialogHeader>
+                  {addTripForm.formState.errors.root?.message && (
+                    <div role="alert" className="rounded border border-destructive p-3 text-sm">
+                      <p className="font-medium">{t('shifts.addTripError')}</p>
+                      <p>{addTripForm.formState.errors.root.message}</p>
+                    </div>
+                  )}
                   <TripForm
                     form={addTripForm}
                     resources={resources}

@@ -271,6 +271,7 @@
     "shiftNotFound": "الوردية غير موجودة",
     "editTripTitle": "تعديل النقلة {{id}}",
     "addTrip": "إضافة نقلة",
+    "addTripError": "تعذر إضافة النقلة",
     "emptyTrips": "لا توجد نقلات في الوردية",
     "deleteTripConfirmation": "متأكد إنك عايز تمسح النقلة {{id}}؟",
     "selectDriver": "اختار السائق",
