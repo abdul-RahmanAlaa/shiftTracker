@@ -39,3 +39,4 @@ After ANY task that changes code, schema, behavior, decisions, or backlog status
 4. "Could not verify": list everything not verified from source, even if empty.
 5. Copyable output: at the end of every task, write the full final report to `last-report.md` and the full real diff to `last-diff.patch` (`git diff > last-diff.patch`, overwrite each time; if the task added new untracked files, also append them with `git diff --no-index /dev/null <file>` or list them). Do not print the whole diff in chat; print the report and say which files to attach.
 6. The report must contain only the report: no internal notes, no drafts, no planning text, no truncation. Plain markdown only.
+7. Language: write every response in English; switch only if the user explicitly asks in the current message. Do not translate existing Arabic text.
