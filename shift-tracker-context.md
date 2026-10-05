@@ -60,6 +60,7 @@ The current source contains the following enforced fixes:
 - B6 is fixed: attachment storage is restricted to the app attachments directory, path traversal is blocked, invalid JPEGs are rejected, invalid entity/kind combinations are rejected, closed shifts reject attachment edits, and the API contract uses `attachmentId` instead of raw paths.
 - B8 is fixed by decision: the migration chain was removed from the source and the app refuses old local databases instead of trying to preserve unsupported data.
 - B7 update contract: ledger and client payment updates require the complete row state. Nullable update fields are required and accept explicit `null` to clear nullable columns; `undefined` is rejected and no field falls back to its stored value. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. Create and update validate runtime types, finite non-zero amounts (negative values allowed), IDs, enum values, and real `YYYY-MM-DD` dates; SQLite foreign-key failures return field errors.
+- Ledger entries cannot be created on a closed shift; updates are rejected if either the existing entry shift or requested destination shift is closed; deletions on closed shifts remain rejected. Creating an OTHER entry without a shift remains allowed when a contractor is supplied.
 
 ## Renderer Routes and Labels
 
@@ -92,6 +93,7 @@ The final user-facing name for the accounts page is `حركة النقدية`. T
 - The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
 - B7 update semantics are PUT: update requests carry the full row state; every nullable field is required and must be sent as a value or `null`, where `null` clears nullable columns. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. No update field falls back to its existing value.
 - Ledger entries and client payments may use negative amounts for refunds or reversals (for example, refunding part of a client payment or returning an excess driver advance). Zero is rejected. The statement formula is unchanged (`balance = opening + charges - payments`), so a negative payment raises the balance.
+- A closed shift is final for ledger entries: no entry can be created on it, edited, deleted, or moved to or from a closed shift. Corrections after closing are recorded as movementType OTHER without a shift, with a note (contractor selected manually). Reopening a shift is a separate future task.
 
 ## References
 

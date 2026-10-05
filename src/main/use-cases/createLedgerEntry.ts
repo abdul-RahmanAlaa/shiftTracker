@@ -27,6 +27,10 @@ function isRealDate(value: string): boolean {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
 
+function isShiftClosed(shiftId: string | null | undefined): boolean {
+  return shiftId != null && getShiftById(shiftId)?.status === 'CLOSED'
+}
+
 const positiveIdSchema = z
   .number({ error: 'المعرف لازم يكون رقمًا صحيحًا موجبًا' })
   .int()
@@ -117,6 +121,12 @@ export function createLedgerEntry(input: CreateLedgerInput): UseCaseResult<{ id:
       return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مش موجودة' }] }
     }
     contractorId = shiftContractorId
+    if (isShiftClosed(values.shiftId)) {
+      return {
+        ok: false,
+        errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة، مينفعش تضاف عليها حركة' }]
+      }
+    }
   }
 
   if (contractorId === null) {
@@ -170,15 +180,16 @@ export function updateLedgerEntry(input: UpdateLedgerEntryInput): UseCaseResult<
     contractorId = shiftContractorId
   }
 
-  const shiftsToCheck = values.shiftId === null ? [existingEntry.shiftId] : [values.shiftId]
-  for (const shiftId of shiftsToCheck) {
-    if (shiftId === null) continue
-    const shift = getShiftById(shiftId)
-    if (shift?.status === 'CLOSED') {
-      return {
-        ok: false,
-        errors: [{ field: 'id', message: 'مرتبطة بوردية مقفولة، لا يمكن تعديلها' }]
-      }
+  if (isShiftClosed(existingEntry.shiftId)) {
+    return {
+      ok: false,
+      errors: [{ field: 'id', message: 'مرتبطة بوردية مقفولة، لا يمكن تعديلها' }]
+    }
+  }
+  if (isShiftClosed(values.shiftId)) {
+    return {
+      ok: false,
+      errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة، مينفعش تنقل الحركة ليها' }]
     }
   }
 

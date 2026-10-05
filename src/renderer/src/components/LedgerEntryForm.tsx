@@ -213,7 +213,7 @@ export function LedgerEntryForm({
                 </FormControl>
                 <SelectContent>
                   <SelectItem value={emptyValue}>{t('ledgerEntryForm.none.shift')}</SelectItem>
-                  {shifts.map((shift) => (
+                    {shifts.filter((shift) => shift.status !== 'CLOSED').map((shift) => (
                     <SelectItem key={shift.id} value={shift.id}>
                       {shift.id}
                     </SelectItem>
