@@ -93,9 +93,34 @@ export function getShiftStats(shiftId: string): ShiftStatsRow | undefined {
     ShiftStatsRow | undefined
 }
 
+export function reopenShiftInDb(shiftId: string, reason: string, previousEndDate: string | null): void {
+  const db = getDb()
+  db.transaction(() => {
+    db.prepare(
+      `INSERT INTO ShiftReopenLog (shift_id, reopened_at, reason, previous_end_date, closed_again_at)
+       VALUES (?, datetime('now'), ?, ?, NULL)`
+    ).run(shiftId, reason, previousEndDate)
+    db.prepare(`UPDATE Shift SET status = 'REOPENED' WHERE id = ?`).run(shiftId)
+  })()
+}
+
 export function closeShiftInDb(shiftId: string, endDate: string): void {
   const db = getDb()
-  db.prepare(`UPDATE Shift SET status = 'CLOSED', end_date = ? WHERE id = ?`).run(endDate, shiftId)
+  db.transaction(() => {
+    db.prepare(`UPDATE Shift SET status = 'CLOSED', end_date = ? WHERE id = ?`).run(endDate, shiftId)
+    const reopenLog = db
+      .prepare(
+        `SELECT id FROM ShiftReopenLog
+         WHERE shift_id = ? AND closed_again_at IS NULL
+         ORDER BY reopened_at DESC, id DESC
+         LIMIT 1`
+      )
+      .get(shiftId) as { id: number } | undefined
+
+    if (reopenLog) {
+      db.prepare(`UPDATE ShiftReopenLog SET closed_again_at = datetime('now') WHERE id = ?`).run(reopenLog.id)
+    }
+  })()
 }
 
 export function getOpenShiftByDriver(driverId: number): { id: string } | undefined {

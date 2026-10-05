@@ -50,7 +50,7 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 
 ## Operational Notes
 
-- `CURRENT_VERSION` is `2` in `src/main/db.ts`.
+- `CURRENT_VERSION` is `3` in `src/main/db.ts`.
 - A legacy database is rejected with an explicit error message telling the user to delete the local DB file and restart the app.
 - No backup is created before schema initialization; `closeShift` still runs backup after closing without `try/catch`.
 - The current UI label for the accounts page is `حركة النقدية`, not `الحسابات`.
@@ -65,7 +65,7 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
 - B7 update semantics are PUT: update requests carry the full row state; every nullable field is required and must be sent as a value or `null`, where `null` clears nullable columns. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. No update field falls back to its existing value.
 - Ledger entries and client payments may use negative amounts for refunds or reversals (for example, refunding part of a client payment or returning an excess driver advance). Zero is rejected. The statement formula is unchanged (`balance = opening + charges - payments`), so a negative payment raises the balance.
-- A closed shift is final for ledger entries: no entry can be created on it, edited, deleted, or moved to or from a closed shift. Corrections after closing are recorded as movementType OTHER without a shift, with a note (contractor selected manually). Reopening a shift is a separate future task.
+- A reopened shift is finished but temporarily unlocked only to correct a mistake. `Shift.status` values are `OPEN`, `CLOSED`, and `REOPENED`. `REOPENED` is not an open shift: it never counts in the driver/vehicle open-shift checks, never blocks creating a new shift for the same driver or vehicle, and does not appear in lists used to start new work. A reopened shift accepts everything an open shift accepts: new trips, trip edits and deletes, ledger entries, and attachments. Re-closing runs the same checks as normal close, creates the backup, and returns the shift to `CLOSED`. Every reopen requires a non-empty reason and is logged in `ShiftReopenLog`.
 
 ## Next Up
 
@@ -93,6 +93,13 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - [ ] A negative ledger amount is accepted and appears in driver history.
 - [ ] Amount 0 is rejected with a field error.
 - [ ] Editing a client payment to a negative amount works.
+- [ ] Reopen a closed shift with a reason: badge shows the reopened state and the shift becomes editable again.
+- [ ] Add a forgotten trip with its attachment to a reopened shift; verify it can be saved.
+- [ ] Reject reopening with an empty reason.
+- [ ] While a shift is reopened, the driver can start a new shift.
+- [ ] Re-close the reopened shift and verify the close checks still run and the backup is created.
+- [ ] After re-closing, edits are locked again.
+- [ ] Query `ShiftReopenLog` using the exact SQL to confirm the reopen log and `closed_again_at` timestamp.
 - [ ] Add a ledger entry choosing a closed shift: rejected with an error next to the shift field.
 - [ ] Edit amount of an entry on a closed shift: rejected.
 - [ ] Edit an entry on a closed shift and choose "no shift": rejected.

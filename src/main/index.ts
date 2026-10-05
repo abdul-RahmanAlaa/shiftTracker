@@ -20,6 +20,7 @@ import {
 import { createVehicle, updateVehicle, deleteVehicle } from './use-cases/createVehicle'
 import { createShift } from './use-cases/createShift'
 import { closeShift } from './use-cases/closeShift'
+import { reopenShift } from './use-cases/reopenShift'
 import { listVehicles, listOpenShifts, getDriverOpenShift, listShifts } from './use-cases/listData'
 import { createTrip, updateTrip, deleteTrip } from './use-cases/createTrip'
 import { listTripsByShift, listTripLocations } from './use-cases/listTripData'
@@ -109,6 +110,7 @@ app.whenReady().then(() => {
   ipcMain.handle('vehicle:create', (_event, input) => createVehicle(input))
   ipcMain.handle('shift:create', (_event, input) => createShift(input))
   ipcMain.handle('shift:close', (_event, input) => closeShift(input))
+  ipcMain.handle('shift:reopen', (_event, input) => reopenShift(input))
   ipcMain.handle('driver:list', () => listDrivers())
   ipcMain.handle('contractor:list', () => listContractors())
   ipcMain.handle('vehicle:list', () => listVehicles())

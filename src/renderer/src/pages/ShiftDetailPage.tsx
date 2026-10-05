@@ -244,7 +244,13 @@ export function ShiftDetailPage(): React.JSX.Element {
                 <div>
                   <p className="text-sm text-muted-foreground">{t('shifts.columns.status')}</p>
                   <Badge>
-                    {t(shift.status === 'OPEN' ? 'shiftStatus.open' : 'shiftStatus.closed')}
+                    {t(
+                      shift.status === 'OPEN'
+                        ? 'shiftStatus.open'
+                        : shift.status === 'REOPENED'
+                          ? 'shiftStatus.reopened'
+                          : 'shiftStatus.closed'
+                    )}
                   </Badge>
                 </div>
                 <div>

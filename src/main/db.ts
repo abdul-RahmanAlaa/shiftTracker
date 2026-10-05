@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { app, dialog } from 'electron'
 import { join } from 'path'
 
-const CURRENT_VERSION = 2
+const CURRENT_VERSION = 3
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS TransportContractor (
@@ -56,10 +56,19 @@ CREATE TABLE IF NOT EXISTS Shift (
   client_cubic_default    REAL NOT NULL,
   start_date              TEXT NOT NULL,
   end_date                TEXT,
-  status                  TEXT NOT NULL CHECK (status IN ('OPEN','CLOSED')),
+  status                  TEXT NOT NULL CHECK (status IN ('OPEN','CLOSED','REOPENED')),
   reported_destination    TEXT,
   reported_trip_count     INTEGER,
   notes                   TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ShiftReopenLog (
+  id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+  shift_id           TEXT NOT NULL REFERENCES Shift(id),
+  reopened_at        TEXT NOT NULL,
+  reason             TEXT NOT NULL CHECK (length(trim(reason)) > 0),
+  previous_end_date   TEXT,
+  closed_again_at    TEXT
 );
 
 CREATE TABLE IF NOT EXISTS Trip (
@@ -176,7 +185,7 @@ export function initDatabase(): Database.Database {
     } else {
       db.close()
       throw new Error(
-        `[db] Found an existing database at user_version ${currentVersion}, but this build only supports a fresh install (user_version ${CURRENT_VERSION}) with no upgrade path from older experimental schemas. Delete the database file at "${dbPath}" and restart the app to start fresh.`
+        `[db] Found an existing database at user_version ${currentVersion}, but this build only supports a fresh install (user_version ${CURRENT_VERSION}) with no upgrade path from older experimental schemas. Delete the local shift-tracker.db before testing.`
       )
     }
 

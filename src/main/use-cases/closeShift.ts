@@ -26,6 +26,9 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
   if (shift.status === 'CLOSED') {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة بالفعل' }] }
   }
+  if (shift.status !== 'OPEN' && shift.status !== 'REOPENED') {
+    return { ok: false, errors: [{ field: 'shiftId', message: 'حالة الوردية غير مسموح بها للقفل' }] }
+  }
   const closingAttachment = listAttachments('SHIFT', input.shiftId).find(
     (attachment) => attachment.kind === 'CLOSING_SHEET'
   )

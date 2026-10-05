@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DatePicker } from '@/components/ui/date-picker'
 import { SubmitButton } from '@/components/SubmitButton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import {
   Select,
   SelectContent,
@@ -51,11 +52,16 @@ export function ShiftsPage(): React.JSX.Element {
   const [attachmentRefreshVersion, setAttachmentRefreshVersion] = useState(0)
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false)
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false)
+  const [isReopenDialogOpen, setIsReopenDialogOpen] = useState(false)
   const closeShiftForm = useForm<CloseShiftValues>({
     defaultValues: { shiftId: '', endDate: '' }
   })
   const closeShiftId = useWatch({ control: closeShiftForm.control, name: 'shiftId' })
   const endDate = useWatch({ control: closeShiftForm.control, name: 'endDate' })
+  const reopenShiftForm = useForm<{ shiftId: string; reason: string }>({
+    defaultValues: { shiftId: '', reason: '' }
+  })
+  const reopenShiftId = useWatch({ control: reopenShiftForm.control, name: 'shiftId' })
   const createShiftForm = useForm<CreateShiftValues>({
     resolver: zodResolver(createShiftSchema),
     defaultValues: {
@@ -167,6 +173,23 @@ export function ShiftsPage(): React.JSX.Element {
     await loadShifts()
   }
 
+  async function handleReopenShift(values: { shiftId: string; reason: string }): Promise<void> {
+    const result = await window.api.reopenShift(values)
+    if (!result.ok) {
+      result.errors.forEach((error) => {
+        if (error.field in values) {
+          reopenShiftForm.setError(error.field as keyof typeof values, {
+            message: error.message
+          })
+        }
+      })
+      return
+    }
+    setIsReopenDialogOpen(false)
+    reopenShiftForm.reset()
+    await loadShifts()
+  }
+
   const shiftToClose = shifts.find((shift) => shift.id === closeShiftId)
   const hasClosingDocument = closingAttachments.length > 0
   const checkingCloseRequirements =
@@ -178,17 +201,19 @@ export function ShiftsPage(): React.JSX.Element {
     {
       accessorKey: 'status',
       header: t('shifts.columns.status'),
-      cell: ({ getValue }) => (
-        <Badge
-          className={
-            getValue() === 'OPEN'
-              ? 'border-transparent bg-green-600 text-white hover:bg-green-600'
+      cell: ({ getValue }) => {
+        const status = String(getValue())
+        const statusKey =
+          status === 'OPEN' ? 'open' : status === 'REOPENED' ? 'reopened' : 'closed'
+        const colorClass =
+          status === 'OPEN'
+            ? 'border-transparent bg-green-600 text-white hover:bg-green-600'
+            : status === 'REOPENED'
+              ? 'border-transparent bg-amber-500 text-white hover:bg-amber-500'
               : 'border-transparent bg-gray-500 text-white hover:bg-gray-500'
-          }
-        >
-          {t(getValue() === 'OPEN' ? 'shiftStatus.open' : 'shiftStatus.closed')}
-        </Badge>
-      )
+
+        return <Badge className={colorClass}>{t(`shiftStatus.${statusKey}`)}</Badge>
+      }
     },
     { accessorKey: 'startDate', header: t('shifts.columns.startDate') },
     {
@@ -232,6 +257,59 @@ export function ShiftsPage(): React.JSX.Element {
             </DialogContent>
           </Dialog>
           <Dialog
+            open={isReopenDialogOpen}
+            onOpenChange={(open) => {
+              setIsReopenDialogOpen(open)
+              if (!open) reopenShiftForm.reset()
+            }}
+          >
+            <Button type="button" variant="outline" onClick={() => setIsReopenDialogOpen(true)}>
+              <LockKeyhole className="h-4 w-4" />
+              {t('shifts.reopenCardTitle')}
+            </Button>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>{t('shifts.reopenCardTitle')}</DialogTitle>
+              </DialogHeader>
+              <form
+                onSubmit={reopenShiftForm.handleSubmit(handleReopenShift)}
+                className="grid gap-4"
+              >
+                <Select
+                  value={reopenShiftId}
+                  onValueChange={(value) => reopenShiftForm.setValue('shiftId', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('shifts.selectShift')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {shifts
+                      .filter((shift) => shift.status === 'CLOSED')
+                      .map((shift) => (
+                        <SelectItem key={shift.id} value={shift.id}>
+                          {shift.id} ({shift.driverName})
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <div className="grid gap-2">
+                  <label className="text-sm font-medium">{t('shifts.reason')}</label>
+                  <Textarea
+                    value={reopenShiftForm.watch('reason')}
+                    onChange={(event) => reopenShiftForm.setValue('reason', event.target.value)}
+                    placeholder={t('shifts.reopenReasonPlaceholder')}
+                  />
+                </div>
+                <SubmitButton
+                  isSubmitting={reopenShiftForm.formState.isSubmitting}
+                  disabled={!reopenShiftId || !reopenShiftForm.watch('reason')?.trim()}
+                >
+                  {t('shifts.reopenSubmit')}
+                </SubmitButton>
+              </form>
+            </DialogContent>
+          </Dialog>
+          <Dialog
             open={isCloseDialogOpen}
             onOpenChange={(open) => {
               setIsCloseDialogOpen(open)
@@ -262,7 +340,7 @@ export function ShiftsPage(): React.JSX.Element {
                   </SelectTrigger>
                   <SelectContent>
                     {shifts
-                      .filter((shift) => shift.status === 'OPEN')
+                      .filter((shift) => shift.status === 'OPEN' || shift.status === 'REOPENED')
                       .map((shift) => (
                         <SelectItem key={shift.id} value={shift.id}>
                           {shift.id} ({shift.driverName})

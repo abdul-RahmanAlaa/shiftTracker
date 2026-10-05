@@ -30,7 +30,8 @@ The fresh-install `SCHEMA` in `src/main/db.ts` creates the current baseline tabl
 Constraints and derived objects in the live schema:
 
 - Foreign keys connect vehicles, shifts, trips, and account rows to related entities; `Trip.material_type_id` references `MaterialType(id)`.
-- `Shift.status` only accepts `OPEN` and `CLOSED`.
+- `Shift.status` accepts `OPEN`, `CLOSED`, and `REOPENED`.
+- `ShiftReopenLog` stores `id`, `shift_id`, `reopened_at`, `reason`, `previous_end_date`, and `closed_again_at`.
 - `Trip.crusher_receipt_status` accepts `PROVIDED`, `CONFIRMED_MISSING`, and `UNKNOWN`; checks enforce receipt-number and recipient-name status/value combinations.
 - `Trip.recipient_name_status` accepts `PROVIDED` and `UNCLEAR`.
 - `Attachment.entity_type` accepts `TRIP` and `SHIFT`; `kind` accepts `CRUSHER_RECEIPT`, `CLIENT_RECEIPT`, and `CLOSING_SHEET`. `entity_id` is polymorphic and has no declared foreign key.
@@ -40,7 +41,7 @@ Constraints and derived objects in the live schema:
 
 ## Version Handling
 
-The current source uses a single clean baseline at `CURRENT_VERSION = 2` and initializes the DB on first run via `SCHEMA` and `user_version = 2`.
+The current source uses a single clean baseline at `CURRENT_VERSION = 3` and initializes the DB on first run via `SCHEMA` and `user_version = 3`.
 
 Important decisions in the live code:
 
@@ -93,7 +94,7 @@ The final user-facing name for the accounts page is `حركة النقدية`. T
 - The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
 - B7 update semantics are PUT: update requests carry the full row state; every nullable field is required and must be sent as a value or `null`, where `null` clears nullable columns. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. No update field falls back to its existing value.
 - Ledger entries and client payments may use negative amounts for refunds or reversals (for example, refunding part of a client payment or returning an excess driver advance). Zero is rejected. The statement formula is unchanged (`balance = opening + charges - payments`), so a negative payment raises the balance.
-- A closed shift is final for ledger entries: no entry can be created on it, edited, deleted, or moved to or from a closed shift. Corrections after closing are recorded as movementType OTHER without a shift, with a note (contractor selected manually). Reopening a shift is a separate future task.
+- A reopened shift is finished but temporarily unlocked only to correct a mistake. `Shift.status` values are `OPEN`, `CLOSED`, and `REOPENED`. `REOPENED` is not an open shift: it never counts in the driver/vehicle open-shift checks, never blocks creating a new shift for the same driver or vehicle, and does not appear in lists used to start new work. A reopened shift accepts everything an open shift accepts: new trips, trip edits and deletes, ledger entries, and attachments. Re-closing runs the same checks as normal close, creates the backup, and returns the shift to `CLOSED`. Every reopen requires a non-empty reason and is logged in `ShiftReopenLog`.
 
 ## References
 

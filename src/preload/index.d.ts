@@ -246,6 +246,10 @@ interface Api {
     shiftId: string
     endDate: string
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
+  reopenShift: (input: {
+    shiftId: string
+    reason: string
+  }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
   listDrivers: () => Promise<
     | UseCaseResult<{ id: number; name: string; phone1: string | null; phone2: string | null }[]>
     | FailedUseCaseResult

@@ -31,6 +31,8 @@ const api = {
   createShift: (input: CreateShiftInput) => ipcRenderer.invoke('shift:create', input),
   closeShift: (input: { shiftId: string; endDate: string }) =>
     ipcRenderer.invoke('shift:close', input),
+  reopenShift: (input: { shiftId: string; reason: string }) =>
+    ipcRenderer.invoke('shift:reopen', input),
   listDrivers: () => ipcRenderer.invoke('driver:list'),
   listMaterialTypes: () => ipcRenderer.invoke('materialType:list'),
   listContractors: () => ipcRenderer.invoke('contractor:list'),

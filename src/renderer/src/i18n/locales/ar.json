@@ -260,7 +260,8 @@
   },
   "shiftStatus": {
     "open": "مفتوحة",
-    "closed": "منتهية"
+    "closed": "منتهية",
+    "reopened": "أُعيد فتحها للتصحيح"
   },
   "shifts": {
     "title": "الورديات",
@@ -273,10 +274,14 @@
     "deleteTripConfirmation": "متأكد إنك عايز تمسح النقلة {{id}}؟",
     "selectDriver": "اختار السائق",
     "closeCardTitle": "قفل وردية",
+    "reopenCardTitle": "إعادة فتح للتصحيح",
     "selectShift": "اختار الوردية",
     "closeDatePlaceholder": "اختر تاريخ القفل",
+    "reopenReasonPlaceholder": "اكتب سبب إعادة الفتح",
     "closingPhotoRequired": "لازم تضيف مستند تقفيل للوردية الأول",
     "closeSubmit": "قفل الوردية",
+    "reopenSubmit": "إعادة فتح الوردية",
+    "reason": "السبب",
     "checkingAttachments": "جاري التحقق من المستندات...",
     "tripsMissingAttachments": "النقلات دي تحتاج إيصالًا واحدًا على الأقل: {{tripIds}}",
     "columns": {
