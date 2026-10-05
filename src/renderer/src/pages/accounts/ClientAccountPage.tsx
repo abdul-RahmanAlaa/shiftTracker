@@ -45,7 +45,10 @@ type Client = { id: number; name: string }
 const emptyValue = '__none__'
 const paymentSchema = z.object({
   entryDate: z.string().min(1, i18n.t('clientAccount.validation.dateRequired')),
-  amount: z.number({ message: i18n.t('common.validation.amountRequired') }),
+  amount: z
+    .number({ message: i18n.t('common.validation.amountRequired') })
+    .finite(i18n.t('common.validation.amountFiniteNonZero'))
+    .refine((amount) => amount !== 0, i18n.t('common.validation.amountFiniteNonZero')),
   notes: z.string().optional()
 })
 type PaymentFormValues = z.infer<typeof paymentSchema>

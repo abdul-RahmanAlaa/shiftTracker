@@ -27,7 +27,8 @@
     },
     "validation": {
       "positivePrice": "السعر لازم يكون رقم موجب",
-      "amountRequired": "المبلغ مطلوب"
+      "amountRequired": "المبلغ مطلوب",
+      "amountFiniteNonZero": "المبلغ لازم يكون رقمًا محدودًا وغير صفر"
     }
   },
   "floatingWindow": {

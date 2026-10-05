@@ -31,9 +31,9 @@ const dateSchema = z
   .string({ error: 'التاريخ مطلوب' })
   .refine(isRealDate, 'أدخل تاريخًا صحيحًا بصيغة YYYY-MM-DD')
 const amountSchema = z
-  .number({ error: 'المبلغ لازم يكون رقمًا موجبًا' })
-  .finite('المبلغ لازم يكون رقمًا موجبًا')
-  .positive('المبلغ لازم يكون رقمًا موجبًا')
+  .number({ error: 'المبلغ لازم يكون رقمًا محدودًا وغير صفر' })
+  .finite('المبلغ لازم يكون رقمًا محدودًا وغير صفر')
+  .refine((amount) => amount !== 0, 'المبلغ لازم يكون رقمًا محدودًا وغير صفر')
 const nullableNotesSchema = z.string().nullable()
 
 const createClientPaymentInputSchema = z.object({

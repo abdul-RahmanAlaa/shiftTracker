@@ -18,7 +18,7 @@ Updated from the current working tree. This file is the operational source-of-tr
 - [x] B4: fixed; manually verified. Follow-up remains open for six unused i18n keys and a missing-key check script.
 - [x] B5: fixed in code (`TripIdCounter` and attachment-row cleanup in the trip-delete transaction); manually verified by user.
 - [x] B6: fixed in code (attachmentId, 5MB/JPEG validation, closed-shift guard, closeShift file-exists check); manually verified by user. Approved renderer exception: one line in `AttachmentManager.tsx`.
-- [ ] B7: fixed in code (PUT semantics for ledger/clientPayment updates; FK errors returned as field errors); not manually tested.
+- [ ] B7: fixed in code (PUT semantics, FK errors returned as field errors, and finite non-zero amounts allow negatives); not manually tested.
 - [x] B8: resolved by decision; migration chain removed, old DBs refused, fresh DB required. No backup is made before schema initialization; the post-close backup risk remains open below.
 - [ ] B9: open; delete failures and rejected IPC calls still need user-visible handling.
 - [ ] B10: open; contractor/driver edit forms remain duplicated and unlocked.
@@ -64,6 +64,7 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - The project uses a fresh-install database policy: schema reset is the supported path. Legacy migration logic is not retained; older local databases are refused.
 - The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
 - B7 update semantics are PUT: update requests carry the full row state; every nullable field is required and must be sent as a value or `null`, where `null` clears nullable columns. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. No update field falls back to its existing value.
+- Ledger entries and client payments may use negative amounts for refunds or reversals (for example, refunding part of a client payment or returning an excess driver advance). Zero is rejected. The statement formula is unchanged (`balance = opening + charges - payments`), so a negative payment raises the balance.
 
 ## Next Up
 
@@ -87,3 +88,7 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - [ ] Edit a client payment: clear notes, save, reopen: notes are empty.
 - [ ] Edit a client payment changing only the amount; verify notes are unchanged.
 - [ ] Try saving a ledger entry that violates an existing rule (for example a movement type that requires a contractor, without one): a field error appears next to the field, no crash.
+- [ ] Client payment of -300 is accepted and raises the client balance by 300 in both Accounts and Statement.
+- [ ] A negative ledger amount is accepted and appears in driver history.
+- [ ] Amount 0 is rejected with a field error.
+- [ ] Editing a client payment to a negative amount works.

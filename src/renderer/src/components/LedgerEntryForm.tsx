@@ -32,7 +32,10 @@ export const ledgerEntrySchema = z.object({
   movementType: z.enum(['ADVANCE', 'PAYMENT', 'OTHER'], {
     message: i18n.t('ledgerEntryForm.validation.movementTypeRequired')
   }),
-  amount: z.number({ message: i18n.t('ledgerEntryForm.validation.amountRequired') }),
+  amount: z
+    .number({ message: i18n.t('ledgerEntryForm.validation.amountRequired') })
+    .finite(i18n.t('common.validation.amountFiniteNonZero'))
+    .refine((amount) => amount !== 0, i18n.t('common.validation.amountFiniteNonZero')),
   shiftId: z.string().optional(),
   contractorId: z.number().int().positive().optional(),
   notes: z.string().optional()

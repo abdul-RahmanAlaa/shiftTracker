@@ -38,9 +38,9 @@ const movementTypeSchema = z.enum(['ADVANCE', 'PAYMENT', 'OTHER'], {
   error: 'نوع الحركة مطلوب'
 })
 const amountSchema = z
-  .number({ error: 'المبلغ لازم يكون رقمًا موجبًا' })
-  .finite('المبلغ لازم يكون رقمًا موجبًا')
-  .positive('المبلغ لازم يكون رقمًا موجبًا')
+  .number({ error: 'المبلغ لازم يكون رقمًا محدودًا وغير صفر' })
+  .finite('المبلغ لازم يكون رقمًا محدودًا وغير صفر')
+  .refine((amount) => amount !== 0, 'المبلغ لازم يكون رقمًا محدودًا وغير صفر')
 const nullableDriverIdSchema = positiveIdSchema.nullable()
 const nullableShiftIdSchema = z.string().min(1).nullable()
 const nullableContractorIdSchema = positiveIdSchema.nullable()

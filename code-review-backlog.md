@@ -108,7 +108,7 @@
 
 الـ update لازم يستبدل الكل (PUT semantics) من غير fallback للقيمة القديمة. وللـ nullable استخدم `null` صريحة في العقد. لقّط FK في الاتنين وارجع errors بالحقل.
 
-**Status:** Fixed in code (PUT semantics for ledger/clientPayment updates; FK errors returned as field errors); not manually tested. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so updates derive it from a selected shift or require it when no shift is selected; clearing that column is not supported without a schema change.
+**Status:** Fixed in code (PUT semantics for ledger/clientPayment updates; FK errors returned as field errors; finite non-zero amounts allow negatives); not manually tested. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so updates derive it from a selected shift or require it when no shift is selected; clearing that column is not supported without a schema change.
 
 ### B8. Migrations: فجوات وخطر فشل
 
@@ -219,3 +219,6 @@ hook أو helper واحد `useApiAction/callApi(fn)` بيحوّل الرفض ل�
 ## 6. Found while working
 
 Issues discovered during other tasks. Do not fix here; schedule explicitly.
+- `src/main/use-cases/getAccounts.ts:34,49`: no account-to-account transfer use case exists; feature idea, low.
+- `src/main/db.ts:31,142`: Crusher is an entity, but no crusher/supplier account or supplier-payment table/use case exists; feature gap, low.
+- `src/main/use-cases/getStatement.ts:89; src/main/repository/statementRepository.ts:69`: all contractor ledger movement types are subtracted uniformly; negative amounts reverse that effect regardless of ADVANCE/PAYMENT/OTHER; informational sign behavior, low. Signed account sums and table totals preserve negatives; no ABS/positive-amount filters or amount-based ordering were found.
