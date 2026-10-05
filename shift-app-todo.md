@@ -98,3 +98,5 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - [ ] Edit an entry on a closed shift and choose "no shift": rejected.
 - [ ] Move an entry from an open shift to a closed shift: rejected.
 - [ ] Add an OTHER entry with no shift, a contractor, and a note: accepted.
+
+Automated use-case check run on 2026-10-05: results in last-report.md (not a manual test).

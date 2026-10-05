@@ -171,6 +171,21 @@ export function updateLedgerEntry(input: UpdateLedgerEntryInput): UseCaseResult<
     return { ok: false, errors: [{ field: 'id', message: 'الحركة دي مش موجودة' }] }
   }
 
+  const existingShiftIsClosed = isShiftClosed(existingEntry.shiftId)
+  const targetShiftIsClosed = isShiftClosed(values.shiftId)
+  if (existingShiftIsClosed) {
+    return {
+      ok: false,
+      errors: [{ field: 'id', message: 'مرتبطة بوردية مقفولة، لا يمكن تعديلها' }]
+    }
+  }
+  if (targetShiftIsClosed) {
+    return {
+      ok: false,
+      errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة، مينفعش تنقل الحركة ليها' }]
+    }
+  }
+
   let contractorId: number | null = values.contractorId
   if (values.shiftId !== null) {
     const shiftContractorId = getShiftContractorId(values.shiftId)
@@ -178,19 +193,6 @@ export function updateLedgerEntry(input: UpdateLedgerEntryInput): UseCaseResult<
       return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مش موجودة' }] }
     }
     contractorId = shiftContractorId
-  }
-
-  if (isShiftClosed(existingEntry.shiftId)) {
-    return {
-      ok: false,
-      errors: [{ field: 'id', message: 'مرتبطة بوردية مقفولة، لا يمكن تعديلها' }]
-    }
-  }
-  if (isShiftClosed(values.shiftId)) {
-    return {
-      ok: false,
-      errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة، مينفعش تنقل الحركة ليها' }]
-    }
   }
 
   if (contractorId === null) {
