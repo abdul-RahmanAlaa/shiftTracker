@@ -179,7 +179,7 @@ hook أو helper واحد `useApiAction/callApi(fn)` بيحوّل الرفض ل�
 | ترتيب نفس التاريخ | الشحنات تضاف قبل الدفعات و`Array.sort` مستقر، لذلك الشحنة تسبق الدفعة في نفس اليوم حاليًا بالمصادفة؛ المقارنة بـ `localeCompare`. | اعمل ترتيبًا صريحًا `(date, kindOrder, id)` بمقارنة `<` عادية بدل `localeCompare`. | Open |
 | مفيش تحقق runtime من النوع/الصيغة في main | `ipcMain.handle(..., (_e, input) => fn(input))` يستقبل `input` غير موثوق. التحقق الحالي يسمح بقيم مثل `"abc"` أو السالب أو `NaN` أو تاريخ `"hello"`، ولا يتحقق من تواريخ النقلات ضمن مدة الوردية أو `endDate >= startDate`. | Zod schema لكل handler في main (shared مع renderer) وparse عند أول سطر. تحقق من تاريخ `YYYY-MM-DD` حقيقي ومن finite/nonnegative للأرقام حسب الحقل. | Open |
 | عدم تطابق قواعد الصفر بين UI وmain | UI يسمح بـ0 لبعض المقاسات والأسعار، لكن main يرفض القيمة falsy بـ `!input.stonePrice` برسالة "مطلوب". المستخدم يرى "مطلوب" رغم إدخال 0. | قرر هل 0 مسموح، وضع القاعدة في schema موحد. | Open |
-| قفل الوردية مش شامل | مرفقات الوردية المقفولة ممنوعة حاليًا حسب B6، لكن `createLedgerEntry` يقبل `shiftId` لوردية مقفولة بينما التعديل اللاحق ممنوع. `reopenShift` está implemented; `updateShift` remains open. | قفل موحّد في use-case عبر helper مثل `assertShiftOpen`. أضف `updateShift` للمفتوحة عند الحاجة، مع مراعاة أن `REOPENED` لا يساوي `OPEN`. | reopenShift done; updateShift still open. |
+| قفل الوردية مش شامل | مرفقات الوردية المقفولة ممنوعة حاليًا حسب B6، لكن `createLedgerEntry` يقبل `shiftId` لوردية مقفولة بينما التعديل اللاحق ممنوع. لا يوجد use-case لتعديل الوردية أو إعادة فتحها. | قفل موحّد في use-case عبر helper مثل `assertShiftOpen`. أضف `updateShift` للمفتوحة و`reopenShift` بصلاحية/تسجيل. | Closed-shift ledger lock done; reopenShift done (REOPENED status + ShiftReopenLog); updateShift still open. |
 | سيارة بورديتين مفتوحتين | الفحص الوحيد المذكور هو "سائق واحد = وردية واحدة"؛ سيارة بسائق مختلف يمكن أن تكون على ورديتين مفتوحتين بالتزامن. | تحقق في `createShift` وأضف partial unique index على `Shift(vehicle_no) WHERE status='OPEN'`، وللسائق أيضًا. | Open |
 | `closeShift` ثم `backupDatabase()` | الإغلاق يُكتب ثم يبدأ backup. لو فشل النسخ بسبب القرص أو المجلد، IPC يترفض والواجهة قد لا تتقدم رغم أن الوردية أُغلقت. نسخ مجلد `docs` كل مرة يزيد مساحة النسخ، ولا توجد سياسة تقليم. | اجعل الإغلاق transaction، ونفّذ backup خارجها مع catch يرجع تحذيرًا بدل فشل الإغلاق. انسخ DB فقط أو استخدم نسخ صور تزايديًا، وضع سياسة احتفاظ بآخر N نسخ. | Open. Current code calls backup after closing without try/catch. |
 | الصور Base64 عبر IPC | كل صف نقلة في `ShiftDetailPage` ينشئ `AttachmentManager` ويقرأ الصور كـ data URI؛ وردية فيها 40 نقلة قد تسبب عشرات استدعاءات IPC وعشرات MB بالذاكرة. | بروتوكول مخصص مثل `protocol.handle('att', ...)` لخدمة الصور عبر URL أو thumbnails صغيرة. استعلام واحد لعدد/thumbnail لكل نقلة بدل N+1. | Open |
@@ -217,9 +217,10 @@ hook أو helper واحد `useApiAction/callApi(fn)` بيحوّل الرفض ل�
 5. بعد ذلك المخاطر حسب الأولوية: contractor snapshot على الوردية، المبالغ بالقرش، تحقق Zod في main، وقرار إشارة المقاول.
 
 ## 6. Found while working
-- `src/main/use-cases/reopenShift.ts` added the reopen flow, but the UI still has no dedicated history viewer for `ShiftReopenLog`.
-
 Issues discovered during other tasks. Do not fix here; schedule explicitly.
+- `src/renderer/src/pages/ShiftDetailPage.tsx:245`: reopen log reason/history has no renderer viewer; severity medium.
+- `src/renderer/src/pages/AddTripPage.tsx:229`: the Add Trip flow fetches only an OPEN shift, so the renderer has no screen to add a trip to a REOPENED shift; severity medium.
+- `src/main/use-cases/closeShift.ts:58`: re-closing after adding a trip to a reopened shift fails when the reported trip count no longer matches; severity high.
 - `src/main/use-cases/getAccounts.ts:34,49`: no account-to-account transfer use case exists; feature idea, low.
 - `src/main/db.ts:31,142`: Crusher is an entity, but no crusher/supplier account or supplier-payment table/use case exists; feature gap, low.
 - `src/main/use-cases/getStatement.ts:89; src/main/repository/statementRepository.ts:69`: all contractor ledger movement types are subtracted uniformly; negative amounts reverse that effect regardless of ADVANCE/PAYMENT/OTHER; informational sign behavior, low. Signed account sums and table totals preserve negatives; no ABS/positive-amount filters or amount-based ordering were found.

@@ -79,6 +79,8 @@ The current renderer routes are declared in `src/renderer/src/App.tsx`:
 
 The final user-facing name for the accounts page is `حركة النقدية`. The old Arabic wording `الحسابات` is not the current source-of-truth label and was removed from the renderer locale.
 
+- The Add Trip page retrieves only a driver's `OPEN` shift; Shift Detail provides edit/delete actions for existing trips but no new-trip action. Therefore, the current renderer has no path to create a new trip on a `REOPENED` shift.
+
 ## Source-Verified Gaps
 
 - There is no CSV import/export route or implementation in the tracked `src` tree.
@@ -94,7 +96,7 @@ The final user-facing name for the accounts page is `حركة النقدية`. T
 - The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
 - B7 update semantics are PUT: update requests carry the full row state; every nullable field is required and must be sent as a value or `null`, where `null` clears nullable columns. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. No update field falls back to its existing value.
 - Ledger entries and client payments may use negative amounts for refunds or reversals (for example, refunding part of a client payment or returning an excess driver advance). Zero is rejected. The statement formula is unchanged (`balance = opening + charges - payments`), so a negative payment raises the balance.
-- A reopened shift is finished but temporarily unlocked only to correct a mistake. `Shift.status` values are `OPEN`, `CLOSED`, and `REOPENED`. `REOPENED` is not an open shift: it never counts in the driver/vehicle open-shift checks, never blocks creating a new shift for the same driver or vehicle, and does not appear in lists used to start new work. A reopened shift accepts everything an open shift accepts: new trips, trip edits and deletes, ledger entries, and attachments. Re-closing runs the same checks as normal close, creates the backup, and returns the shift to `CLOSED`. Every reopen requires a non-empty reason and is logged in `ShiftReopenLog`.
+- A CLOSED shift stays locked: no ledger entry can be created, edited, deleted, or moved to or from it. Correction paths are `reopenShift`, or an `OTHER` entry without a shift and with a note. A reopened shift is finished but temporarily unlocked only to correct a mistake. `Shift.status` values are `OPEN`, `CLOSED`, and `REOPENED`. `REOPENED` is not an open shift: it never counts in the driver/vehicle open-shift checks, never blocks creating a new shift for the same driver or vehicle, and does not appear in lists used to start new work. A reopened shift accepts everything an open shift accepts: new trips, trip edits and deletes, ledger entries, and attachments. Re-closing runs the same checks as normal close, creates the backup, and returns the shift to `CLOSED`. Every reopen requires a non-empty reason and is logged in `ShiftReopenLog`.
 
 ## References
 

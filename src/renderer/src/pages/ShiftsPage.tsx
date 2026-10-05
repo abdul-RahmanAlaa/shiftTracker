@@ -177,8 +177,8 @@ export function ShiftsPage(): React.JSX.Element {
     const result = await window.api.reopenShift(values)
     if (!result.ok) {
       result.errors.forEach((error) => {
-        if (error.field in values) {
-          reopenShiftForm.setError(error.field as keyof typeof values, {
+        if (error.field === 'shiftId' || error.field === 'reason') {
+          reopenShiftForm.setError(error.field, {
             message: error.message
           })
         }
@@ -203,8 +203,7 @@ export function ShiftsPage(): React.JSX.Element {
       header: t('shifts.columns.status'),
       cell: ({ getValue }) => {
         const status = String(getValue())
-        const statusKey =
-          status === 'OPEN' ? 'open' : status === 'REOPENED' ? 'reopened' : 'closed'
+        const statusKey = status === 'OPEN' ? 'open' : status === 'REOPENED' ? 'reopened' : 'closed'
         const colorClass =
           status === 'OPEN'
             ? 'border-transparent bg-green-600 text-white hover:bg-green-600'
@@ -275,23 +274,30 @@ export function ShiftsPage(): React.JSX.Element {
                 onSubmit={reopenShiftForm.handleSubmit(handleReopenShift)}
                 className="grid gap-4"
               >
-                <Select
-                  value={reopenShiftId}
-                  onValueChange={(value) => reopenShiftForm.setValue('shiftId', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('shifts.selectShift')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {shifts
-                      .filter((shift) => shift.status === 'CLOSED')
-                      .map((shift) => (
-                        <SelectItem key={shift.id} value={shift.id}>
-                          {shift.id} ({shift.driverName})
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <div className="grid gap-2">
+                  <Select
+                    value={reopenShiftId}
+                    onValueChange={(value) => reopenShiftForm.setValue('shiftId', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('shifts.selectShift')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {shifts
+                        .filter((shift) => shift.status === 'CLOSED')
+                        .map((shift) => (
+                          <SelectItem key={shift.id} value={shift.id}>
+                            {shift.id} ({shift.driverName})
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {reopenShiftForm.formState.errors.shiftId?.message && (
+                    <p role="alert" className="text-sm text-destructive">
+                      {reopenShiftForm.formState.errors.shiftId.message}
+                    </p>
+                  )}
+                </div>
                 <div className="grid gap-2">
                   <label className="text-sm font-medium">{t('shifts.reason')}</label>
                   <Textarea
@@ -299,6 +305,11 @@ export function ShiftsPage(): React.JSX.Element {
                     onChange={(event) => reopenShiftForm.setValue('reason', event.target.value)}
                     placeholder={t('shifts.reopenReasonPlaceholder')}
                   />
+                  {reopenShiftForm.formState.errors.reason?.message && (
+                    <p role="alert" className="text-sm text-destructive">
+                      {reopenShiftForm.formState.errors.reason.message}
+                    </p>
+                  )}
                 </div>
                 <SubmitButton
                   isSubmitting={reopenShiftForm.formState.isSubmitting}

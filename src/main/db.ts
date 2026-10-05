@@ -185,7 +185,7 @@ export function initDatabase(): Database.Database {
     } else {
       db.close()
       throw new Error(
-        `[db] Found an existing database at user_version ${currentVersion}, but this build only supports a fresh install (user_version ${CURRENT_VERSION}) with no upgrade path from older experimental schemas. Delete the local shift-tracker.db before testing.`
+        `[db] Found an existing database at user_version ${currentVersion}, but this build only supports a fresh install (user_version ${CURRENT_VERSION}) with no upgrade path from older experimental schemas. Delete the database file at "${dbPath}" and restart the app to start fresh.`
       )
     }
 
