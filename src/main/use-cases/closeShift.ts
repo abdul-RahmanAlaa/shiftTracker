@@ -9,6 +9,13 @@ import { z } from 'zod'
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
 
+export interface CloseShiftSuccessData {
+  id: string
+  backupWarning?: true
+}
+
+export type CloseShiftResult = UseCaseResult<CloseShiftSuccessData>
+
 export interface CloseShiftInput {
   shiftId: string
   endDate: string
@@ -24,7 +31,7 @@ const closeShiftSchema = z.object({
   reportedTripCount: nonNegativeIntegerSchema('عدد النقلات لازم يكون عددًا صحيحًا غير سالب')
 })
 
-export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }> {
+export function closeShift(input: CloseShiftInput): CloseShiftResult {
   if (typeof input !== 'object' || input === null) {
     return { ok: false, errors: [{ field: 'shiftId', message: 'رقم الوردية مطلوب' }] }
   }
@@ -127,6 +134,11 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
   }
 
   closeShiftInDb(shiftId, endDate, reportedTripCount)
-  backupDatabase()
-  return { ok: true, data: { id: shiftId } }
+  try {
+    backupDatabase()
+    return { ok: true, data: { id: shiftId } }
+  } catch (error) {
+    console.error('Failed to back up after closing shift', error)
+    return { ok: true, data: { id: shiftId, backupWarning: true } }
+  }
 }

@@ -413,6 +413,70 @@ try {
     const output = result(actual)
     return !actual.threw && output?.unchanged === true && hasExactFieldError(output.response, 'endDate')
   })
+  runCase('V closeShift rejects mismatched valid count and leaves OPEN shift unchanged', 'ok:false / exact field tripCount / OPEN row unchanged', () => {
+    const shift = createOwnShift()
+    const before = shiftRowSnapshot(shift.id)
+    const response = closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 1 })
+    return {
+      response,
+      unchanged: before === shiftRowSnapshot(shift.id),
+      status: db.prepare('SELECT status FROM Shift WHERE id = ?').get(shift.id)?.status
+    }
+  }, (actual) => {
+    const output = result(actual)
+    return !actual.threw &&
+      output?.unchanged === true &&
+      output.status === 'OPEN' &&
+      hasExactFieldError(output.response, 'tripCount')
+  })
+  runCase('V closeShift succeeds when backup works without warning', 'ok:true / CLOSED shift / backup created / no backupWarning', () => {
+    const shift = createOwnShift()
+    addClosingSheet(shift.id, 'validation-backup-success.jpg')
+    const backupDir = path.join(process.env.SHIFT_TRACKER_USER_DATA, 'backups')
+    const before = fs.existsSync(backupDir)
+      ? new Set(fs.readdirSync(backupDir).filter((name) => name.startsWith('shift-tracker-')))
+      : new Set()
+    const response = closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 0 })
+    const createdBackups = fs.existsSync(backupDir)
+      ? fs.readdirSync(backupDir).filter((name) => name.startsWith('shift-tracker-') && !before.has(name))
+      : []
+    return {
+      response,
+      status: db.prepare('SELECT status FROM Shift WHERE id = ?').get(shift.id)?.status,
+      createdBackups
+    }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.response?.ok === true &&
+      output.response.data.backupWarning === undefined &&
+      output.status === 'CLOSED' &&
+      output.createdBackups.length > 0
+  })
+  runCase('V closeShift backup failure still closes and returns warning', 'ok:true / CLOSED shift / backupWarning:true', () => {
+    const shift = createOwnShift()
+    addClosingSheet(shift.id, 'validation-backup-failure.jpg')
+    const backupDir = path.join(process.env.SHIFT_TRACKER_USER_DATA, 'backups')
+    const parkedBackupDir = path.join(process.env.SHIFT_TRACKER_USER_DATA, 'backups-before-failure-test')
+    const hadBackupDir = fs.existsSync(backupDir)
+    if (hadBackupDir) fs.renameSync(backupDir, parkedBackupDir)
+    fs.writeFileSync(backupDir, 'blocked backup destination')
+    let response
+    try {
+      response = closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 0 })
+    } finally {
+      fs.unlinkSync(backupDir)
+      if (hadBackupDir) fs.renameSync(parkedBackupDir, backupDir)
+    }
+    return {
+      response,
+      status: db.prepare('SELECT status FROM Shift WHERE id = ?').get(shift.id)?.status
+    }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.response?.ok === true &&
+      output.response.data.backupWarning === true &&
+      output.status === 'CLOSED'
+  })
   runCase('V closeShift impossible endDate is not valid', 'ok:false / exact field endDate / invalid-date message / shift unchanged', () => {
     const shift = createOwnShift()
     const before = shiftRowSnapshot(shift.id)

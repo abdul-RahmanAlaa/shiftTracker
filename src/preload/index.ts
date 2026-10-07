@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { CreateShiftInput } from '../main/use-cases/createShift'
+import type { CreateShiftInput } from '../main/use-cases/createShift'
+import type { CloseShiftInput, CloseShiftResult } from '../main/use-cases/closeShift'
 
 const api = {
   createDriver: (input: { name: string; phone1?: string; phone2?: string }) =>
@@ -29,7 +30,7 @@ const api = {
     ownerName?: string
   }) => ipcRenderer.invoke('vehicle:create', input),
   createShift: (input: CreateShiftInput) => ipcRenderer.invoke('shift:create', input),
-  closeShift: (input: { shiftId: string; endDate: string; reportedTripCount: number }) =>
+  closeShift: (input: CloseShiftInput): Promise<CloseShiftResult> =>
     ipcRenderer.invoke('shift:close', input),
   reopenShift: (input: { shiftId: string; reason: string }) =>
     ipcRenderer.invoke('shift:reopen', input),

@@ -252,6 +252,7 @@
   },
   "contractorAccount": {
     "title": "حساب المقاول",
+    "balanceSignNote": "الرصيد الموجب يعني أننا مدينون للمقاول.",
     "selectContractorHint": "اختر مقاول عشان تشوف الحساب",
     "summary": {
       "transportDue": "مستحق النقل",
@@ -288,6 +289,7 @@
     "reopenReasonPlaceholder": "اكتب سبب إعادة الفتح",
     "closingPhotoRequired": "لازم تضيف مستند تقفيل للوردية الأول",
     "closeSubmit": "قفل الوردية",
+    "closeBackupWarning": "تم قفل الوردية، لكن تعذر إنشاء النسخة الاحتياطية.",
     "reopenSubmit": "إعادة فتح الوردية",
     "reason": "السبب",
     "checkingAttachments": "جاري التحقق من المستندات...",
@@ -339,6 +341,7 @@
       "unknown": "مش معروف"
     },
     "recipientNameStatuses": {
+      "provided": "موجود",
       "unclear": "مش واضح"
     },
     "submit": "إضافة النقلة",

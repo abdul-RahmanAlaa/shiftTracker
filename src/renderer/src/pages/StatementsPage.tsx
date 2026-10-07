@@ -259,6 +259,11 @@ export function StatementsPage(): React.JSX.Element {
               </PopoverContent>
             </Popover>
           </div>
+          {entityType === 'contractor' && (
+            <p className="text-sm text-muted-foreground md:col-span-2">
+              {t('contractorAccount.balanceSignNote')}
+            </p>
+          )}
           {entitiesLoading && (
             <p className="text-sm text-muted-foreground md:col-span-2">
               {t('statementsPage.loadingEntities')}

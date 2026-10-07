@@ -50,6 +50,7 @@ export function ShiftsPage(): React.JSX.Element {
     string | null
   >(null)
   const [closeShiftErrors, setCloseShiftErrors] = useState<string[]>([])
+  const [closeShiftBackupWarning, setCloseShiftBackupWarning] = useState(false)
   const [reopenShiftRootError, setReopenShiftRootError] = useState<string | null>(null)
   const [attachmentRefreshVersion, setAttachmentRefreshVersion] = useState(0)
   const [isOpenDialogOpen, setIsOpenDialogOpen] = useState(false)
@@ -162,6 +163,7 @@ export function ShiftsPage(): React.JSX.Element {
 
   async function handleCloseShift(values: CloseShiftValues): Promise<void> {
     setCloseShiftErrors([])
+    setCloseShiftBackupWarning(false)
     const result = await window.api.closeShift({
       shiftId: values.shiftId,
       endDate: values.endDate,
@@ -187,6 +189,7 @@ export function ShiftsPage(): React.JSX.Element {
     setTripsMissingAttachments([])
     setLoadedCloseRequirementsShiftId(null)
     setCloseShiftErrors([])
+    setCloseShiftBackupWarning(result.data.backupWarning === true)
     await loadShifts()
   }
 
@@ -245,6 +248,11 @@ export function ShiftsPage(): React.JSX.Element {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
+      {closeShiftBackupWarning && (
+        <p role="alert" className="text-sm text-destructive">
+          {t('shifts.closeBackupWarning')}
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">{t('shifts.title')}</h1>
         <div className="flex flex-wrap gap-2">

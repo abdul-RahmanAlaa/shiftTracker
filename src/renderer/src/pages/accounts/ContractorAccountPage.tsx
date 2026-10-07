@@ -197,6 +197,7 @@ export function ContractorAccountPage(): React.JSX.Element {
       </Select>
       {selectedContractorId && account ? (
         <>
+          <p className="text-sm text-muted-foreground">{t('contractorAccount.balanceSignNote')}</p>
           <AccountSummary
             items={[
               { label: t('contractorAccount.summary.transportDue'), value: account.transportTotal },

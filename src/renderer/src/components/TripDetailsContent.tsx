@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { AttachmentManager } from '@/components/AttachmentManager'
+import { labelForReceiptStatus, labelForRecipientNameStatus } from '@/lib/enumLabels'
 
 type TripDetailsRow = Extract<
   Awaited<ReturnType<typeof window.api.listAllTrips>>,
@@ -9,16 +10,8 @@ type TripDetailsRow = Extract<
 export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JSX.Element {
   const { t } = useTranslation()
 
-  const crusherReceiptStatus =
-    trip.crusherReceiptStatus === 'قيمة'
-      ? t('tripForm.receiptStatuses.value')
-      : trip.crusherReceiptStatus === 'مفيش (متأكد)'
-        ? t('tripForm.receiptStatuses.noReceiptConfirmed')
-        : t('tripForm.receiptStatuses.unknown')
-  const recipientNameStatus =
-    trip.recipientNameStatus === 'PROVIDED'
-      ? t('tripForm.receiptStatuses.value')
-      : t('tripForm.recipientNameStatuses.unclear')
+  const crusherReceiptStatus = labelForReceiptStatus(t, trip.crusherReceiptStatus)
+  const recipientNameStatus = labelForRecipientNameStatus(t, trip.recipientNameStatus)
   const details: [string, string | number | null][] = [
     [t('tripDetails.fields.tripNumber'), trip.id],
     [t('common.columns.shift'), trip.shiftId],

@@ -246,7 +246,7 @@ interface Api {
     shiftId: string
     endDate: string
     reportedTripCount: number
-  }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
+  }) => Promise<UseCaseResult<{ id: string; backupWarning?: true }> | FailedUseCaseResult>
   reopenShift: (input: {
     shiftId: string
     reason: string

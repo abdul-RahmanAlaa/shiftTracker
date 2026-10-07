@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { labelForMovementType } from '@/lib/enumLabels'
 
 type LedgerEntryDetailsRow = Extract<
   Awaited<ReturnType<typeof window.api.listLedgerEntries>>,
@@ -17,12 +18,7 @@ export function LedgerEntryDetailsContent({
   driverName
 }: LedgerEntryDetailsContentProps): React.JSX.Element {
   const { t } = useTranslation()
-  const movementType =
-    entry.movementType === 'عهدة'
-      ? t('ledgerEntryForm.movementTypes.custody')
-      : entry.movementType === 'دفعة'
-        ? t('ledgerEntryForm.movementTypes.payment')
-        : t('ledgerEntryForm.movementTypes.other')
+  const movementType = labelForMovementType(t, entry.movementType)
   const details: [string, string | number | null][] = [
     [t('ledgerEntryDetails.movementNumber'), entry.id],
     [t('ledgerEntryDetails.date'), entry.entryDate],
