@@ -76,9 +76,10 @@ Only items marked [x] were confirmed by the user in Electron; unchecked items ar
 ## Next Up
 
 1. Manually test the batch 1 validation cases, renderer-shaped empty-optional trip update, re-closing a REOPENED shift, and the batch 2 labels/backup/sign-note scenarios; fixed in code, not manually tested.
-2. B9: show deletion errors and handle rejected IPC calls.
-3. B10: use the shared ledger form for edits with locked IDs.
-4. B11: fix the remaining smaller UI/accounting inconsistencies.
+2. Manually confirm the new E2E smoke coverage in Electron; automated coverage does not replace user confirmation.
+3. B9: show deletion errors and handle rejected IPC calls.
+4. B10: use the shared ledger form for edits with locked IDs.
+5. B11: fix the remaining smaller UI/accounting inconsistencies.
 
 ## Manual Test Checklist
 
@@ -138,4 +139,6 @@ Only items marked [x] were confirmed by the user in Electron; unchecked items ar
 - [ ] Closing a shift while the backup folder is unwritable still closes the shift and shows the backup warning.
 - [ ] Contractor statement shows the balance-sign note and the client statement does not.
 
-Automated use-case check command: `npm run verify:use-cases` (not a manual test).
+Automated use-case check command: `npm run verify:use-cases` (not a manual test). E2E smoke command: `npm run test:e2e` (builds the app then runs Playwright; not a manual test).
+
+E2E smoke coverage maps to these unchecked manual checklist items: shift creation and duplicate vehicle validation; trip zero-price validation and receipt/recipient labels; close count pre-fill, mismatch rejection, attachment checks, and successful close; contractor/client statement sign-note visibility. S1 additionally checks route rendering, page/console errors, and raw translation-key text; these have no existing manual checklist item.

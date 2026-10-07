@@ -89,6 +89,7 @@ The final user-facing name for the accounts page is `حركة النقدية`. T
 
 - There is no CSV import/export route or implementation in the tracked `src` tree.
 - There is no `npm test` script; the tracked use-case verification harness runs with `npm run verify:use-cases`.
+- `npm run test:e2e` builds the real Electron app and runs the Playwright smoke suite for route health, shift creation, trip validation/details, shift closing, and contractor/client statement notes using isolated temporary user-data directories.
 - Only items marked [x] were confirmed by the user in Electron; unchecked items are pending.
 
 ## Decisions

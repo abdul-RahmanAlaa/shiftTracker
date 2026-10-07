@@ -222,6 +222,7 @@ hook أو helper واحد `useApiAction/callApi(fn)` بيحوّل الرفض ل�
 Issues discovered during other tasks. Do not fix here; schedule explicitly.
 
 - `src/main/use-cases/createShift.ts`, `src/main/use-cases/closeShift.ts`, and `src/renderer/src/pages/ShiftsPage.tsx`: the reported-count dead end is resolved by decision D1, which requires the count on close for OPEN and REOPENED shifts with no fallback. Severity low.
+- `src/renderer/src/pages/AddTripPage.tsx`: the PROVIDED recipient-name status option reuses the receipt-status “value” label instead of its dedicated provided label. Severity low.
 - `src/main/use-cases/createShift.ts` and `src/main/use-cases/createTrip.ts`: runtime validation gaps for required fields, enum values, billing fields, numeric values, and dates; fixed in code with Zod validation and covered by the use-case harness. Severity medium.
 - `src/renderer/src/pages/ShiftDetailPage.tsx:245`: reopen log reason/history has no renderer viewer; severity medium.
 - `src/renderer/src/pages/AddTripPage.tsx:229`: Add Trip still fetches only OPEN shifts; the REOPENED-only detail-page add path is fixed in code, not manually tested; severity medium.

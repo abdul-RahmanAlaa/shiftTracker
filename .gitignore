@@ -7,4 +7,6 @@ out
 last-report.md
 last-diff.patch
 scripts/.verify-closed-shift-use-cases.bundle.cjs
+test-results
+playwright-report
 status-report.md
