@@ -1,4 +1,16 @@
-import { getNextShiftId, getOpenShiftByDriver, insertShift } from '../repository/shiftRepository'
+import { z } from 'zod'
+import {
+  getNextShiftId,
+  getOpenShiftByDriver,
+  getOpenShiftByVehicle,
+  insertShift
+} from '../repository/shiftRepository'
+import {
+  dateStringSchema,
+  positiveIntegerSchema,
+  positiveNumberSchema,
+  validationMessages
+} from '../validation'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
@@ -20,31 +32,81 @@ export interface CreateShiftInput {
   clientCubicDefault: number
   startDate: string
   reportedDestination?: string
-  reportedTripCount?: number
   notes?: string
 }
 
+const createShiftSchema = z.object({
+  vehicleNo: positiveIntegerSchema('رقم السيارة مطلوب'),
+  driverId: positiveIntegerSchema('السائق مطلوب'),
+  crusherCubicDefault: positiveNumberSchema('تكعيب الكسارة مطلوب'),
+  clientCubicDefault: positiveNumberSchema('تكعيب العميل مطلوب'),
+  startDate: dateStringSchema(
+    validationMessages.shiftStartDateRequired,
+    validationMessages.shiftStartDateInvalid
+  )
+})
+
+const createShiftFieldMessages: Record<string, string> = {
+  vehicleNo: 'رقم السيارة مطلوب',
+  driverId: 'السائق مطلوب',
+  crusherCubicDefault: 'تكعيب الكسارة مطلوب',
+  clientCubicDefault: 'تكعيب العميل مطلوب'
+}
+
+function mapZodIssue(issue: z.ZodIssue): { field: string; message: string } {
+  const field = String(issue.path[0] ?? 'root')
+  if (field === 'startDate') return { field, message: issue.message }
+  if (field in createShiftFieldMessages) {
+    return { field, message: createShiftFieldMessages[field] }
+  }
+  return { field, message: issue.message }
+}
+
 export function createShift(input: CreateShiftInput): UseCaseResult<{ id: string }> {
-  const errors: { field: string; message: string }[] = []
+  if (typeof input !== 'object' || input === null) {
+    return { ok: false, errors: [{ field: 'vehicleNo', message: 'رقم السيارة مطلوب' }] }
+  }
 
-  if (!input.vehicleNo) errors.push({ field: 'vehicleNo', message: 'رقم السيارة مطلوب' })
-  if (!input.driverId) errors.push({ field: 'driverId', message: 'السائق مطلوب' })
-  if (!input.crusherCubicDefault)
-    errors.push({ field: 'crusherCubicDefault', message: 'تكعيب الكسارة مطلوب' })
-  if (!input.clientCubicDefault)
-    errors.push({ field: 'clientCubicDefault', message: 'تكعيب العميل مطلوب' })
-  if (!input.startDate?.trim()) errors.push({ field: 'startDate', message: 'تاريخ البداية مطلوب' })
+  if (Object.prototype.hasOwnProperty.call(input, 'reportedTripCount')) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: 'reportedTripCount',
+          message: 'عدد النقلات المُبلَّغ به لا يُحفظ عند إنشاء الوردية'
+        }
+      ]
+    }
+  }
 
-  if (errors.length > 0) return { ok: false, errors }
+  const parsed = createShiftSchema.safeParse(input)
+  if (!parsed.success) {
+    return { ok: false, errors: parsed.error.issues.map(mapZodIssue) }
+  }
 
-  const existingOpenShift = getOpenShiftByDriver(input.driverId)
-  if (existingOpenShift) {
+  const { vehicleNo, driverId, crusherCubicDefault, clientCubicDefault, startDate } = parsed.data
+
+  const existingDriverShift = getOpenShiftByDriver(driverId)
+  if (existingDriverShift) {
     return {
       ok: false,
       errors: [
         {
           field: 'driverId',
-          message: `السائق ده عنده وردية مفتوحة بالفعل (${existingOpenShift.id})`
+          message: `السائق ده عنده وردية مفتوحة بالفعل (${existingDriverShift.id})`
+        }
+      ]
+    }
+  }
+
+  const existingVehicleShift = getOpenShiftByVehicle(vehicleNo)
+  if (existingVehicleShift) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: 'vehicleNo',
+          message: `السيارة دي عندها وردية مفتوحة بالفعل (${existingVehicleShift.id})`
         }
       ]
     }
@@ -55,13 +117,13 @@ export function createShift(input: CreateShiftInput): UseCaseResult<{ id: string
   try {
     insertShift({
       id,
-      vehicleNo: input.vehicleNo,
-      driverId: input.driverId,
-      crusherCubicDefault: input.crusherCubicDefault,
-      clientCubicDefault: input.clientCubicDefault,
-      startDate: input.startDate,
+      vehicleNo,
+      driverId,
+      crusherCubicDefault,
+      clientCubicDefault,
+      startDate,
       reportedDestination: input.reportedDestination ?? null,
-      reportedTripCount: input.reportedTripCount ?? null,
+      reportedTripCount: null,
       notes: input.notes ?? null
     })
     return { ok: true, data: { id } }

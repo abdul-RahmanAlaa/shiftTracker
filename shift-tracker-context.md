@@ -62,21 +62,23 @@ The current source contains the following enforced fixes:
 - B8 is fixed by decision: the migration chain was removed from the source and the app refuses old local databases instead of trying to preserve unsupported data.
 - B7 update contract: ledger and client payment updates require the complete row state. Nullable update fields are required and accept explicit `null` to clear nullable columns; `undefined` is rejected and no field falls back to its stored value. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. Create and update validate runtime types, finite non-zero amounts (negative values allowed), IDs, enum values, and real `YYYY-MM-DD` dates; SQLite foreign-key failures return field errors.
 - Ledger entries cannot be created on a closed shift; updates are rejected if either the existing entry shift or requested destination shift is closed; deletions on closed shifts remain rejected. Creating an OTHER entry without a shift remains allowed when a contractor is supplied.
-- `closeShift` accepts optional `reportedTripCount` only for a `REOPENED` shift and validates it as an integer >= 0. The already-CLOSED check runs first. If supplied, the trip-count mismatch check uses that value before any write; the shift count/status and active reopen-log timestamp are updated in one transaction. If omitted, the stored reported count is used. The close dialog's reopened count input uses integer steps and a zero minimum.
+- `createShift` rejects any attempt to pass `reportedTripCount`, stores `reported_trip_count` as `NULL` on initial creation, and blocks a second open shift on the same vehicle while still allowing a reopened shift to start a new shift.
+- `closeShift` requires a valid non-negative `reportedTripCount` for every close (including the first close of an OPEN shift), validates required closing-sheet attachment rows before writing, and for a `REOPENED` shift validates the newly entered count before closing again. The already-CLOSED check runs first. The count is entered at close for OPEN and REOPENED shifts; there is no stored-count or actual-count fallback. The close dialog pre-fills the count from `reportedTripCount ?? actualTripCount ?? 0` for any shift; main requires the count explicitly with no fallback. The input uses integer steps and a zero minimum.
+- Runtime validation is enforced in `createShift`, `createTrip`, and `updateTrip` for real `YYYY-MM-DD` values, positive integer IDs, positive numeric cubic/price fields, non-negative numeric `discountQty`, and validated enums for `crusherReceiptStatus` and `recipientNameStatus` before the database write. Trip-date, shift-date, and discount-quantity validation messages come from `ar.json`. Optional trip strings from renderer forms are sent as empty strings; trip edits map nullable DB strings to empty strings and explicitly send `recipientNameStatus`.
 
 ## Renderer Routes and Labels
 
 The current renderer routes are declared in `src/renderer/src/App.tsx`:
 
-| Route | Page | Current label |
-| --- | --- | --- |
-| `/` | `AddTripPage` | `addTrip.title` |
-| `/shifts` | `ShiftsPage` | `shifts.title` |
-| `/shifts/:shiftId` | `ShiftDetailPage` | shift details |
-| `/all-trips` | `AllTripsPage` | `allTrips.title` |
-| `/accounts` | `AccountsPage` | `accountsPage.title` = `حركة النقدية` |
-| `/statements` | `StatementsPage` | `statementsPage.title` = `كشف حساب` |
-| `/settings` | `SettingsPage` | `settingsPage.title` |
+| Route              | Page              | Current label                         |
+| ------------------ | ----------------- | ------------------------------------- |
+| `/`                | `AddTripPage`     | `addTrip.title`                       |
+| `/shifts`          | `ShiftsPage`      | `shifts.title`                        |
+| `/shifts/:shiftId` | `ShiftDetailPage` | shift details                         |
+| `/all-trips`       | `AllTripsPage`    | `allTrips.title`                      |
+| `/accounts`        | `AccountsPage`    | `accountsPage.title` = `حركة النقدية` |
+| `/statements`      | `StatementsPage`  | `statementsPage.title` = `كشف حساب`   |
+| `/settings`        | `SettingsPage`    | `settingsPage.title`                  |
 
 The final user-facing name for the accounts page is `حركة النقدية`. The old Arabic wording `الحسابات` is not the current source-of-truth label and was removed from the renderer locale.
 
@@ -85,7 +87,7 @@ The final user-facing name for the accounts page is `حركة النقدية`. T
 ## Source-Verified Gaps
 
 - There is no CSV import/export route or implementation in the tracked `src` tree.
-- There is no `npm test` script or repository test suite in the current source.
+- There is no `npm test` script; the tracked use-case verification harness runs with `npm run verify:use-cases`.
 - The user confirmed all Manual Test Checklist scenarios passed in Electron using a fresh `shift-tracker.db`. This runtime result is user-reported and cannot be independently derived from source.
 
 ## Decisions
@@ -97,7 +99,8 @@ The final user-facing name for the accounts page is `حركة النقدية`. T
 - The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
 - B7 update semantics are PUT: update requests carry the full row state; every nullable field is required and must be sent as a value or `null`, where `null` clears nullable columns. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. No update field falls back to its existing value.
 - Ledger entries and client payments may use negative amounts for refunds or reversals (for example, refunding part of a client payment or returning an excess driver advance). Zero is rejected. The statement formula is unchanged (`balance = opening + charges - payments`), so a negative payment raises the balance.
-- A CLOSED shift stays locked: no ledger entry can be created, edited, deleted, or moved to or from it. Correction paths are `reopenShift`, or an `OTHER` entry without a shift and with a note. A reopened shift is finished but temporarily unlocked only to correct a mistake. `Shift.status` values are `OPEN`, `CLOSED`, and `REOPENED`. `REOPENED` is not an open shift: it never counts in the driver/vehicle open-shift checks, never blocks creating a new shift for the same driver or vehicle, and does not appear in lists used to start new work. A reopened shift accepts everything an open shift accepts: new trips, trip edits and deletes, ledger entries, and attachments. When a REOPENED shift is closed again, the user re-enters the reported trip count, pre-filled from its current reported count or actual count if none exists. `closeShift` validates it as an integer >= 0, checks mismatch against that new count before writes, then updates `Shift.reported_trip_count`, sets `CLOSED`, and updates the reopen log in one transaction. Trips can be added to a REOPENED shift from the shift detail page. Every reopen requires a non-empty reason and is logged in `ShiftReopenLog`.
+- Close-time reported trip count is required for both OPEN and REOPENED shifts; no stored-count or actual-count fallback is used. This is the adopted D1 decision and is locked.
+- A CLOSED shift stays locked: no ledger entry can be created, edited, deleted, or moved to or from it. Correction paths are `reopenShift`, or an `OTHER` entry without a shift and with a note. A reopened shift is finished but temporarily unlocked only to correct a mistake. `Shift.status` values are `OPEN`, `CLOSED`, and `REOPENED`. `REOPENED` is not an open shift: it never counts in the driver/vehicle open-shift checks, never blocks creating a new shift for the same driver or vehicle, and does not appear in lists used to start new work. A reopened shift accepts everything an open shift accepts: new trips, trip edits and deletes, ledger entries, and attachments. When a REOPENED shift is closed again, the user re-enters the reported trip count, which is required and validated against the actual trip count before the close transaction writes. `closeShift` validates it as an integer >= 0, checks mismatch against that new count before writes, then updates `Shift.reported_trip_count`, sets `CLOSED`, and updates the reopen log in one transaction. The close dialog pre-fills the count from `reportedTripCount ?? actualTripCount ?? 0` for any shift; main requires the count explicitly with no fallback. Trips can be added to a REOPENED shift from the shift detail page. Every reopen requires a non-empty reason and is logged in `ShiftReopenLog`.
 
 ## References
 

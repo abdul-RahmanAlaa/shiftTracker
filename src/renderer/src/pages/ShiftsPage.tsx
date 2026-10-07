@@ -33,7 +33,7 @@ type AttachmentRow = Extract<
   Awaited<ReturnType<typeof window.api.listEntityAttachments>>,
   { ok: true }
 >['data'][number]
-type CloseShiftValues = { shiftId: string; endDate: string; reportedTripCount?: number }
+type CloseShiftValues = { shiftId: string; endDate: string; reportedTripCount: number }
 
 export function ShiftsPage(): React.JSX.Element {
   const { t } = useTranslation()
@@ -75,7 +75,6 @@ export function ShiftsPage(): React.JSX.Element {
       clientCubicDefault: 0,
       startDate: '',
       reportedDestination: '',
-      reportedTripCount: undefined,
       notes: ''
     }
   })
@@ -166,9 +165,7 @@ export function ShiftsPage(): React.JSX.Element {
     const result = await window.api.closeShift({
       shiftId: values.shiftId,
       endDate: values.endDate,
-      ...(shiftToClose?.status === 'REOPENED'
-        ? { reportedTripCount: values.reportedTripCount }
-        : {})
+      reportedTripCount: values.reportedTripCount
     })
     if (!result.ok) {
       const tripCountError = result.errors.find(
@@ -381,9 +378,9 @@ export function ShiftsPage(): React.JSX.Element {
                     closeShiftForm.clearErrors('reportedTripCount')
                     closeShiftForm.setValue(
                       'reportedTripCount',
-                      selectedShift?.status === 'REOPENED'
-                        ? (selectedShift.reportedTripCount ?? selectedShift.actualTripCount)
-                        : undefined
+                      selectedShift
+                        ? (selectedShift.reportedTripCount ?? selectedShift.actualTripCount ?? 0)
+                        : 0
                     )
                   }}
                 >
@@ -400,36 +397,34 @@ export function ShiftsPage(): React.JSX.Element {
                       ))}
                   </SelectContent>
                 </Select>
-                {shiftToClose?.status === 'REOPENED' && (
-                  <div className="grid gap-2">
-                    <label htmlFor="reported-trip-count" className="text-sm font-medium">
-                      {t('shifts.reportedTripCount')}
-                    </label>
-                    <Input
-                      id="reported-trip-count"
-                      type="number"
-                      step="1"
-                      min="0"
-                      required
-                      value={reportedTripCount ?? ''}
-                      aria-invalid={Boolean(closeShiftForm.formState.errors.reportedTripCount)}
-                      onChange={(event) => {
-                        const value = event.currentTarget.value
-                        closeShiftForm.setValue(
-                          'reportedTripCount',
-                          value === '' ? undefined : Number(value),
-                          { shouldDirty: true, shouldValidate: true }
-                        )
-                        closeShiftForm.clearErrors('reportedTripCount')
-                      }}
-                    />
-                    {closeShiftForm.formState.errors.reportedTripCount?.message && (
-                      <p role="alert" className="text-sm text-destructive">
-                        {closeShiftForm.formState.errors.reportedTripCount.message}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div className="grid gap-2">
+                  <label htmlFor="reported-trip-count" className="text-sm font-medium">
+                    {t('shifts.reportedTripCount')}
+                  </label>
+                  <Input
+                    id="reported-trip-count"
+                    type="number"
+                    step="1"
+                    min="0"
+                    required
+                    value={reportedTripCount ?? ''}
+                    aria-invalid={Boolean(closeShiftForm.formState.errors.reportedTripCount)}
+                    onChange={(event) => {
+                      const value = event.currentTarget.value
+                      closeShiftForm.setValue(
+                        'reportedTripCount',
+                        value === '' ? 0 : Number(value),
+                        { shouldDirty: true, shouldValidate: true }
+                      )
+                      closeShiftForm.clearErrors('reportedTripCount')
+                    }}
+                  />
+                  {closeShiftForm.formState.errors.reportedTripCount?.message && (
+                    <p role="alert" className="text-sm text-destructive">
+                      {closeShiftForm.formState.errors.reportedTripCount.message}
+                    </p>
+                  )}
+                </div>
                 <DatePicker
                   value={endDate}
                   onChange={(value) => closeShiftForm.setValue('endDate', value)}

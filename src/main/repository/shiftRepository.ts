@@ -72,13 +72,16 @@ export function insertImportedShift(input: {
 interface ShiftRow {
   id: string
   status: string
+  startDate: string
   endDate: string | null
 }
 
 export function getShiftById(shiftId: string): ShiftRow | undefined {
   const db = getDb()
   return db
-    .prepare('SELECT id, status, end_date as endDate FROM Shift WHERE id = ?')
+    .prepare(
+      'SELECT id, status, start_date as startDate, end_date as endDate FROM Shift WHERE id = ?'
+    )
     .get(shiftId) as ShiftRow | undefined
 }
 
@@ -140,6 +143,13 @@ export function getOpenShiftByDriver(driverId: number): { id: string } | undefin
   return db
     .prepare(`SELECT id FROM Shift WHERE driver_id = ? AND status = 'OPEN'`)
     .get(driverId) as { id: string } | undefined
+}
+
+export function getOpenShiftByVehicle(vehicleNo: number): { id: string } | undefined {
+  const db = getDb()
+  return db
+    .prepare(`SELECT id FROM Shift WHERE vehicle_no = ? AND status = 'OPEN'`)
+    .get(vehicleNo) as { id: string } | undefined
 }
 
 export interface ShiftFullRow {

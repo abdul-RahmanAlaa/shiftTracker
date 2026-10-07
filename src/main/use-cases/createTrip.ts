@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import {
   insertTrip,
   getNextTripId,
@@ -9,6 +10,12 @@ import { getShiftById } from '../repository/shiftRepository'
 import { listAttachments, deleteAttachment } from '../repository/attachmentRepository'
 import { deleteAttachmentPhotoFile } from '../photoStorage'
 import { getDb } from '../db'
+import {
+  dateStringSchema,
+  positiveIntegerSchema,
+  positiveNumberSchema,
+  validationMessages
+} from '../validation'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
@@ -44,32 +51,94 @@ interface TripFieldsInput {
   notes?: string
 }
 
+const tripFieldMessages: Record<string, string> = {
+  crusherCubic: 'تكعيب الكسارة مطلوب',
+  clientCubicReported: 'تكعيب العميل مطلوب',
+  crusherId: 'الكسارة مطلوبة',
+  stonePrice: 'سعر الحجر مطلوب',
+  clientId: 'العميل مطلوب',
+  materialTypeId: 'نوع الصنف مطلوب',
+  transportPrice: 'سعر النقل مطلوب',
+  clientPrice: 'سعر العميل مطلوب',
+  crusherReceiptStatus: 'حالة إيصال الكسارة مطلوبة',
+  crusherReceiptNo: 'رقم الإيصال مطلوب',
+  recipientNameStatus: 'حالة اسم المستلم مطلوبة',
+  recipientName: 'اسم المستلم مطلوب',
+  discountQty: validationMessages.discountQtyNonNegative
+}
+
+const tripSchema = z
+  .object({
+    tripDate: dateStringSchema(
+      validationMessages.tripDateRequired,
+      validationMessages.tripDateInvalid
+    ),
+    crusherCubic: positiveNumberSchema('تكعيب الكسارة مطلوب'),
+    clientCubicReported: positiveNumberSchema('تكعيب العميل مطلوب'),
+    discountQty: z
+      .number({ error: validationMessages.discountQtyNonNegative })
+      .finite(validationMessages.discountQtyNonNegative)
+      .nonnegative(validationMessages.discountQtyNonNegative)
+      .optional(),
+    discountReason: z.string().optional(),
+    location: z.string().optional(),
+    crusherId: positiveIntegerSchema('الكسارة مطلوبة'),
+    stonePrice: positiveNumberSchema('سعر الحجر مطلوب'),
+    crusherReceiptStatus: z.enum(['PROVIDED', 'CONFIRMED_MISSING', 'UNKNOWN'], {
+      message: 'حالة إيصال الكسارة مطلوبة'
+    }),
+    crusherReceiptNo: z
+      .number({ error: 'رقم الإيصال مطلوب' })
+      .int('رقم الإيصال مطلوب')
+      .positive('رقم الإيصال مطلوب')
+      .optional(),
+    clientId: positiveIntegerSchema('العميل مطلوب'),
+    transportPrice: positiveNumberSchema('سعر النقل مطلوب'),
+    clientPrice: positiveNumberSchema('سعر العميل مطلوب'),
+    materialTypeId: positiveIntegerSchema('نوع الصنف مطلوب'),
+    recipientNameStatus: z.enum(['PROVIDED', 'UNCLEAR'], {
+      message: 'حالة اسم المستلم مطلوبة'
+    }),
+    recipientName: z.string().optional(),
+    clientReceiptNo: z.string().optional(),
+    notes: z.string().optional()
+  })
+  .superRefine((values, context) => {
+    if (values.crusherReceiptStatus === 'PROVIDED' && !Number.isInteger(values.crusherReceiptNo)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['crusherReceiptNo'],
+        message: 'رقم الإيصال مطلوب'
+      })
+    }
+
+    if (
+      values.recipientNameStatus === 'PROVIDED' &&
+      (typeof values.recipientName !== 'string' || !values.recipientName.trim())
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['recipientName'],
+        message: 'اسم المستلم مطلوب'
+      })
+    }
+  })
+
+function normalizeTripIssue(issue: z.ZodIssue): { field: string; message: string } {
+  const field = String(issue.path[0] ?? 'root')
+  if (field === 'tripDate') return { field, message: issue.message }
+  if (field in tripFieldMessages) {
+    return { field, message: tripFieldMessages[field] }
+  }
+  return { field, message: issue.message }
+}
+
 function validateTripFields(input: TripFieldsInput): { field: string; message: string }[] {
-  const errors: { field: string; message: string }[] = []
-
-  if (!input.tripDate?.trim()) errors.push({ field: 'tripDate', message: 'تاريخ النقلة مطلوب' })
-  if (!input.crusherCubic) errors.push({ field: 'crusherCubic', message: 'تكعيب الكسارة مطلوب' })
-  if (!input.clientCubicReported)
-    errors.push({ field: 'clientCubicReported', message: 'تكعيب العميل مطلوب' })
-  if (!input.crusherId) errors.push({ field: 'crusherId', message: 'الكسارة مطلوبة' })
-  if (!input.stonePrice) errors.push({ field: 'stonePrice', message: 'سعر الحجر مطلوب' })
-  if (!input.clientId) errors.push({ field: 'clientId', message: 'العميل مطلوب' })
-  if (!input.materialTypeId) errors.push({ field: 'materialTypeId', message: 'نوع الصنف مطلوب' })
-  if (!input.transportPrice) errors.push({ field: 'transportPrice', message: 'سعر النقل مطلوب' })
-  if (!input.clientPrice) errors.push({ field: 'clientPrice', message: 'سعر العميل مطلوب' })
-
-  if (!input.crusherReceiptStatus) {
-    errors.push({ field: 'crusherReceiptStatus', message: 'حالة إيصال الكسارة مطلوبة' })
-  } else if (input.crusherReceiptStatus === 'PROVIDED' && !input.crusherReceiptNo) {
-    errors.push({ field: 'crusherReceiptNo', message: 'رقم الإيصال مطلوب' })
+  const parsed = tripSchema.safeParse(input)
+  if (!parsed.success) {
+    return parsed.error.issues.map(normalizeTripIssue)
   }
-
-  const recipientNameStatus = input.recipientNameStatus ?? 'UNCLEAR'
-  if (recipientNameStatus === 'PROVIDED' && !input.recipientName?.trim()) {
-    errors.push({ field: 'recipientName', message: 'اسم المستلم مطلوب' })
-  }
-
-  return errors
+  return []
 }
 
 export interface CreateTripInput extends TripFieldsInput {

@@ -20,6 +20,8 @@ Updated from the current working tree. This file is the operational source-of-tr
 - [x] B6: fixed in code (attachmentId, 5MB/JPEG validation, closed-shift guard, closeShift file-exists check); manually verified by user. Approved renderer exception: one line in `AttachmentManager.tsx`.
 - [ ] B7: fixed in code (PUT semantics, FK errors returned as field errors, finite non-zero amounts allow negatives, and closed-shift entries are locked); not manually tested.
 - [ ] Reopen shift (not a B-item): REOPENED status, ShiftReopenLog, reopen dialog, re-close with reported count; fixed in code, not manually tested.
+- [ ] Vehicle open-shift guard: createShift rejects a second open shift on the same vehicle while allowing a reopened shift to start a new shift; fixed in code, not manually tested.
+- [ ] Batch 1 runtime validation and use-case verification harness: fixed in code, not manually tested.
 - [x] B8: resolved by decision; migration chain removed, old DBs refused, fresh DB required. No backup is made before schema initialization; the post-close backup risk remains open below.
 - [ ] B9: open; delete failures and rejected IPC calls still need user-visible handling.
 - [ ] B10: open; contractor/driver edit forms remain duplicated and unlocked.
@@ -43,7 +45,7 @@ Full text: [code-review-backlog.md](code-review-backlog.md).
 ### Gaps Confirmed in Current Source
 
 1. No CSV import/export workflow is present under `src`.
-2. There is no `npm test` script or tracked test suite.
+2. There is no `npm test` script; run the tracked use-case verification harness with `npm run verify:use-cases`.
 
 ### Verification Status
 
@@ -56,6 +58,7 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - No backup is created before schema initialization; `closeShift` still runs backup after closing without `try/catch`.
 - The current UI label for the accounts page is `حركة النقدية`, not `الحسابات`.
 - No migration path is retained in the source for earlier experimental schemas.
+- Runtime validation is enforced in the main use cases for real `YYYY-MM-DD` dates, positive integer IDs, positive numeric cubic/price fields, non-negative `discountQty`, and validated enums for `crusherReceiptStatus` and `recipientNameStatus` before the database write.
 
 ## Decisions
 
@@ -66,11 +69,12 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
 - B7 update semantics are PUT: update requests carry the full row state; every nullable field is required and must be sent as a value or `null`, where `null` clears nullable columns. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. No update field falls back to its existing value.
 - Ledger entries and client payments may use negative amounts for refunds or reversals (for example, refunding part of a client payment or returning an excess driver advance). Zero is rejected. The statement formula is unchanged (`balance = opening + charges - payments`), so a negative payment raises the balance.
-- A CLOSED shift stays locked: no ledger entry can be created, edited, deleted, or moved to or from it. Correction paths are `reopenShift`, or an `OTHER` entry without a shift and with a note. A reopened shift is finished but temporarily unlocked only to correct a mistake. `Shift.status` values are `OPEN`, `CLOSED`, and `REOPENED`. `REOPENED` is not an open shift: it never counts in the driver/vehicle open-shift checks, never blocks creating a new shift for the same driver or vehicle, and does not appear in lists used to start new work. A reopened shift accepts everything an open shift accepts: new trips, trip edits and deletes, ledger entries, and attachments. When a REOPENED shift is closed again, the user re-enters the reported trip count, pre-filled from its current reported count or actual count if none exists. `closeShift` validates it as an integer >= 0, checks mismatch against that new count before writes, then updates `Shift.reported_trip_count`, sets `CLOSED`, and updates the reopen log in one transaction. Trips can be added to a REOPENED shift from the shift detail page. Every reopen requires a non-empty reason and is logged in `ShiftReopenLog`.
+- Close-time reported trip count is required for both OPEN and REOPENED shifts; no stored-count or actual-count fallback is used. This is the adopted D1 decision and is locked.
+- A CLOSED shift stays locked: no ledger entry can be created, edited, deleted, or moved to or from it. Correction paths are `reopenShift`, or an `OTHER` entry without a shift and with a note. A reopened shift is finished but temporarily unlocked only to correct a mistake. `Shift.status` values are `OPEN`, `CLOSED`, and `REOPENED`. `REOPENED` is not an open shift: it never counts in the driver/vehicle open-shift checks, never blocks creating a new shift for the same driver or vehicle, and does not appear in lists used to start new work. A reopened shift accepts everything an open shift accepts: new trips, trip edits and deletes, ledger entries, and attachments. When a REOPENED shift is closed again, the user re-enters the reported trip count, which is required and validated against the actual trip count before the close transaction writes. `closeShift` validates it as an integer >= 0, checks mismatch against that new count before writes, then updates `Shift.reported_trip_count`, sets `CLOSED`, and updates the reopen log in one transaction. The close dialog pre-fills the count from `reportedTripCount ?? actualTripCount ?? 0` for any shift; main requires the count explicitly with no fallback. Trips can be added to a REOPENED shift from the shift detail page. Every reopen requires a non-empty reason and is logged in `ShiftReopenLog`.
 
 ## Next Up
 
-1. User-test re-closing a REOPENED shift with the re-entered reported trip count; fixed in code, not manually tested.
+1. Manually test the batch 1 validation cases, the renderer-shaped empty-optional trip update, and re-closing a REOPENED shift; fixed in code, not manually tested.
 2. B3: correct enum labels in detail views.
 3. B9: show deletion errors and handle rejected IPC calls.
 4. B10: use the shared ledger form for edits with locked IDs.
@@ -104,6 +108,21 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - [ ] Reject reopening with an empty reason.
 - [ ] While a shift is reopened, the driver can start a new shift.
 - [ ] Re-close the reopened shift and verify the close checks still run and the backup is created.
+- [ ] Close an OPEN shift with the count cleared or wrong shows a field error under the count field.
+- [ ] Correct count closes the shift and stores the reported trip count.
+- [ ] Create-shift form has no count field.
+- [ ] Second shift on the same vehicle is rejected.
+- [ ] Trip with 0 price rejected with a field error.
+- [ ] Trip with a negative price rejected.
+- [ ] Impossible date rejected.
+- [ ] Shift with 0 default cubic rejected.
+- [ ] Verify trip create and update reject string, NaN, negative, and zero prices/cubic values on the exact field without changing rows; verify decimal discount quantity is accepted and a negative one rejected.
+- [ ] Verify impossible trip, shift-start, and shift-end dates report invalid-date errors while empty dates report required errors.
+- [ ] Create and edit a trip whose optional strings are empty in the renderer; verify saves succeed, nullable DB values mapped to empty strings are accepted, and recipient status is explicitly sent as UNCLEAR.
+- [ ] Verify createShift rejects a provided reported count without inserting a shift, and rejects zero/negative/string defaults without inserting a shift.
+- [ ] Verify a second OPEN shift on a dedicated vehicle is rejected, closing frees the vehicle, and a REOPENED shift does not block a new shift on it.
+- [ ] Verify a close date before shift start leaves the shift unchanged, and an already-CLOSED shift with an invalid count reports the already-closed shiftId error first.
+- [ ] Close an OPEN shift with a valid reported count only after the required closing-sheet attachment exists; verify the shift closes and the reported count is stored as zero.
 - [ ] Re-close with the newly entered reported count; verify it succeeds and updates the count.
 - [ ] Re-close with a wrong reported count; verify a field error appears under the count field.
 - [ ] Verify the re-close count field is pre-filled from the current reported count, or actual count when none is set.
@@ -115,4 +134,4 @@ The user confirmed all Manual Test Checklist scenarios passed in Electron using 
 - [ ] Move an entry from an open shift to a closed shift: rejected.
 - [ ] Add an OTHER entry with no shift, a contractor, and a note: accepted.
 
-Automated use-case check run on 2026-10-05: results in last-report.md (not a manual test).
+Automated use-case check command: `npm run verify:use-cases` (not a manual test).

@@ -240,13 +240,12 @@ interface Api {
     clientCubicDefault: number
     startDate: string
     reportedDestination?: string
-    reportedTripCount?: number
     notes?: string
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
   closeShift: (input: {
     shiftId: string
     endDate: string
-    reportedTripCount?: number
+    reportedTripCount: number
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
   reopenShift: (input: {
     shiftId: string

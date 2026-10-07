@@ -3,6 +3,8 @@ import { getShiftById, getShiftStats, closeShiftInDb } from '../repository/shift
 import { listAttachments } from '../repository/attachmentRepository'
 import { listTripsByShift } from '../repository/tripRepository'
 import { attachmentFileExists } from '../photoStorage'
+import { dateStringSchema, nonNegativeIntegerSchema, validationMessages } from '../validation'
+import { z } from 'zod'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
@@ -10,52 +12,41 @@ type UseCaseResult<T> =
 export interface CloseShiftInput {
   shiftId: string
   endDate: string
-  reportedTripCount?: number
+  reportedTripCount: number
 }
+
+const closeShiftSchema = z.object({
+  shiftId: z.string({ error: 'رقم الوردية مطلوب' }).trim().min(1, 'رقم الوردية مطلوب'),
+  endDate: dateStringSchema(
+    validationMessages.shiftEndDateRequired,
+    validationMessages.shiftEndDateInvalid
+  ),
+  reportedTripCount: nonNegativeIntegerSchema('عدد النقلات لازم يكون عددًا صحيحًا غير سالب')
+})
 
 export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }> {
   if (typeof input !== 'object' || input === null) {
     return { ok: false, errors: [{ field: 'shiftId', message: 'رقم الوردية مطلوب' }] }
   }
 
-  const errors: { field: string; message: string }[] = []
+  const shiftIdResult = closeShiftSchema.shape.shiftId.safeParse(input.shiftId)
+  if (!shiftIdResult.success) {
+    return {
+      ok: false,
+      errors: shiftIdResult.error.issues.map((issue) => ({
+        field: String(issue.path[0] ?? 'shiftId'),
+        message: issue.message
+      }))
+    }
+  }
 
-  if (typeof input.shiftId !== 'string' || !input.shiftId.trim()) {
-    errors.push({ field: 'shiftId', message: 'رقم الوردية مطلوب' })
-  }
-  if (typeof input.endDate !== 'string' || !input.endDate.trim()) {
-    errors.push({ field: 'endDate', message: 'تاريخ النهاية مطلوب' })
-  }
-  if (
-    input.reportedTripCount !== undefined &&
-    (typeof input.reportedTripCount !== 'number' ||
-      !Number.isInteger(input.reportedTripCount) ||
-      input.reportedTripCount < 0)
-  ) {
-    errors.push({
-      field: 'reportedTripCount',
-      message: 'عدد النقلات لازم يكون عددًا صحيحًا غير سالب'
-    })
-  }
-  if (errors.length > 0) return { ok: false, errors }
-
-  const shift = getShiftById(input.shiftId)
+  const shiftId = shiftIdResult.data
+  const shift = getShiftById(shiftId)
   if (!shift) {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مش موجودة' }] }
   }
   if (shift.status === 'CLOSED') {
     return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية دي مقفولة بالفعل' }] }
-  }
-  if (input.reportedTripCount !== undefined && shift.status !== 'REOPENED') {
-    return {
-      ok: false,
-      errors: [
-        {
-          field: 'reportedTripCount',
-          message: 'إعادة إدخال عدد النقلات متاحة عند قفل الوردية المعاد فتحها فقط'
-        }
-      ]
-    }
   }
   if (shift.status !== 'OPEN' && shift.status !== 'REOPENED') {
     return {
@@ -63,7 +54,54 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
       errors: [{ field: 'shiftId', message: 'حالة الوردية غير مسموح بها للقفل' }]
     }
   }
-  const closingAttachment = listAttachments('SHIFT', input.shiftId).find(
+
+  const endDateResult = closeShiftSchema.shape.endDate.safeParse(input.endDate)
+  if (!endDateResult.success) {
+    return {
+      ok: false,
+      errors: endDateResult.error.issues.map((issue) => ({
+        field: String(issue.path[0] ?? 'endDate'),
+        message: issue.message
+      }))
+    }
+  }
+  const endDate = endDateResult.data
+  if (endDate < shift.startDate) {
+    return {
+      ok: false,
+      errors: [{ field: 'endDate', message: 'تاريخ النهاية لا يمكن أن يكون قبل تاريخ البداية' }]
+    }
+  }
+
+  const reportedTripCountResult = closeShiftSchema.shape.reportedTripCount.safeParse(
+    input.reportedTripCount
+  )
+  if (!reportedTripCountResult.success) {
+    return {
+      ok: false,
+      errors: reportedTripCountResult.error.issues.map((issue) => ({
+        field: 'reportedTripCount',
+        message: issue.message
+      }))
+    }
+  }
+
+  const reportedTripCount = reportedTripCountResult.data
+
+  const stats = getShiftStats(shiftId)
+  if (stats && stats.actual_trip_count !== reportedTripCount) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: 'tripCount',
+          message: `عدد النقلات المُدخل (${stats.actual_trip_count}) مش مطابق للمُبلَّغ به (${reportedTripCount})`
+        }
+      ]
+    }
+  }
+
+  const closingAttachment = listAttachments('SHIFT', shiftId).find(
     (attachment) => attachment.kind === 'CLOSING_SHEET'
   )
   if (!closingAttachment || !attachmentFileExists(closingAttachment.photoPath)) {
@@ -73,7 +111,7 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
     }
   }
 
-  const tripsMissingAttachments = listTripsByShift(input.shiftId)
+  const tripsMissingAttachments = listTripsByShift(shiftId)
     .filter((trip) => listAttachments('TRIP', trip.id).length === 0)
     .map((trip) => trip.id)
   if (tripsMissingAttachments.length > 0) {
@@ -88,21 +126,7 @@ export function closeShift(input: CloseShiftInput): UseCaseResult<{ id: string }
     }
   }
 
-  const stats = getShiftStats(input.shiftId)
-  const reportedTripCount = input.reportedTripCount ?? stats?.reported_trip_count ?? null
-  if (stats && reportedTripCount !== null && stats.actual_trip_count !== reportedTripCount) {
-    return {
-      ok: false,
-      errors: [
-        {
-          field: 'tripCount',
-          message: `عدد النقلات المُدخل (${stats.actual_trip_count}) مش مطابق للمُبلَّغ به (${reportedTripCount})`
-        }
-      ]
-    }
-  }
-
-  closeShiftInDb(input.shiftId, input.endDate, input.reportedTripCount)
+  closeShiftInDb(shiftId, endDate, reportedTripCount)
   backupDatabase()
-  return { ok: true, data: { id: input.shiftId } }
+  return { ok: true, data: { id: shiftId } }
 }

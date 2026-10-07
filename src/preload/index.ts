@@ -29,7 +29,7 @@ const api = {
     ownerName?: string
   }) => ipcRenderer.invoke('vehicle:create', input),
   createShift: (input: CreateShiftInput) => ipcRenderer.invoke('shift:create', input),
-  closeShift: (input: { shiftId: string; endDate: string; reportedTripCount?: number }) =>
+  closeShift: (input: { shiftId: string; endDate: string; reportedTripCount: number }) =>
     ipcRenderer.invoke('shift:close', input),
   reopenShift: (input: { shiftId: string; reason: string }) =>
     ipcRenderer.invoke('shift:reopen', input),

@@ -64,13 +64,13 @@ export type ResourceState = {
 export const tripSchema = z
   .object({
     tripDate: z.string().min(1, i18n.t('tripForm.validation.tripDateRequired')),
-    crusherCubic: z.number().nonnegative(i18n.t('tripForm.validation.crusherCubicRequired')),
-    clientCubicReported: z.number().nonnegative(i18n.t('tripForm.validation.clientCubicRequired')),
+    crusherCubic: z.number().positive(i18n.t('tripForm.validation.crusherCubicRequired')),
+    clientCubicReported: z.number().positive(i18n.t('tripForm.validation.clientCubicRequired')),
     discountQty: z.number().nonnegative().optional(),
     discountReason: z.string().optional(),
     location: z.string().optional(),
     crusherId: z.number().int().positive(i18n.t('tripForm.validation.crusherRequired')),
-    stonePrice: z.number().nonnegative(i18n.t('tripForm.validation.stonePriceRequired')),
+    stonePrice: z.number().positive(i18n.t('tripForm.validation.stonePriceRequired')),
     crusherReceiptStatus: z.enum(['PROVIDED', 'CONFIRMED_MISSING', 'UNKNOWN']),
     crusherReceiptNo: z
       .number()
@@ -79,8 +79,8 @@ export const tripSchema = z
       .optional(),
     clientId: z.number().int().positive(i18n.t('tripForm.validation.clientRequired')),
     materialTypeId: z.number().int().positive(i18n.t('tripForm.validation.materialTypeRequired')),
-    transportPrice: z.number().nonnegative(i18n.t('tripForm.validation.transportPriceRequired')),
-    clientPrice: z.number().nonnegative(i18n.t('tripForm.validation.clientPriceRequired')),
+    transportPrice: z.number().positive(i18n.t('tripForm.validation.transportPriceRequired')),
+    clientPrice: z.number().positive(i18n.t('tripForm.validation.clientPriceRequired')),
     recipientNameStatus: z.enum(['PROVIDED', 'UNCLEAR']),
     recipientName: z.string().optional(),
     clientReceiptNo: z.string().optional(),
@@ -169,7 +169,6 @@ export function AddTripPage(): React.JSX.Element {
       clientCubicDefault: 0,
       startDate: '',
       reportedDestination: '',
-      reportedTripCount: undefined,
       notes: ''
     }
   })

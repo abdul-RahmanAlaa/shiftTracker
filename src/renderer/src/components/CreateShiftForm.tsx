@@ -39,13 +39,10 @@ import type { ResourceState } from '@/pages/AddTripPage'
 export const createShiftSchema = z.object({
   driverId: z.number().int().positive(i18n.t('createShift.validation.driverRequired')),
   vehicleNo: z.number().int().positive(i18n.t('createShift.validation.vehicleRequired')),
-  crusherCubicDefault: z
-    .number()
-    .nonnegative(i18n.t('createShift.validation.crusherCubicRequired')),
-  clientCubicDefault: z.number().nonnegative(i18n.t('createShift.validation.clientCubicRequired')),
+  crusherCubicDefault: z.number().positive(i18n.t('createShift.validation.crusherCubicRequired')),
+  clientCubicDefault: z.number().positive(i18n.t('createShift.validation.clientCubicRequired')),
   startDate: z.string().min(1, i18n.t('createShift.validation.startDateRequired')),
   reportedDestination: z.string().optional(),
-  reportedTripCount: z.number().nonnegative().optional(),
   notes: z.string().optional()
 })
 
@@ -169,11 +166,6 @@ export function CreateShiftForm({
             <FormMessage />
           </FormItem>
         )}
-      />
-      <NumberField
-        control={form.control}
-        name="reportedTripCount"
-        label={t('createShift.fields.tripCount')}
       />
       <FormField
         control={form.control}

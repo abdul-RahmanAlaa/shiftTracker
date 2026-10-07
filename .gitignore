@@ -6,5 +6,5 @@ out
 *.log*
 last-report.md
 last-diff.patch
-scripts/verify-closed-shift-use-cases.cjs
-scripts/verify-closed-shift-use-cases.cjs
+scripts/.verify-closed-shift-use-cases.bundle.cjs
+status-report.md

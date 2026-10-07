@@ -62,7 +62,8 @@
       "vehicleRequired": "السيارة مطلوبة",
       "crusherCubicRequired": "تكعيب الكسارة مطلوب",
       "clientCubicRequired": "تكعيب العميل مطلوب",
-      "startDateRequired": "تاريخ البداية مطلوب"
+      "startDateRequired": "تاريخ البداية مطلوب",
+      "startDateInvalid": "تاريخ البداية غير صحيح"
     }
   },
   "contractorsSettings": {
@@ -279,6 +280,10 @@
     "reopenCardTitle": "إعادة فتح للتصحيح",
     "selectShift": "اختار الوردية",
     "closeDatePlaceholder": "اختر تاريخ القفل",
+    "validation": {
+      "endDateRequired": "تاريخ النهاية مطلوب",
+      "endDateInvalid": "تاريخ النهاية غير صحيح"
+    },
     "reportedTripCount": "عدد النقلات المُبلَّغ به",
     "reopenReasonPlaceholder": "اكتب سبب إعادة الفتح",
     "closingPhotoRequired": "لازم تضيف مستند تقفيل للوردية الأول",
@@ -339,6 +344,7 @@
     "submit": "إضافة النقلة",
     "validation": {
       "tripDateRequired": "تاريخ النقلة مطلوب",
+      "tripDateInvalid": "تاريخ النقلة غير صحيح",
       "crusherCubicRequired": "تكعيب الكسارة مطلوب",
       "clientCubicRequired": "تكعيب العميل مطلوب",
       "crusherRequired": "الكسارة مطلوبة",
@@ -348,7 +354,8 @@
       "materialTypeRequired": "نوع الصنف مطلوب",
       "transportPriceRequired": "سعر النقل مطلوب",
       "clientPriceRequired": "سعر العميل مطلوب",
-      "recipientNameRequired": "اسم المستلم مطلوب"
+      "recipientNameRequired": "اسم المستلم مطلوب",
+      "discountQtyNonNegative": "كمية الخصم لازم تكون رقمًا غير سالب"
     }
   },
   "addTrip": {
