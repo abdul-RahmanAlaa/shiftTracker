@@ -341,6 +341,7 @@ testWithApp(
     await navigate(page, '/', 'addTrip.title')
     await pickDriverOnAddTrip(page, app.seedData.driver.name)
     await expect(page.getByText(text('addTrip.steps.tripDetails'), { exact: true })).toBeVisible()
+    await expect(formItem(page, 'tripForm.fields.fineAmount')).toBeVisible()
     await selectToday(page, 'tripForm.fields.tripDate', 'tripForm.placeholders.tripDate')
     await fillNumber(page, 'tripForm.fields.stonePrice', 0)
     await selectOption(page, 'tripForm.fields.crusher', app.seedData.crusher.name)

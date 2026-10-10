@@ -201,6 +201,11 @@ export function ContractorAccountPage(): React.JSX.Element {
           <AccountSummary
             items={[
               { label: t('contractorAccount.summary.transportDue'), value: account.transportTotal },
+              { label: t('contractorAccount.summary.materialDue'), value: account.materialTotal },
+              {
+                label: t('contractorAccount.summary.openingBalance'),
+                value: account.openingBalance
+              },
               { label: t('contractorAccount.summary.ledgerTotal'), value: account.ledgerTotal },
               {
                 label: t('contractorAccount.summary.balance'),
@@ -334,6 +339,7 @@ export function ContractorAccountPage(): React.JSX.Element {
                         <FormControl>
                           <Input
                             type="number"
+                            step="0.01"
                             value={field.value ?? ''}
                             onChange={(event) =>
                               field.onChange(

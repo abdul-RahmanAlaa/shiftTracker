@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { toMinorUnits } from '../accounting'
+import { moneySchema, validationMessages } from '../validation'
 import {
   deleteClientPayment as deleteClientPaymentInDb,
   getClientPaymentById,
@@ -30,10 +32,10 @@ const positiveIdSchema = z
 const dateSchema = z
   .string({ error: 'التاريخ مطلوب' })
   .refine(isRealDate, 'أدخل تاريخًا صحيحًا بصيغة YYYY-MM-DD')
-const amountSchema = z
-  .number({ error: 'المبلغ لازم يكون رقمًا محدودًا وغير صفر' })
-  .finite('المبلغ لازم يكون رقمًا محدودًا وغير صفر')
-  .refine((amount) => amount !== 0, 'المبلغ لازم يكون رقمًا محدودًا وغير صفر')
+const amountSchema = moneySchema('المبلغ لازم يكون رقمًا محدودًا وغير صفر').refine(
+  (amount) => amount !== 0,
+  'المبلغ لازم يكون رقمًا محدودًا وغير صفر'
+)
 const nullableNotesSchema = z.string().nullable()
 
 const createClientPaymentInputSchema = z.object({
@@ -71,12 +73,16 @@ export function createClientPayment(
   const parsed = createClientPaymentInputSchema.safeParse(input)
   if (!parsed.success) return { ok: false, errors: validationErrors(parsed.error) }
   const values = parsed.data
+  const amountMinor = toMinorUnits(values.amount)
+  if (amountMinor === null) {
+    return { ok: false, errors: [{ field: 'amount', message: validationMessages.moneyDecimals }] }
+  }
 
   try {
     const id = insertClientPayment({
       entryDate: values.entryDate,
       clientId: values.clientId,
-      amount: values.amount,
+      amountMinor,
       notes: values.notes ?? null
     })
     return { ok: true, data: { id } }
@@ -91,6 +97,10 @@ export function updateClientPayment(
   const parsed = updateClientPaymentInputSchema.safeParse(input)
   if (!parsed.success) return { ok: false, errors: validationErrors(parsed.error) }
   const values = parsed.data
+  const amountMinor = toMinorUnits(values.amount)
+  if (amountMinor === null) {
+    return { ok: false, errors: [{ field: 'amount', message: validationMessages.moneyDecimals }] }
+  }
 
   const existingPayment = getClientPaymentById(values.id)
   if (!existingPayment) {
@@ -102,7 +112,7 @@ export function updateClientPayment(
       id: values.id,
       entryDate: values.entryDate,
       clientId: values.clientId,
-      amount: values.amount,
+      amountMinor,
       notes: values.notes
     })
     return { ok: true, data: { id: values.id } }

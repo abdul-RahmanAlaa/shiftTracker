@@ -34,6 +34,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { hasAtMostTwoDecimals } from '@/lib/money'
 import {
   AccountCard,
   AccountSummary,
@@ -48,6 +49,7 @@ const paymentSchema = z.object({
   amount: z
     .number({ message: i18n.t('common.validation.amountRequired') })
     .finite(i18n.t('common.validation.amountFiniteNonZero'))
+    .refine(hasAtMostTwoDecimals, i18n.t('common.validation.moneyDecimals'))
     .refine((amount) => amount !== 0, i18n.t('common.validation.amountFiniteNonZero')),
   notes: z.string().optional()
 })
@@ -167,8 +169,10 @@ export function ClientAccountPage(): React.JSX.Element {
           <AccountSummary
             items={[
               { label: t('clientAccount.summary.receivable'), value: account.receivableTotal },
+              { label: t('statementsPage.totals.fines'), value: account.fineTotal },
               { label: t('clientAccount.summary.totalQuantity'), value: account.totalCubic },
               { label: t('clientAccount.summary.paid'), value: account.paidTotal },
+              { label: t('common.openingBalance'), value: account.openingBalance },
               { label: t('clientAccount.summary.balance'), value: account.balance, highlight: true }
             ]}
           />
@@ -243,6 +247,7 @@ export function ClientAccountPage(): React.JSX.Element {
                         <FormControl>
                           <Input
                             type="number"
+                            step="0.01"
                             value={field.value ?? ''}
                             onChange={(event) =>
                               field.onChange(

@@ -4,8 +4,10 @@ import {
   getContractorById,
   updateContractor as updateContractorInDb,
   deleteContractor as deleteContractorInDb,
-  ContractorRow
+  ContractorStorageRow
 } from '../repository/contractorRepository'
+import { fromMinorUnits, toMinorUnits } from '../accounting'
+import { validationMessages } from '../validation'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
@@ -27,23 +29,45 @@ interface ContractorInput {
   openingBalanceDate?: string
 }
 
-function normalizeInput(input: ContractorInput): {
+interface ContractorRow {
+  id: number
   name: string
   phone: string | null
   openingBalance: number
   openingBalanceDate: string | null
+}
+
+function normalizeInput(input: ContractorInput): {
+  name: string
+  phone: string | null
+  openingBalanceMinor: number
+  openingBalanceDate: string | null
 } | null {
   const name = input.name?.trim()
   if (!name) return null
+  const openingBalanceMinor =
+    input.openingBalance === undefined ? 0 : toMinorUnits(input.openingBalance)
+  if (openingBalanceMinor === null) return null
   return {
     name,
     phone: input.phone?.trim() || null,
-    openingBalance: input.openingBalance ?? 0,
+    openingBalanceMinor,
     openingBalanceDate: input.openingBalanceDate?.trim() || null
   }
 }
 
+function contractorRowToPublic(row: ContractorStorageRow): ContractorRow {
+  const { openingBalanceMinor, ...rest } = row
+  return { ...rest, openingBalance: fromMinorUnits(openingBalanceMinor) }
+}
+
 export function createContractor(input: ContractorInput): UseCaseResult<ContractorRow> {
+  if (input.openingBalance !== undefined && toMinorUnits(input.openingBalance) === null) {
+    return {
+      ok: false,
+      errors: [{ field: 'openingBalance', message: validationMessages.moneyDecimals }]
+    }
+  }
   const values = normalizeInput(input)
   if (!values) {
     return { ok: false, errors: [{ field: 'name', message: 'اسم المقاول مطلوب' }] }
@@ -53,10 +77,19 @@ export function createContractor(input: ContractorInput): UseCaseResult<Contract
     const id = insertContractor(
       values.name,
       values.phone,
-      values.openingBalance,
+      values.openingBalanceMinor,
       values.openingBalanceDate
     )
-    return { ok: true, data: { id, ...values } }
+    return {
+      ok: true,
+      data: {
+        id,
+        name: values.name,
+        phone: values.phone,
+        openingBalance: fromMinorUnits(values.openingBalanceMinor),
+        openingBalanceDate: values.openingBalanceDate
+      }
+    }
   } catch (err: unknown) {
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       return { ok: false, errors: [{ field: 'name', message: 'مقاول النقل ده موجود بالفعل' }] }
@@ -66,17 +99,28 @@ export function createContractor(input: ContractorInput): UseCaseResult<Contract
 }
 
 export function listContractors(): UseCaseResult<ContractorRow[]> {
-  return { ok: true, data: listContractorsInDb() }
+  return { ok: true, data: listContractorsInDb().map(contractorRowToPublic) }
 }
 
 export function updateContractor(
   input: ContractorInput & { id: number }
 ): UseCaseResult<ContractorRow> {
+  if (input.openingBalance !== undefined && toMinorUnits(input.openingBalance) === null) {
+    return {
+      ok: false,
+      errors: [{ field: 'openingBalance', message: validationMessages.moneyDecimals }]
+    }
+  }
   const existing = getContractorById(input.id)
   const values = normalizeInput({
     name: input.name,
     phone: input.phone !== undefined ? input.phone : (existing?.phone ?? undefined),
-    openingBalance: input.openingBalance ?? existing?.openingBalance ?? 0,
+    openingBalance:
+      input.openingBalance !== undefined
+        ? input.openingBalance
+        : existing
+          ? fromMinorUnits(existing.openingBalanceMinor)
+          : 0,
     openingBalanceDate:
       input.openingBalanceDate !== undefined
         ? input.openingBalanceDate
@@ -92,10 +136,19 @@ export function updateContractor(
       input.id,
       values.name,
       values.phone,
-      values.openingBalance,
+      values.openingBalanceMinor,
       values.openingBalanceDate
     )
-    return { ok: true, data: { id: input.id, ...values } }
+    return {
+      ok: true,
+      data: {
+        id: input.id,
+        name: values.name,
+        phone: values.phone,
+        openingBalance: fromMinorUnits(values.openingBalanceMinor),
+        openingBalanceDate: values.openingBalanceDate
+      }
+    }
   } catch (err: unknown) {
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       return { ok: false, errors: [{ field: 'name', message: 'مقاول النقل ده موجود بالفعل' }] }

@@ -10,10 +10,13 @@ import { getShiftById } from '../repository/shiftRepository'
 import { listAttachments, deleteAttachment } from '../repository/attachmentRepository'
 import { deleteAttachmentPhotoFile } from '../photoStorage'
 import { getDb } from '../db'
+import { toMinorUnits } from '../accounting'
 import {
   dateStringSchema,
   positiveIntegerSchema,
   positiveNumberSchema,
+  positiveMoneySchema,
+  nonNegativeMoneySchema,
   validationMessages
 } from '../validation'
 
@@ -34,8 +37,8 @@ interface TripFieldsInput {
   tripDate: string
   crusherCubic: number
   clientCubicReported: number
-  discountQty?: number
-  discountReason?: string
+  fineAmount?: number
+  fineReason?: string
   location?: string
   crusherId: number
   stonePrice: number
@@ -64,7 +67,7 @@ const tripFieldMessages: Record<string, string> = {
   crusherReceiptNo: 'رقم الإيصال مطلوب',
   recipientNameStatus: 'حالة اسم المستلم مطلوبة',
   recipientName: 'اسم المستلم مطلوب',
-  discountQty: validationMessages.discountQtyNonNegative
+  fineAmount: validationMessages.fineAmountNonNegative
 }
 
 const tripSchema = z
@@ -75,15 +78,11 @@ const tripSchema = z
     ),
     crusherCubic: positiveNumberSchema('تكعيب الكسارة مطلوب'),
     clientCubicReported: positiveNumberSchema('تكعيب العميل مطلوب'),
-    discountQty: z
-      .number({ error: validationMessages.discountQtyNonNegative })
-      .finite(validationMessages.discountQtyNonNegative)
-      .nonnegative(validationMessages.discountQtyNonNegative)
-      .optional(),
-    discountReason: z.string().optional(),
+    fineAmount: nonNegativeMoneySchema(validationMessages.fineAmountNonNegative).optional(),
+    fineReason: z.string().optional(),
     location: z.string().optional(),
     crusherId: positiveIntegerSchema('الكسارة مطلوبة'),
-    stonePrice: positiveNumberSchema('سعر الحجر مطلوب'),
+    stonePrice: positiveMoneySchema('سعر الحجر مطلوب'),
     crusherReceiptStatus: z.enum(['PROVIDED', 'CONFIRMED_MISSING', 'UNKNOWN'], {
       message: 'حالة إيصال الكسارة مطلوبة'
     }),
@@ -93,8 +92,8 @@ const tripSchema = z
       .positive('رقم الإيصال مطلوب')
       .optional(),
     clientId: positiveIntegerSchema('العميل مطلوب'),
-    transportPrice: positiveNumberSchema('سعر النقل مطلوب'),
-    clientPrice: positiveNumberSchema('سعر العميل مطلوب'),
+    transportPrice: positiveMoneySchema('سعر النقل مطلوب'),
+    clientPrice: positiveMoneySchema('سعر العميل مطلوب'),
     materialTypeId: positiveIntegerSchema('نوع الصنف مطلوب'),
     recipientNameStatus: z.enum(['PROVIDED', 'UNCLEAR'], {
       message: 'حالة اسم المستلم مطلوبة'
@@ -165,6 +164,21 @@ export function createTrip(input: CreateTripInput): UseCaseResult<{ id: string }
   }
 
   const recipientNameStatus = input.recipientNameStatus ?? 'UNCLEAR'
+  const fineAmountMinor = toMinorUnits(input.fineAmount ?? 0)
+  const stonePriceMinor = toMinorUnits(input.stonePrice)
+  const transportPriceMinor = toMinorUnits(input.transportPrice)
+  const clientPriceMinor = toMinorUnits(input.clientPrice)
+  if (
+    fineAmountMinor === null ||
+    stonePriceMinor === null ||
+    transportPriceMinor === null ||
+    clientPriceMinor === null
+  ) {
+    return {
+      ok: false,
+      errors: [{ field: 'fineAmount', message: validationMessages.moneyDecimals }]
+    }
+  }
   const id = getNextTripId()
 
   try {
@@ -174,17 +188,17 @@ export function createTrip(input: CreateTripInput): UseCaseResult<{ id: string }
       tripDate: input.tripDate,
       crusherCubic: input.crusherCubic,
       clientCubicReported: input.clientCubicReported,
-      discountQty: input.discountQty ?? 0,
-      discountReason: input.discountReason ?? null,
+      fineAmountMinor,
+      fineReason: input.fineReason ?? null,
       location: input.location ?? null,
       crusherId: input.crusherId,
-      stonePrice: input.stonePrice,
+      stonePriceMinor,
       crusherReceiptStatus: input.crusherReceiptStatus,
       crusherReceiptNo:
         input.crusherReceiptStatus === 'PROVIDED' ? (input.crusherReceiptNo ?? null) : null,
       clientId: input.clientId,
-      transportPrice: input.transportPrice,
-      clientPrice: input.clientPrice,
+      transportPriceMinor,
+      clientPriceMinor,
       recipientNameStatus,
       recipientName: recipientNameStatus === 'PROVIDED' ? (input.recipientName ?? null) : null,
       clientReceiptNo: input.clientReceiptNo ?? null,
@@ -235,6 +249,21 @@ export function updateTrip(input: UpdateTripInput): UseCaseResult<{ id: string }
   }
 
   const recipientNameStatus = input.recipientNameStatus ?? 'UNCLEAR'
+  const fineAmountMinor = toMinorUnits(input.fineAmount ?? 0)
+  const stonePriceMinor = toMinorUnits(input.stonePrice)
+  const transportPriceMinor = toMinorUnits(input.transportPrice)
+  const clientPriceMinor = toMinorUnits(input.clientPrice)
+  if (
+    fineAmountMinor === null ||
+    stonePriceMinor === null ||
+    transportPriceMinor === null ||
+    clientPriceMinor === null
+  ) {
+    return {
+      ok: false,
+      errors: [{ field: 'fineAmount', message: validationMessages.moneyDecimals }]
+    }
+  }
 
   try {
     updateTripInDb({
@@ -242,17 +271,17 @@ export function updateTrip(input: UpdateTripInput): UseCaseResult<{ id: string }
       tripDate: input.tripDate,
       crusherCubic: input.crusherCubic,
       clientCubicReported: input.clientCubicReported,
-      discountQty: input.discountQty ?? 0,
-      discountReason: input.discountReason ?? null,
+      fineAmountMinor,
+      fineReason: input.fineReason ?? null,
       location: input.location ?? null,
       crusherId: input.crusherId,
-      stonePrice: input.stonePrice,
+      stonePriceMinor,
       crusherReceiptStatus: input.crusherReceiptStatus,
       crusherReceiptNo:
         input.crusherReceiptStatus === 'PROVIDED' ? (input.crusherReceiptNo ?? null) : null,
       clientId: input.clientId,
-      transportPrice: input.transportPrice,
-      clientPrice: input.clientPrice,
+      transportPriceMinor,
+      clientPriceMinor,
       recipientNameStatus,
       recipientName: recipientNameStatus === 'PROVIDED' ? (input.recipientName ?? null) : null,
       clientReceiptNo: input.clientReceiptNo ?? null,

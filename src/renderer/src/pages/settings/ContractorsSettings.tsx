@@ -27,6 +27,7 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { hasAtMostTwoDecimals } from '@/lib/money'
 
 const contractorSchema = z.object({
   name: z.string().min(1, i18n.t('contractorsSettings.validation.nameRequired')),
@@ -34,7 +35,11 @@ const contractorSchema = z.object({
   openingBalance: z
     .string()
     .optional()
-    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined)),
+    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
+    .refine(
+      (val) => val === undefined || hasAtMostTwoDecimals(val),
+      i18n.t('common.validation.moneyDecimals')
+    ),
   openingBalanceDate: z.string().optional()
 })
 
@@ -247,7 +252,7 @@ export function ContractorsSettings(): React.JSX.Element {
                     <FormItem>
                       <FormLabel>{t('common.openingBalance')}</FormLabel>
                       <FormControl>
-                        <Input type="number" step="any" {...field} />
+                        <Input type="number" step="0.01" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

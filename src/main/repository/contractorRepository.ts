@@ -1,10 +1,10 @@
 import { getDb } from '../db'
 
-export interface ContractorRow {
+export interface ContractorStorageRow {
   id: number
   name: string
   phone: string | null
-  openingBalance: number
+  openingBalanceMinor: number
   openingBalanceDate: string | null
 }
 
@@ -23,26 +23,26 @@ export function insertContractor(
   return result.lastInsertRowid as number
 }
 
-export function listContractors(): ContractorRow[] {
+export function listContractors(): ContractorStorageRow[] {
   const db = getDb()
   return db
     .prepare(
-      `SELECT id, name, phone, opening_balance as openingBalance,
+      `SELECT id, name, phone,       opening_balance as openingBalanceMinor,
               opening_balance_date as openingBalanceDate
        FROM TransportContractor ORDER BY name`
     )
-    .all() as ContractorRow[]
+    .all() as ContractorStorageRow[]
 }
 
-export function getContractorById(id: number): ContractorRow | undefined {
+export function getContractorById(id: number): ContractorStorageRow | undefined {
   const db = getDb()
   return db
     .prepare(
-      `SELECT id, name, phone, opening_balance as openingBalance,
+      `SELECT id, name, phone,       opening_balance as openingBalanceMinor,
               opening_balance_date as openingBalanceDate
        FROM TransportContractor WHERE id = ?`
     )
-    .get(id) as ContractorRow | undefined
+    .get(id) as ContractorStorageRow | undefined
 }
 
 export function updateContractor(

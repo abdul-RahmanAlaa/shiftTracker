@@ -2,15 +2,28 @@ import Database from 'better-sqlite3'
 import { app, dialog } from 'electron'
 import { join } from 'path'
 
-const CURRENT_VERSION = 3
+const CURRENT_VERSION = 4
 
 const SCHEMA = `
+CREATE TABLE IF NOT EXISTS TripIdCounter (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  next_number INTEGER NOT NULL
+);
+
+INSERT OR IGNORE INTO TripIdCounter (id, next_number) VALUES (1, 1);
+
 CREATE TABLE IF NOT EXISTS TransportContractor (
   id    INTEGER PRIMARY KEY AUTOINCREMENT,
   name  TEXT NOT NULL UNIQUE,
   phone TEXT,
-  opening_balance REAL NOT NULL DEFAULT 0,
-  opening_balance_date TEXT
+  opening_balance INTEGER NOT NULL DEFAULT 0 CHECK (typeof(opening_balance) = 'integer'),
+  opening_balance_date TEXT CHECK (
+    opening_balance_date IS NULL OR (
+      length(opening_balance_date) = 10 AND
+      opening_balance_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+      strftime('%Y-%m-%d', opening_balance_date, '+0 days') = opening_balance_date
+    )
+  )
 );
 
 CREATE TABLE IF NOT EXISTS Vehicle (
@@ -31,16 +44,28 @@ CREATE TABLE IF NOT EXISTS Driver (
 CREATE TABLE IF NOT EXISTS Crusher (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   name           TEXT NOT NULL UNIQUE,
-  initial_price  REAL
+  initial_price  INTEGER CHECK (
+    initial_price IS NULL OR
+    (typeof(initial_price) = 'integer' AND initial_price > 0)
+  )
 );
 
 CREATE TABLE IF NOT EXISTS Client (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   name           TEXT NOT NULL UNIQUE,
-  initial_price  REAL,
+  initial_price  INTEGER CHECK (
+    initial_price IS NULL OR
+    (typeof(initial_price) = 'integer' AND initial_price > 0)
+  ),
   location       TEXT,
-  opening_balance REAL NOT NULL DEFAULT 0,
-  opening_balance_date TEXT
+  opening_balance INTEGER NOT NULL DEFAULT 0 CHECK (typeof(opening_balance) = 'integer'),
+  opening_balance_date TEXT CHECK (
+    opening_balance_date IS NULL OR (
+      length(opening_balance_date) = 10 AND
+      opening_balance_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+      strftime('%Y-%m-%d', opening_balance_date, '+0 days') = opening_balance_date
+    )
+  )
 );
 
 CREATE TABLE IF NOT EXISTS MaterialType (
@@ -52,6 +77,7 @@ CREATE TABLE IF NOT EXISTS Shift (
   id                      TEXT PRIMARY KEY,
   vehicle_no              INTEGER NOT NULL REFERENCES Vehicle(vehicle_no),
   driver_id               INTEGER NOT NULL REFERENCES Driver(id),
+  contractor_id           INTEGER NOT NULL REFERENCES TransportContractor(id),
   crusher_cubic_default   REAL NOT NULL,
   client_cubic_default    REAL NOT NULL,
   start_date              TEXT NOT NULL,
@@ -59,7 +85,21 @@ CREATE TABLE IF NOT EXISTS Shift (
   status                  TEXT NOT NULL CHECK (status IN ('OPEN','CLOSED','REOPENED')),
   reported_destination    TEXT,
   reported_trip_count     INTEGER,
-  notes                   TEXT
+  notes                   TEXT,
+  CHECK (crusher_cubic_default > 0 AND crusher_cubic_default < 1e308),
+  CHECK (client_cubic_default > 0 AND client_cubic_default < 1e308),
+  CHECK (
+    length(start_date) = 10 AND
+    start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+    strftime('%Y-%m-%d', start_date, '+0 days') = start_date
+  ),
+  CHECK (
+    end_date IS NULL OR (
+      length(end_date) = 10 AND
+      end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+      strftime('%Y-%m-%d', end_date, '+0 days') = end_date
+    )
+  )
 );
 
 CREATE TABLE IF NOT EXISTS ShiftReopenLog (
@@ -74,24 +114,38 @@ CREATE TABLE IF NOT EXISTS ShiftReopenLog (
 CREATE TABLE IF NOT EXISTS Trip (
   id                      TEXT PRIMARY KEY,
   shift_id                TEXT NOT NULL REFERENCES Shift(id),
-  trip_date               TEXT NOT NULL,
+  trip_date               TEXT NOT NULL CHECK (
+    length(trip_date) = 10 AND
+    trip_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+    strftime('%Y-%m-%d', trip_date, '+0 days') = trip_date
+  ),
   crusher_cubic           REAL NOT NULL,
   client_cubic_reported   REAL NOT NULL,
-  discount_qty            REAL NOT NULL DEFAULT 0,
-  discount_reason         TEXT,
+  fine_amount             INTEGER NOT NULL DEFAULT 0 CHECK (
+    typeof(fine_amount) = 'integer' AND fine_amount >= 0
+  ),
+  fine_reason             TEXT,
   location                TEXT,
   crusher_id              INTEGER NOT NULL REFERENCES Crusher(id),
-  stone_price             REAL,
+  stone_price             INTEGER NOT NULL CHECK (
+    typeof(stone_price) = 'integer' AND stone_price > 0
+  ),
   crusher_receipt_status  TEXT NOT NULL CHECK (crusher_receipt_status IN ('PROVIDED','CONFIRMED_MISSING','UNKNOWN')),
   crusher_receipt_no      INTEGER,
   client_id               INTEGER NOT NULL REFERENCES Client(id),
-  transport_price         REAL NOT NULL,
-  client_price            REAL NOT NULL,
+  transport_price         INTEGER NOT NULL CHECK (
+    typeof(transport_price) = 'integer' AND transport_price > 0
+  ),
+  client_price            INTEGER NOT NULL CHECK (
+    typeof(client_price) = 'integer' AND client_price > 0
+  ),
   recipient_name_status    TEXT NOT NULL DEFAULT 'UNCLEAR' CHECK (recipient_name_status IN ('PROVIDED','UNCLEAR')),
   recipient_name           TEXT,
   client_receipt_no        TEXT,
   notes                    TEXT,
   material_type_id         INTEGER REFERENCES MaterialType(id),
+  CHECK (crusher_cubic > 0 AND crusher_cubic < 1e308),
+  CHECK (client_cubic_reported > 0 AND client_cubic_reported < 1e308),
   CHECK (
     (crusher_receipt_status = 'PROVIDED' AND crusher_receipt_no IS NOT NULL)
     OR (crusher_receipt_status <> 'PROVIDED' AND crusher_receipt_no IS NULL)
@@ -117,16 +171,35 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_crusher_receipt
 ON Trip (crusher_id, crusher_receipt_no)
 WHERE crusher_receipt_no IS NOT NULL;
 
+CREATE INDEX IF NOT EXISTS idx_trip_shift_client_crusher
+ON Trip (shift_id, client_id, crusher_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shift_open_vehicle
+ON Shift (vehicle_no) WHERE status = 'OPEN';
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_shift_open_driver
+ON Shift (driver_id) WHERE status = 'OPEN';
+
+CREATE INDEX IF NOT EXISTS idx_shift_driver_status ON Shift (driver_id, status);
+CREATE INDEX IF NOT EXISTS idx_shift_vehicle_status ON Shift (vehicle_no, status);
+
 CREATE TABLE IF NOT EXISTS Ledger (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
-  entry_date     TEXT NOT NULL,
+  entry_date     TEXT NOT NULL CHECK (
+    length(entry_date) = 10 AND
+    entry_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+    strftime('%Y-%m-%d', entry_date, '+0 days') = entry_date
+  ),
   driver_id      INTEGER REFERENCES Driver(id),
   movement_type  TEXT NOT NULL CHECK (movement_type IN ('ADVANCE','PAYMENT','OTHER')),
-  amount         REAL NOT NULL,
+  amount         INTEGER NOT NULL CHECK (typeof(amount) = 'integer' AND amount <> 0),
   shift_id       TEXT REFERENCES Shift(id),
   contractor_id  INTEGER NOT NULL REFERENCES TransportContractor(id),
   notes          TEXT
 );
+
+CREATE INDEX IF NOT EXISTS idx_ledger_contractor_driver_shift
+ON Ledger (contractor_id, driver_id, shift_id);
 
 CREATE VIEW IF NOT EXISTS ShiftStats AS
 SELECT
@@ -139,29 +212,19 @@ FROM Shift s
 LEFT JOIN Trip t ON t.shift_id = s.id
 GROUP BY s.id;
 
-CREATE VIEW IF NOT EXISTS TripAccounting AS
-SELECT
-  id,
-  crusher_cubic * stone_price AS crusher_amount,
-  crusher_cubic * transport_price AS transport_amount,
-  (client_cubic_reported - discount_qty) AS effective_client_cubic,
-  (client_cubic_reported - discount_qty) * client_price AS client_amount
-FROM Trip;
-
 CREATE TABLE IF NOT EXISTS ClientPayment (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  entry_date  TEXT NOT NULL,
+  entry_date  TEXT NOT NULL CHECK (
+    length(entry_date) = 10 AND
+    entry_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+    strftime('%Y-%m-%d', entry_date, '+0 days') = entry_date
+  ),
   client_id   INTEGER NOT NULL REFERENCES Client(id),
-  amount      REAL NOT NULL,
+  amount      INTEGER NOT NULL CHECK (typeof(amount) = 'integer' AND amount <> 0),
   notes       TEXT
 );
 
-CREATE TABLE IF NOT EXISTS TripIdCounter (
-  id INTEGER PRIMARY KEY CHECK (id = 1),
-  next_number INTEGER NOT NULL
-);
-
-INSERT OR IGNORE INTO TripIdCounter (id, next_number) VALUES (1, 1);
+CREATE INDEX IF NOT EXISTS idx_client_payment_client ON ClientPayment (client_id);
 `
 
 let db: Database.Database

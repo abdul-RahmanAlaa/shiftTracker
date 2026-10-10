@@ -27,6 +27,7 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { hasAtMostTwoDecimals } from '@/lib/money'
 
 const clientSchema = z.object({
   name: z.string().min(1, i18n.t('clientsSettings.validation.nameRequired')),
@@ -35,11 +36,19 @@ const clientSchema = z.object({
     .string()
     .optional()
     .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine((val) => val === undefined || val >= 0, i18n.t('common.validation.positivePrice')),
+    .refine((val) => val === undefined || val > 0, i18n.t('common.validation.positivePrice'))
+    .refine(
+      (val) => val === undefined || hasAtMostTwoDecimals(val),
+      i18n.t('common.validation.moneyDecimals')
+    ),
   openingBalance: z
     .string()
     .optional()
-    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined)),
+    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
+    .refine(
+      (val) => val === undefined || hasAtMostTwoDecimals(val),
+      i18n.t('common.validation.moneyDecimals')
+    ),
   openingBalanceDate: z.string().optional()
 })
 
@@ -257,7 +266,7 @@ export function ClientsSettings(): React.JSX.Element {
                         <Input
                           type="number"
                           min="0"
-                          step="any"
+                          step="0.01"
                           placeholder={t('common.defaultPrice')}
                           {...field}
                         />
@@ -286,7 +295,7 @@ export function ClientsSettings(): React.JSX.Element {
                     <FormItem>
                       <FormLabel>{t('common.openingBalance')}</FormLabel>
                       <FormControl>
-                        <Input type="number" step="any" {...field} />
+                        <Input type="number" step="0.01" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

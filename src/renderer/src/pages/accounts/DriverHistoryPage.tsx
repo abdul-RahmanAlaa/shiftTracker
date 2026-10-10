@@ -319,6 +319,7 @@ export function DriverHistoryPage(): React.JSX.Element {
                         <FormControl>
                           <Input
                             type="number"
+                            step="0.01"
                             value={field.value ?? ''}
                             onChange={(event) =>
                               field.onChange(

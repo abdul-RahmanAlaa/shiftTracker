@@ -1,32 +1,44 @@
 import { getDb } from '../db'
 import { LedgerRow } from './ledgerRepository'
+import { ClientAccountingTrip, ContractorAccountingTrip } from '../accounting'
 
 export interface ContractorAccountTotals {
-  transportTotal: number
-  ledgerTotal: number
-  balance: number
+  openingBalanceMinor: number
+  trips: ContractorAccountingTrip[]
+  settlementsMinor: number[]
 }
 
-export function getContractorAccountTotals(contractorId: number): ContractorAccountTotals {
+export function getContractorAccountInputs(
+  contractorId: number
+): ContractorAccountTotals | undefined {
   const db = getDb()
-  const row = db
+  const entity = db
+    .prepare('SELECT opening_balance as openingBalanceMinor FROM TransportContractor WHERE id = ?')
+    .get(contractorId) as { openingBalanceMinor: number } | undefined
+  if (!entity) return undefined
+  const trips = db
     .prepare(
       `
-      SELECT
-        (SELECT COALESCE(SUM(t.crusher_cubic * t.transport_price), 0)
-         FROM Trip t
-         JOIN Shift s ON t.shift_id = s.id
-         JOIN Vehicle v ON s.vehicle_no = v.vehicle_no
-         WHERE v.contractor_id = @contractorId) as transportTotal,
-        (SELECT COALESCE(SUM(amount), 0) FROM Ledger WHERE contractor_id = @contractorId) as ledgerTotal
+      SELECT t.id, t.trip_date as date, mt.name as description,
+             t.client_cubic_reported as clientCubicReported,
+             t.transport_price as transportPriceMinor,
+             t.crusher_cubic as crusherCubic,
+             t.stone_price as stonePriceMinor
+      FROM Trip t
+      JOIN Shift s ON s.id = t.shift_id
+      LEFT JOIN MaterialType mt ON mt.id = t.material_type_id
+      WHERE s.contractor_id = ?
+      ORDER BY t.trip_date, t.id
     `
     )
-    .get({ contractorId }) as { transportTotal: number; ledgerTotal: number }
-
+    .all(contractorId) as ContractorAccountingTrip[]
+  const settlements = db
+    .prepare('SELECT amount FROM Ledger WHERE contractor_id = ?')
+    .all(contractorId) as { amount: number }[]
   return {
-    transportTotal: row.transportTotal,
-    ledgerTotal: row.ledgerTotal,
-    balance: row.transportTotal - row.ledgerTotal
+    openingBalanceMinor: entity.openingBalanceMinor,
+    trips,
+    settlementsMinor: settlements.map((row) => row.amount)
   }
 }
 
@@ -36,7 +48,7 @@ export function listLedgerByContractor(contractorId: number): LedgerRow[] {
     .prepare(
       `
       SELECT id, entry_date as entryDate, driver_id as driverId, movement_type as movementType,
-             amount, shift_id as shiftId, contractor_id as contractorId, notes
+             amount as amountMinor, shift_id as shiftId, contractor_id as contractorId, notes
       FROM Ledger
       WHERE contractor_id = ?
       ORDER BY entry_date DESC, id DESC
@@ -51,7 +63,7 @@ export function listLedgerByDriver(driverId: number): LedgerRow[] {
     .prepare(
       `
       SELECT id, entry_date as entryDate, driver_id as driverId, movement_type as movementType,
-             amount, shift_id as shiftId, contractor_id as contractorId, notes
+             amount as amountMinor, shift_id as shiftId, contractor_id as contractorId, notes
       FROM Ledger
       WHERE driver_id = ?
       ORDER BY entry_date DESC, id DESC
@@ -64,7 +76,7 @@ export interface ClientPaymentRow {
   id: number
   entryDate: string
   clientId: number
-  amount: number
+  amountMinor: number
   notes: string | null
 }
 
@@ -73,7 +85,7 @@ export function getClientPaymentById(id: number): ClientPaymentRow | undefined {
   return db
     .prepare(
       `
-      SELECT id, entry_date as entryDate, client_id as clientId, amount, notes
+      SELECT id, entry_date as entryDate, client_id as clientId, amount as amountMinor, notes
       FROM ClientPayment
       WHERE id = ?
     `
@@ -84,13 +96,13 @@ export function getClientPaymentById(id: number): ClientPaymentRow | undefined {
 export function insertClientPayment(input: {
   entryDate: string
   clientId: number
-  amount: number
+  amountMinor: number
   notes: string | null
 }): number {
   const db = getDb()
   const stmt = db.prepare(`
     INSERT INTO ClientPayment (entry_date, client_id, amount, notes)
-    VALUES (@entryDate, @clientId, @amount, @notes)
+    VALUES (@entryDate, @clientId, @amountMinor, @notes)
   `)
   return stmt.run(input).lastInsertRowid as number
 }
@@ -99,7 +111,7 @@ export function updateClientPayment(input: {
   id: number
   entryDate: string
   clientId: number
-  amount: number
+  amountMinor: number
   notes: string | null
 }): void {
   const db = getDb()
@@ -108,7 +120,7 @@ export function updateClientPayment(input: {
     UPDATE ClientPayment
     SET entry_date = @entryDate,
         client_id = @clientId,
-        amount = @amount,
+        amount = @amountMinor,
         notes = @notes
     WHERE id = @id
   `
@@ -125,7 +137,7 @@ export function listClientPayments(clientId: number): ClientPaymentRow[] {
   return db
     .prepare(
       `
-      SELECT id, entry_date as entryDate, client_id as clientId, amount, notes
+      SELECT id, entry_date as entryDate, client_id as clientId, amount as amountMinor, notes
       FROM ClientPayment
       WHERE client_id = ?
       ORDER BY entry_date DESC, id DESC
@@ -134,32 +146,39 @@ export function listClientPayments(clientId: number): ClientPaymentRow[] {
     .all(clientId) as ClientPaymentRow[]
 }
 
-export interface ClientAccountTotals {
-  receivableTotal: number
-  totalCubic: number
-  paidTotal: number
-  balance: number
+export interface ClientAccountInputs {
+  openingBalanceMinor: number
+  trips: ClientAccountingTrip[]
+  paymentsMinor: number[]
 }
 
-export function getClientAccountTotals(clientId: number): ClientAccountTotals {
+export function getClientAccountInputs(clientId: number): ClientAccountInputs | undefined {
   const db = getDb()
-  const row = db
+  const entity = db
+    .prepare('SELECT opening_balance as openingBalanceMinor FROM Client WHERE id = ?')
+    .get(clientId) as { openingBalanceMinor: number } | undefined
+  if (!entity) return undefined
+  const trips = db
     .prepare(
       `
-      SELECT
-        (SELECT COALESCE(SUM((t.client_cubic_reported - t.discount_qty) * t.client_price), 0)
-         FROM Trip t WHERE t.client_id = @clientId) as receivableTotal,
-        (SELECT COALESCE(SUM(t.client_cubic_reported - t.discount_qty), 0)
-         FROM Trip t WHERE t.client_id = @clientId) as totalCubic,
-        (SELECT COALESCE(SUM(amount), 0) FROM ClientPayment WHERE client_id = @clientId) as paidTotal
+      SELECT t.id, t.trip_date as date, mt.name as description,
+             t.client_cubic_reported as clientCubicReported,
+             t.client_price as clientPriceMinor,
+             t.fine_amount as fineAmountMinor,
+             t.fine_reason as fineReason
+      FROM Trip t
+      LEFT JOIN MaterialType mt ON mt.id = t.material_type_id
+      WHERE t.client_id = ?
+      ORDER BY t.trip_date, t.id
     `
     )
-    .get({ clientId }) as { receivableTotal: number; totalCubic: number; paidTotal: number }
-
+    .all(clientId) as ClientAccountingTrip[]
+  const payments = db
+    .prepare('SELECT amount FROM ClientPayment WHERE client_id = ?')
+    .all(clientId) as { amount: number }[]
   return {
-    receivableTotal: row.receivableTotal,
-    totalCubic: row.totalCubic,
-    paidTotal: row.paidTotal,
-    balance: row.receivableTotal - row.paidTotal
+    openingBalanceMinor: entity.openingBalanceMinor,
+    trips,
+    paymentsMinor: payments.map((row) => row.amount)
   }
 }

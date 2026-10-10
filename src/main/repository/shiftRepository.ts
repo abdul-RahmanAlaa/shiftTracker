@@ -4,6 +4,7 @@ interface InsertShiftInput {
   id: string
   vehicleNo: number
   driverId: number
+  contractorId: number
   crusherCubicDefault: number
   clientCubicDefault: number
   startDate: string
@@ -29,13 +30,21 @@ export function getNextShiftId(): string {
   return `SH-${String(lastNumber + 1).padStart(4, '0')}`
 }
 
+export function getVehicleContractorId(vehicleNo: number): number | undefined {
+  const db = getDb()
+  const row = db
+    .prepare('SELECT contractor_id as contractorId FROM Vehicle WHERE vehicle_no = ?')
+    .get(vehicleNo) as { contractorId: number } | undefined
+  return row?.contractorId
+}
+
 export function insertShift(input: InsertShiftInput): void {
   const db = getDb()
   const stmt = db.prepare(`
     INSERT INTO Shift (
-      id, vehicle_no, driver_id, crusher_cubic_default, client_cubic_default,
+      id, vehicle_no, driver_id, contractor_id, crusher_cubic_default, client_cubic_default,
       start_date, end_date, status, reported_destination, reported_trip_count, notes
-    ) VALUES (@id, @vehicleNo, @driverId, @crusherCubicDefault, @clientCubicDefault,
+    ) VALUES (@id, @vehicleNo, @driverId, @contractorId, @crusherCubicDefault, @clientCubicDefault,
       @startDate, NULL, 'OPEN', @reportedDestination, @reportedTripCount, @notes)
   `)
   stmt.run(input)
@@ -199,6 +208,7 @@ export function listAllShifts(): ShiftListRow[] {
       `
       SELECT
         s.id, s.vehicle_no as vehicleNo, s.driver_id as driverId, d.name as driverName,
+        s.contractor_id as contractorId, d.name as driverName,
         s.crusher_cubic_default as crusherCubicDefault,
         s.client_cubic_default as clientCubicDefault, s.status,
         s.start_date as startDate, s.end_date as endDate,

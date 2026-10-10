@@ -36,7 +36,13 @@ import { createShift } from '../src/main/use-cases/createShift'
 import { closeShift } from '../src/main/use-cases/closeShift'
 import { createTrip, updateTrip } from '../src/main/use-cases/createTrip'
 import { reopenShift } from '../src/main/use-cases/reopenShift'
-import { getTripById } from '../src/main/repository/tripRepository'
+import { getTripById as getTripRawById } from '../src/main/repository/tripRepository'
+import { listTripsByShift } from '../src/main/use-cases/listTripData'
+import { createClient } from '../src/main/use-cases/createClient'
+import { createContractor } from '../src/main/use-cases/createContractor'
+import { createCrusher } from '../src/main/use-cases/createCrusher'
+import { getClientAccount, getContractorAccount } from '../src/main/use-cases/getAccounts'
+import { getClientStatement, getContractorStatement } from '../src/main/use-cases/getStatement'
 
 const outcomes = []
 function runCase(name, expected, operation, passes) {
@@ -57,10 +63,17 @@ function runCase(name, expected, operation, passes) {
       expected.replaceAll('|', '\\|') +
       ' |'
   )
+  if (!pass) console.log('DETAIL ' + name + ' | ' + JSON.stringify(actual))
   return actual
 }
 function result(actual) {
   return actual && !actual.threw ? actual.value : undefined
+}
+function getTripById(id) {
+  const raw = getTripRawById(id)
+  if (!raw) return undefined
+  const result = listTripsByShift(raw.shiftId)
+  return result.ok ? result.data.find((trip) => trip.id === id) : undefined
 }
 function hasFieldErrors(value, fields) {
   return value?.ok === false && fields.every((field) => value.errors.some((error) => error.field === field))
@@ -103,10 +116,11 @@ function tripInput(shiftId) {
   return {
     shiftId,
     tripDate: '2026-02-01',
+    clientId,
     crusherCubic: 2,
     clientCubicReported: 2,
-    discountQty: 0,
-    discountReason: '',
+    fineAmount: 0,
+    fineReason: '',
     location: '',
     crusherId,
     stonePrice: 10,
@@ -222,7 +236,7 @@ try {
   openShiftId = openResult.data.id
 
   closedShiftId = 'VERIFY-CLOSED'
-  db.prepare("INSERT INTO Shift (id, vehicle_no, driver_id, crusher_cubic_default, client_cubic_default, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'CLOSED')").run(closedShiftId, 97001, driverId, 1, 1, '2026-01-01', '2026-01-02')
+  db.prepare("INSERT INTO Shift (id, vehicle_no, driver_id, contractor_id, crusher_cubic_default, client_cubic_default, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CLOSED')").run(closedShiftId, 97001, driverId, contractorId, 1, 1, '2026-01-01', '2026-01-02')
 
   const seedClosedLedger = db.prepare('INSERT INTO Ledger (entry_date, driver_id, movement_type, amount, shift_id, contractor_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?)')
   closedLedgerId = Number(seedClosedLedger.run('2026-01-02', driverId, 'ADVANCE', 100, closedShiftId, contractorId, 'closed legacy row').lastInsertRowid)
@@ -373,11 +387,11 @@ try {
       const output = result(actual)
       return !actual.threw && output?.unchanged === true && hasExactFieldError(output.response, 'recipientNameStatus')
     })
-    runCase('V ' + name + ' negative discountQty', 'ok:false / exact field discountQty / non-negative number message / no Trip changes', () => reject({ discountQty: -0.5 }), (actual) => {
+    runCase('V ' + name + ' negative fineAmount', 'ok:false / exact field fineAmount / non-negative money error / no Trip changes', () => reject({ fineAmount: -0.5 }), (actual) => {
       const output = result(actual)
       return !actual.threw &&
         output?.unchanged === true &&
-        hasExactFieldErrorMessage(output.response, 'discountQty', 'رقمًا غير سالب')
+        hasExactFieldError(output.response, 'fineAmount')
     })
     runCase('V ' + name + ' PROVIDED crusher receipt requires a number', 'ok:false / exact field crusherReceiptNo / no Trip changes', () => reject({ crusherReceiptStatus: 'PROVIDED', crusherReceiptNo: undefined }), (actual) => {
       const output = result(actual)
@@ -536,10 +550,10 @@ try {
       output.reopened?.ok === true &&
       output.afterReopen?.ok === true
   })
-  runCase('V createTrip accepts complete valid renderer payload with decimal discount', 'ok:true / row inserted with discountQty 0.5 and empty optional strings preserved', () => {
+  runCase('V createTrip accepts complete valid renderer payload with monetary fine', 'ok:true / row stores fineAmount 0.5 and empty optional strings preserved', () => {
     const shift = createOwnShift()
     const beforeCount = db.prepare('SELECT COUNT(*) AS count FROM Trip').get().count
-    const response = createTrip({ ...tripInput(shift.id), discountQty: 0.5 })
+    const response = createTrip({ ...tripInput(shift.id), fineAmount: 0.5 })
     const afterCount = db.prepare('SELECT COUNT(*) AS count FROM Trip').get().count
     const saved = response.ok ? getTripById(response.data.id) : undefined
     return { response, beforeCount, afterCount, saved }
@@ -547,29 +561,29 @@ try {
     const output = result(actual)
     return output?.response?.ok === true &&
       output.afterCount === output.beforeCount + 1 &&
-      output.saved?.discountQty === 0.5 &&
-      output.saved?.discountReason === '' &&
+      output.saved?.fineAmount === 0.5 &&
+      output.saved?.fineReason === '' &&
       output.saved?.location === '' &&
       output.saved?.recipientName === null &&
       output.saved?.clientReceiptNo === '' &&
       output.saved?.notes === ''
   })
-  runCase('V updateTrip accepts complete valid payload', 'ok:true / updated price and decimal discount persisted', () => {
+  runCase('V updateTrip accepts complete valid payload', 'ok:true / updated price and monetary fine persisted', () => {
     const shift = createOwnShift()
     const seeded = createTrip(tripInput(shift.id))
     if (!seeded.ok) return { seeded }
-    const response = updateTrip({ id: seeded.data.id, ...tripInput(shift.id), stonePrice: 11, discountQty: 0.5 })
+    const response = updateTrip({ id: seeded.data.id, ...tripInput(shift.id), stonePrice: 11, fineAmount: 0.5 })
     return { response, saved: getTripById(seeded.data.id) }
   }, (actual) => {
     const output = result(actual)
-    return output?.response?.ok === true && output.saved?.stonePrice === 11 && output.saved?.discountQty === 0.5
+    return output?.response?.ok === true && output.saved?.stonePrice === 11 && output.saved?.fineAmount === 0.5
   })
   runCase('V updateTrip accepts renderer-shaped empty optional fields from a DB row', 'ok:true / DB nulls map to blank strings and update succeeds', () => {
     const shift = createOwnShift()
     const seeded = createTrip(tripInput(shift.id))
     if (!seeded.ok) return { seeded }
     db.prepare(
-      'UPDATE Trip SET discount_reason = NULL, location = NULL, recipient_name = NULL, client_receipt_no = NULL, notes = NULL WHERE id = ?'
+      'UPDATE Trip SET fine_reason = NULL, location = NULL, recipient_name = NULL, client_receipt_no = NULL, notes = NULL WHERE id = ?'
     ).run(seeded.data.id)
     const row = getTripById(seeded.data.id)
     if (!row) return { missingRow: true }
@@ -578,8 +592,8 @@ try {
       tripDate: row.tripDate,
       crusherCubic: row.crusherCubic,
       clientCubicReported: row.clientCubicReported,
-      discountQty: row.discountQty,
-      discountReason: row.discountReason ?? '',
+      fineAmount: row.fineAmount,
+      fineReason: row.fineReason ?? '',
       location: row.location ?? '',
       crusherId: row.crusherId,
       stonePrice: row.stonePrice ?? undefined,
@@ -599,13 +613,13 @@ try {
   }, (actual) => {
     const output = result(actual)
     return output?.response?.ok === true &&
-      output.rendererValues.discountReason === '' &&
+      output.rendererValues.fineReason === '' &&
       output.rendererValues.location === '' &&
       output.rendererValues.recipientName === '' &&
       output.rendererValues.clientReceiptNo === '' &&
       output.rendererValues.notes === '' &&
       output.rendererValues.recipientNameStatus === 'UNCLEAR' &&
-      output.saved?.discountReason === '' &&
+      output.saved?.fineReason === '' &&
       output.saved?.location === '' &&
       output.saved?.recipientName === null &&
       output.saved?.clientReceiptNo === '' &&
@@ -617,7 +631,7 @@ try {
   })
 
   const secondClosedShiftId = 'VERIFY-CLOSED-2'
-  db.prepare("INSERT INTO Shift (id, vehicle_no, driver_id, crusher_cubic_default, client_cubic_default, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'CLOSED')").run(secondClosedShiftId, 97001, driverId, 1, 1, '2026-01-03', '2026-01-04')
+  db.prepare("INSERT INTO Shift (id, vehicle_no, driver_id, contractor_id, crusher_cubic_default, client_cubic_default, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CLOSED')").run(secondClosedShiftId, 97001, driverId, contractorId, 1, 1, '2026-01-03', '2026-01-04')
 
   runCase('R1 reopen closed shift with reason works', 'ok:true', () => reopenShift({ shiftId: closedShiftId, reason: 'correct end date' }), (actual) => {
     const reopened = result(actual)
@@ -801,11 +815,11 @@ try {
   runCase('E4 client payment zero rejected on amount', 'error field amount', () => createClientPayment({ entryDate: '2026-01-10', clientId, amount: 0, notes: null }), (actual) => hasFieldErrors(result(actual), ['amount']))
   runCase('E4 ledger negative amount accepted', 'ok:true and amount -300 persisted', () => createLedger({ amount: -300 }), (actual) => {
     const created = result(actual)
-    return created?.ok === true && db.prepare('SELECT amount FROM Ledger WHERE id = ?').get(created.data.id)?.amount === -300
+    return created?.ok === true && db.prepare('SELECT amount FROM Ledger WHERE id = ?').get(created.data.id)?.amount === -30000
   })
   runCase('E4 client payment negative amount accepted', 'ok:true and amount -300 persisted', () => createClientPayment({ entryDate: '2026-01-10', clientId, amount: -300, notes: null }), (actual) => {
     const created = result(actual)
-    return created?.ok === true && db.prepare('SELECT amount FROM ClientPayment WHERE id = ?').get(created.data.id)?.amount === -300
+    return created?.ok === true && db.prepare('SELECT amount FROM ClientPayment WHERE id = ?').get(created.data.id)?.amount === -30000
   })
 
   const initialPayment = createClientPayment({ entryDate: '2026-01-10', clientId, amount: 50, notes: 'keep me' })
@@ -815,6 +829,340 @@ try {
   runCase('E5 explicit null clears payment notes', 'ok:true and database notes null', () => updateClientPayment({ id: paymentId, entryDate: '2026-01-10', clientId, amount: 50, notes: null }), (actual) => {
     const updated = result(actual)
     return updated?.ok === true && db.prepare('SELECT notes FROM ClientPayment WHERE id = ?').get(paymentId)?.notes === null
+  })
+
+  runCase('A1 client fixed fine, opening balance, payment, and cubic total', 'client charge 2000 - fine 200 - payment 1000 + opening 500 = 1300; cubic stays 20', () => {
+    const client = createClient({
+      name: 'Golden Client',
+      openingBalance: 500,
+      openingBalanceDate: '2026-02-15'
+    })
+    const contractor = createContractor({ name: 'Golden Contractor', openingBalance: 100 })
+    if (!client.ok || !contractor.ok) throw new Error('Golden account setup failed')
+
+    const shiftInput = newShiftInput()
+    db.prepare('UPDATE Vehicle SET contractor_id = ? WHERE vehicle_no = ?').run(
+      contractor.data.id,
+      shiftInput.vehicleNo
+    )
+    const shiftResult = createShift(shiftInput)
+    if (!shiftResult.ok) throw new Error('Golden shift setup failed')
+    const trip = createTrip({
+      ...tripInput(shiftResult.data.id),
+      clientId: client.data.id,
+      tripDate: '2026-02-01',
+      crusherCubic: 22,
+      clientCubicReported: 20,
+      stonePrice: 50,
+      transportPrice: 8,
+      clientPrice: 100,
+      fineAmount: 200,
+      fineReason: 'Golden fine'
+    })
+    if (!trip.ok) throw new Error('Golden trip setup failed: ' + JSON.stringify(trip))
+    const payment = createClientPayment({
+      entryDate: '2026-02-02',
+      clientId: client.data.id,
+      amount: 1000,
+      notes: null
+    })
+    const ledger = createLedgerEntry({
+      entryDate: '2026-02-02',
+      movementType: 'PAYMENT',
+      amount: 1000,
+      shiftId: null,
+      contractorId: contractor.data.id,
+      notes: 'Golden settlement'
+    })
+    if (!payment.ok || !ledger.ok) throw new Error('Golden settlement setup failed')
+
+    const clientAccount = getClientAccount({ clientId: client.data.id })
+    const clientStatement = getClientStatement({ clientId: client.data.id })
+    const contractorAccount = getContractorAccount({ contractorId: contractor.data.id })
+    const contractorStatement = getContractorStatement({ contractorId: contractor.data.id })
+    const savedTrip = getTripById(trip.data.id)
+    return {
+      clientAccount,
+      clientStatement,
+      contractorAccount,
+      contractorStatement,
+      savedTrip,
+      rawClientOpening: db.prepare('SELECT opening_balance FROM Client WHERE id = ?').get(client.data.id).opening_balance,
+      rawContractorOpening: db.prepare('SELECT opening_balance FROM TransportContractor WHERE id = ?').get(contractor.data.id).opening_balance
+    }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.clientAccount?.ok === true &&
+      output.clientStatement?.ok === true &&
+      output.contractorAccount?.ok === true &&
+      output.contractorStatement?.ok === true &&
+      output.clientAccount.data.receivableTotal === 2000 &&
+      output.clientAccount.data.totalCubic === 20 &&
+      output.clientAccount.data.paidTotal === 1000 &&
+      output.clientAccount.data.balance === 1300 &&
+      output.clientStatement.data.finalBalance === 1300 &&
+      output.clientStatement.data.rows.some((row) => row.kind === 'FINE' && row.value === -200) &&
+      output.contractorAccount.data.entries.some((entry) => entry.amount === 1000) &&
+      output.contractorAccount.data.transportTotal === 160 &&
+      output.contractorAccount.data.materialTotal === 1100 &&
+      output.contractorAccount.data.ledgerTotal === 1000 &&
+      output.contractorAccount.data.balance === 360 &&
+      output.contractorStatement.data.finalBalance === 360 &&
+      output.rawClientOpening === 50000 &&
+      output.rawContractorOpening === 10000 &&
+      output.savedTrip?.clientCubicReported === 20 &&
+      output.savedTrip?.fineAmount === 200
+  })
+  runCase('A2 half-up line rounding and exact 2-decimal amounts', '13.99 x 3975.00 = 55610.25; 1.005 x 1.00 = 1.01', () => {
+    const client = createClient({ name: 'Rounding Client' })
+    if (!client.ok) throw new Error('Rounding client setup failed')
+    const firstShift = createOwnShift()
+    const first = createTrip({
+      ...tripInput(firstShift.id),
+      clientId: client.data.id,
+      clientCubicReported: 13.99,
+      clientPrice: 3975
+    })
+    const secondShift = createOwnShift()
+    const second = createTrip({
+      ...tripInput(secondShift.id),
+      clientId: client.data.id,
+      clientCubicReported: 1.005,
+      clientPrice: 1
+    })
+    if (!first.ok || !second.ok) throw new Error('Rounding trip setup failed')
+    const account = getClientAccount({ clientId: client.data.id })
+    return {
+      account,
+      firstTrip: getTripById(first.data.id),
+      secondTrip: getTripById(second.data.id),
+      statement: getClientStatement({ clientId: client.data.id })
+    }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.account?.ok === true &&
+      output.account.data.receivableTotal === 55611.26 &&
+      Math.abs(output.account.data.totalCubic - 14.995) < 1e-12 &&
+      output.firstTrip?.clientPrice === 3975 &&
+      output.secondTrip?.clientCubicReported === 1.005 &&
+      output.statement?.ok === true &&
+      output.statement.data.rows
+        .filter((row) => row.kind === 'CHARGE')
+        .map((row) => row.value)
+        .join(',') === '55610.25,1.01'
+  })
+  runCase('A3 money boundary rejects three decimals and preserves 5.25', 'fine, trip prices, ledger, and payment reject 5.255; 5.25 stored as 525 and returned exactly', () => {
+    const shift = createOwnShift()
+    const rejectedFine = createTrip({ ...tripInput(shift.id), fineAmount: 5.255 })
+    const rejectedPrice = createTrip({ ...tripInput(shift.id), stonePrice: 5.255 })
+    const rejectedLedger = createLedgerEntry({
+      entryDate: '2026-01-10',
+      movementType: 'PAYMENT',
+      amount: 5.255,
+      shiftId: null,
+      contractorId,
+      notes: null
+    })
+    const rejectedPayment = createClientPayment({
+      entryDate: '2026-01-10',
+      clientId,
+      amount: 5.255,
+      notes: null
+    })
+    const rejectedOpening = createClient({ name: 'Invalid Opening', openingBalance: 5.255 })
+    const acceptedClient = createClient({
+      name: 'Exact Client',
+      initialPrice: 5.25,
+      openingBalance: 5.25
+    })
+    const acceptedContractor = createContractor({
+      name: 'Exact Contractor',
+      openingBalance: 5.25
+    })
+    const acceptedCrusher = createCrusher({ name: 'Exact Crusher', initialPrice: 5.25 })
+    const accepted = createClientPayment({
+      entryDate: '2026-01-10',
+      clientId,
+      amount: 5.25,
+      notes: null
+    })
+    if (!accepted.ok) throw new Error('5.25 payment was rejected')
+    const acceptedShift = createOwnShift()
+    const acceptedTrip = createTrip({
+      ...tripInput(acceptedShift.id),
+      fineAmount: 5.25,
+      stonePrice: 5.25,
+      transportPrice: 5.25,
+      clientPrice: 5.25
+    })
+    if (!acceptedTrip.ok) throw new Error('5.25 trip values were rejected')
+    const listed = getClientAccount({ clientId })
+    return {
+      rejectedFine,
+      rejectedPrice,
+      rejectedLedger,
+      rejectedPayment,
+      rejectedOpening,
+      acceptedClient,
+      acceptedContractor,
+      acceptedCrusher,
+      rawAmount: db.prepare('SELECT amount FROM ClientPayment WHERE id = ?').get(accepted.data.id).amount,
+      rawTrip: db.prepare(
+        'SELECT fine_amount, stone_price, transport_price, client_price FROM Trip WHERE id = ?'
+      ).get(acceptedTrip.data.id),
+      publicTrip: getTripById(acceptedTrip.data.id),
+      rawClient: acceptedClient.ok ? db.prepare('SELECT initial_price, opening_balance FROM Client WHERE id = ?').get(acceptedClient.data.id) : null,
+      rawContractor: acceptedContractor.ok ? db.prepare('SELECT opening_balance FROM TransportContractor WHERE id = ?').get(acceptedContractor.data.id) : null,
+      rawCrusher: acceptedCrusher.ok ? db.prepare('SELECT initial_price FROM Crusher WHERE id = ?').get(acceptedCrusher.data.id) : null,
+      listed
+    }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.rejectedFine?.ok === false &&
+      output.rejectedFine.errors.some((error) => error.field === 'fineAmount') &&
+      output.rejectedPrice?.ok === false &&
+      output.rejectedPrice.errors.some((error) => error.field === 'stonePrice') &&
+      output.rejectedLedger?.ok === false &&
+      output.rejectedLedger.errors.some((error) => error.field === 'amount') &&
+      output.rejectedPayment?.ok === false &&
+      output.rejectedPayment.errors.some((error) => error.field === 'amount') &&
+      output.rejectedOpening?.ok === false &&
+      output.rejectedOpening.errors.some((error) => error.field === 'openingBalance') &&
+      output.acceptedClient?.ok === true &&
+      output.acceptedContractor?.ok === true &&
+      output.acceptedCrusher?.ok === true &&
+      output.rawAmount === 525 &&
+      output.rawTrip?.fine_amount === 525 &&
+      output.rawTrip?.stone_price === 525 &&
+      output.rawTrip?.transport_price === 525 &&
+      output.rawTrip?.client_price === 525 &&
+      output.publicTrip?.fineAmount === 5.25 &&
+      output.publicTrip?.stonePrice === 5.25 &&
+      output.publicTrip?.transportPrice === 5.25 &&
+      output.publicTrip?.clientPrice === 5.25 &&
+      output.rawClient?.initial_price === 525 &&
+      output.rawClient?.opening_balance === 525 &&
+      output.rawContractor?.opening_balance === 525 &&
+      output.rawCrusher?.initial_price === 525 &&
+      output.listed?.ok === true &&
+      output.listed.data.payments.some((row) => row.amount === 5.25)
+  })
+  runCase('A4 contractor snapshot survives vehicle reassignment', 'trip charge remains with contractor assigned when shift was created', () => {
+    const original = createContractor({ name: 'Snapshot Original' })
+    const reassigned = createContractor({ name: 'Snapshot New' })
+    if (!original.ok || !reassigned.ok) throw new Error('Snapshot contractor setup failed')
+    const shiftInput = newShiftInput()
+    db.prepare('UPDATE Vehicle SET contractor_id = ? WHERE vehicle_no = ?').run(
+      original.data.id,
+      shiftInput.vehicleNo
+    )
+    const shift = createShift(shiftInput)
+    if (!shift.ok) throw new Error('Snapshot shift setup failed')
+    const trip = createTrip({
+      ...tripInput(shift.data.id),
+      clientCubicReported: 20,
+      transportPrice: 8,
+      crusherCubic: 22,
+      stonePrice: 50
+    })
+    if (!trip.ok) throw new Error('Snapshot trip setup failed')
+    db.prepare('UPDATE Vehicle SET contractor_id = ? WHERE vehicle_no = ?').run(
+      reassigned.data.id,
+      shiftInput.vehicleNo
+    )
+    return {
+      original: getContractorAccount({ contractorId: original.data.id }),
+      reassigned: getContractorAccount({ contractorId: reassigned.data.id }),
+      savedShift: db.prepare('SELECT contractor_id FROM Shift WHERE id = ?').get(shift.data.id)
+    }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.original?.ok === true &&
+      output.original.data.transportTotal === 160 &&
+      output.original.data.materialTotal === 1100 &&
+      output.original.data.balance === 1260 &&
+      output.reassigned?.ok === true &&
+      output.reassigned.data.transportTotal === 0 &&
+      output.reassigned.data.materialTotal === 0 &&
+      output.savedShift?.contractor_id === db.prepare('SELECT id FROM TransportContractor WHERE name = ?').get('Snapshot Original').id
+  })
+  runCase('A5 financial totals agree across Accounts and Statements', 'all seeded client and contractor balances match their statement final balances', () => {
+    const clients = db.prepare('SELECT id FROM Client ORDER BY id').all()
+    const contractors = db.prepare('SELECT id FROM TransportContractor ORDER BY id').all()
+    const clientMatches = clients.every(({ id }) => {
+      const account = getClientAccount({ clientId: id })
+      const statement = getClientStatement({ clientId: id })
+      return account.ok && statement.ok && account.data.balance === statement.data.finalBalance
+    })
+    const contractorMatches = contractors.every(({ id }) => {
+      const account = getContractorAccount({ contractorId: id })
+      const statement = getContractorStatement({ contractorId: id })
+      return account.ok && statement.ok && account.data.balance === statement.data.finalBalance
+    })
+    return { clientMatches, contractorMatches }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.clientMatches === true && output?.contractorMatches === true
+  })
+  runCase('A6 database enforces accounting constraints and partial open-shift uniqueness', 'duplicate OPEN vehicle/driver, invalid prices and bad dates fail; REOPENED permits a new OPEN shift', () => {
+    const shiftInput = newShiftInput()
+    const created = createShift(shiftInput)
+    if (!created.ok) throw new Error('Constraint shift setup failed')
+    const trip = createTrip(tripInput(created.data.id))
+    if (!trip.ok) throw new Error('Constraint trip setup failed')
+    const insertShiftSql = 'INSERT INTO Shift (' +
+      'id, vehicle_no, driver_id, contractor_id, crusher_cubic_default, client_cubic_default, ' +
+      "start_date, status) VALUES (?, ?, ?, ?, 1, 1, '2026-02-01', 'OPEN')"
+    let duplicateVehicleRejected = false
+    let duplicateDriverRejected = false
+    try {
+      db.prepare(insertShiftSql).run('SH-TEST-DUP-VEHICLE', shiftInput.vehicleNo, driverId, contractorId)
+    } catch { duplicateVehicleRejected = true }
+    const otherVehicle = newShiftInput()
+    try {
+      db.prepare(insertShiftSql).run('SH-TEST-DUP-DRIVER', otherVehicle.vehicleNo, shiftInput.driverId, contractorId)
+    } catch { duplicateDriverRejected = true }
+
+    let invalidZeroPriceRejected = false
+    let invalidNegativePriceRejected = false
+    let invalidZeroInitialPriceRejected = false
+    let invalidDateRejected = false
+    try { db.prepare('UPDATE Trip SET stone_price = 0 WHERE id = ?').run(trip.data.id) } catch { invalidZeroPriceRejected = true }
+    try { db.prepare('UPDATE Trip SET transport_price = -1 WHERE id = ?').run(trip.data.id) } catch { invalidNegativePriceRejected = true }
+    try { db.prepare('UPDATE Crusher SET initial_price = 0 WHERE id = ?').run(crusherId) } catch { invalidZeroInitialPriceRejected = true }
+    try { db.prepare('UPDATE Trip SET trip_date = ? WHERE id = ?').run('not-a-date', trip.data.id) } catch { invalidDateRejected = true }
+
+    db.prepare("UPDATE Shift SET status = 'REOPENED' WHERE id = ?").run(created.data.id)
+    const reopenedCanStart = createShift(shiftInput)
+    return {
+      duplicateVehicleRejected,
+      duplicateDriverRejected,
+      invalidZeroPriceRejected,
+      invalidNegativePriceRejected,
+      invalidZeroInitialPriceRejected,
+      invalidDateRejected,
+      reopenedCanStart
+    }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.duplicateVehicleRejected === true &&
+      output.duplicateDriverRejected === true &&
+      output.invalidZeroPriceRejected === true &&
+      output.invalidNegativePriceRejected === true &&
+      output.invalidZeroInitialPriceRejected === true &&
+      output.invalidDateRejected === true &&
+      output.reopenedCanStart?.ok === true
+  })
+  runCase('A7 closing a shift creates no automatic ledger settlement', 'ledger rows are unchanged by closeShift', () => {
+    const shift = createOwnShift()
+    addClosingSheet(shift.id, 'no-auto-settlement.jpg')
+    const before = db.prepare('SELECT COUNT(*) as count FROM Ledger').get().count
+    const closed = closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 0 })
+    const after = db.prepare('SELECT COUNT(*) as count FROM Ledger').get().count
+    return { closed, before, after }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.closed?.ok === true && output.before === output.after
   })
 
   console.log('SUMMARY ' + (outcomes.length === 0 ? 'PASS' : 'FAIL') + ' | failed cases: ' + JSON.stringify(outcomes))

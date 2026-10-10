@@ -78,8 +78,8 @@ const api = {
     tripDate: string
     crusherCubic: number
     clientCubicReported: number
-    discountQty?: number
-    discountReason?: string
+    fineAmount?: number
+    fineReason?: string
     location?: string
     crusherId: number
     stonePrice: number
@@ -151,8 +151,8 @@ const api = {
     tripDate: string
     crusherCubic: number
     clientCubicReported: number
-    discountQty?: number
-    discountReason?: string
+    fineAmount?: number
+    fineReason?: string
     location?: string
     crusherId: number
     stonePrice: number

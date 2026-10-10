@@ -3,6 +3,7 @@ import {
   getNextShiftId,
   getOpenShiftByDriver,
   getOpenShiftByVehicle,
+  getVehicleContractorId,
   insertShift
 } from '../repository/shiftRepository'
 import {
@@ -112,6 +113,11 @@ export function createShift(input: CreateShiftInput): UseCaseResult<{ id: string
     }
   }
 
+  const contractorId = getVehicleContractorId(vehicleNo)
+  if (contractorId === undefined) {
+    return { ok: false, errors: [{ field: 'vehicleNo', message: 'السيارة أو السائق مش موجودين' }] }
+  }
+
   const id = getNextShiftId()
 
   try {
@@ -119,6 +125,7 @@ export function createShift(input: CreateShiftInput): UseCaseResult<{ id: string
       id,
       vehicleNo,
       driverId,
+      contractorId,
       crusherCubicDefault,
       clientCubicDefault,
       startDate,

@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { toMinorUnits } from '../accounting'
+import { moneySchema, validationMessages } from '../validation'
 import {
   deleteLedgerById,
   getLedgerById,
@@ -41,10 +43,10 @@ const dateSchema = z
 const movementTypeSchema = z.enum(['ADVANCE', 'PAYMENT', 'OTHER'], {
   error: 'نوع الحركة مطلوب'
 })
-const amountSchema = z
-  .number({ error: 'المبلغ لازم يكون رقمًا محدودًا وغير صفر' })
-  .finite('المبلغ لازم يكون رقمًا محدودًا وغير صفر')
-  .refine((amount) => amount !== 0, 'المبلغ لازم يكون رقمًا محدودًا وغير صفر')
+const amountSchema = moneySchema('المبلغ لازم يكون رقمًا محدودًا وغير صفر').refine(
+  (amount) => amount !== 0,
+  'المبلغ لازم يكون رقمًا محدودًا وغير صفر'
+)
 const nullableDriverIdSchema = positiveIdSchema.nullable()
 const nullableShiftIdSchema = z.string().min(1).nullable()
 const nullableContractorIdSchema = positiveIdSchema.nullable()
@@ -113,6 +115,10 @@ export function createLedgerEntry(input: CreateLedgerInput): UseCaseResult<{ id:
   const parsed = createLedgerInputSchema.safeParse(input)
   if (!parsed.success) return { ok: false, errors: validationErrors(parsed.error) }
   const values = parsed.data
+  const amountMinor = toMinorUnits(values.amount)
+  if (amountMinor === null) {
+    return { ok: false, errors: [{ field: 'amount', message: validationMessages.moneyDecimals }] }
+  }
 
   let contractorId: number | null = values.contractorId ?? null
   if (values.shiftId) {
@@ -141,7 +147,7 @@ export function createLedgerEntry(input: CreateLedgerInput): UseCaseResult<{ id:
       entryDate: values.entryDate,
       driverId: values.driverId ?? null,
       movementType: values.movementType,
-      amount: values.amount,
+      amountMinor,
       shiftId: values.shiftId ?? null,
       contractorId,
       notes: values.notes ?? null
@@ -165,6 +171,10 @@ export function updateLedgerEntry(input: UpdateLedgerEntryInput): UseCaseResult<
   const parsed = updateLedgerInputSchema.safeParse(input)
   if (!parsed.success) return { ok: false, errors: validationErrors(parsed.error) }
   const values = parsed.data
+  const amountMinor = toMinorUnits(values.amount)
+  if (amountMinor === null) {
+    return { ok: false, errors: [{ field: 'amount', message: validationMessages.moneyDecimals }] }
+  }
 
   const existingEntry = getLedgerById(values.id)
   if (!existingEntry) {
@@ -208,7 +218,7 @@ export function updateLedgerEntry(input: UpdateLedgerEntryInput): UseCaseResult<
       entryDate: values.entryDate,
       driverId: values.driverId,
       movementType: values.movementType,
-      amount: values.amount,
+      amountMinor,
       shiftId: values.shiftId,
       contractorId,
       notes: values.notes

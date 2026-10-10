@@ -27,6 +27,7 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { hasAtMostTwoDecimals } from '@/lib/money'
 
 const crusherSchema = z.object({
   name: z.string().min(1, i18n.t('crushersSettings.validation.nameRequired')),
@@ -34,7 +35,11 @@ const crusherSchema = z.object({
     .string()
     .optional()
     .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine((val) => val === undefined || val >= 0, i18n.t('common.validation.positivePrice'))
+    .refine((val) => val === undefined || val > 0, i18n.t('common.validation.positivePrice'))
+    .refine(
+      (val) => val === undefined || hasAtMostTwoDecimals(val),
+      i18n.t('common.validation.moneyDecimals')
+    )
 })
 
 type CrusherFormValues = z.infer<typeof crusherSchema>
@@ -222,7 +227,7 @@ export function CrushersSettings(): React.JSX.Element {
                         <Input
                           type="number"
                           min="0"
-                          step="any"
+                          step="0.01"
                           placeholder={t('common.defaultPrice')}
                           {...field}
                         />

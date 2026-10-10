@@ -126,6 +126,17 @@ export function StatementsPage(): React.JSX.Element {
           return t('statementsPage.openingBalanceDescription')
         }
 
+        if (row.original.kind === 'FINE') {
+          return t('statementsPage.fineDescription')
+        }
+
+        if (row.original.component === 'TRANSPORT') {
+          return t('statementsPage.transportComponent')
+        }
+        if (row.original.component === 'MATERIAL') {
+          return t('statementsPage.materialComponent')
+        }
+
         if (entityType === 'contractor' && row.original.kind === 'PAYMENT') {
           switch (row.original.description) {
             case 'ADVANCE':
@@ -183,6 +194,10 @@ export function StatementsPage(): React.JSX.Element {
     0
   )
   const totalPayments = rows.reduce((total, row) => total + (row.payment ?? 0), 0)
+  const totalFines = rows.reduce(
+    (total, row) => total + (row.kind === 'FINE' ? -(row.value ?? 0) : 0),
+    0
+  )
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
@@ -312,7 +327,7 @@ export function StatementsPage(): React.JSX.Element {
               emptyMessage={t('statementsPage.noRows')}
             />
             {statement && !statementLoading && (
-              <dl className="grid gap-3 rounded-md border p-4 sm:grid-cols-2 xl:grid-cols-4">
+              <dl className="grid gap-3 rounded-md border p-4 sm:grid-cols-2 xl:grid-cols-5">
                 <div>
                   <dt className="text-sm text-muted-foreground">
                     {t('statementsPage.totals.quantity')}
@@ -335,6 +350,14 @@ export function StatementsPage(): React.JSX.Element {
                   </dt>
                   <dd className="font-semibold">
                     {formatNumber(totalPayments, t('common.emptyCell'))}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-muted-foreground">
+                    {t('statementsPage.totals.fines')}
+                  </dt>
+                  <dd className="font-semibold">
+                    {formatNumber(totalFines, t('common.emptyCell'))}
                   </dd>
                 </div>
                 <div>

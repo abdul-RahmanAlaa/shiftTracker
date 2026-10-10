@@ -24,7 +24,7 @@ export function AllTripsPage(): React.JSX.Element {
     { accessorKey: 'vehicleNo', header: t('vehiclesSettings.fields.vehicleNo') },
     { accessorKey: 'crusherName', header: t('tripForm.fields.crusher') },
     { accessorKey: 'clientName', header: t('tripForm.fields.client') },
-    { accessorKey: 'effectiveClientCubic', header: t('allTrips.columns.net') },
+    { accessorKey: 'clientCubicReported', header: t('tripDetails.fields.clientCubicReported') },
     {
       id: 'actions',
       header: t('common.columns.actions'),
@@ -65,7 +65,7 @@ export function AllTripsPage(): React.JSX.Element {
         loading={loading}
         getRowId={(row) => row.id}
         enableRowSelection
-        sumColumnId="effectiveClientCubic"
+        sumColumnId="clientCubicReported"
         initialSorting={[{ id: 'tripDate', desc: false }]}
       />
     </div>

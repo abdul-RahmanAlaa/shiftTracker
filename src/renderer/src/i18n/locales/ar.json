@@ -28,7 +28,8 @@
     "validation": {
       "positivePrice": "السعر لازم يكون رقم موجب",
       "amountRequired": "المبلغ مطلوب",
-      "amountFiniteNonZero": "المبلغ لازم يكون رقمًا محدودًا وغير صفر"
+      "amountFiniteNonZero": "المبلغ لازم يكون رقمًا محدودًا وغير صفر",
+      "moneyDecimals": "المبلغ لازم يكون بمنزلتين عشريتين كحد أقصى"
     }
   },
   "floatingWindow": {
@@ -256,6 +257,8 @@
     "selectContractorHint": "اختر مقاول عشان تشوف الحساب",
     "summary": {
       "transportDue": "مستحق النقل",
+      "materialDue": "تكلفة مواد الكسارة",
+      "openingBalance": "الرصيد الافتتاحي",
       "ledgerTotal": "إجمالي حركات السجل",
       "balance": "الرصيد"
     }
@@ -315,8 +318,8 @@
       "stonePrice": "سعر الحجر",
       "transportPrice": "سعر النقل",
       "clientPrice": "سعر العميل",
-      "discount": "الخصم",
-      "discountReason": "سبب الخصم",
+      "fineAmount": "الغرامة المالية",
+      "fineReason": "سبب الغرامة",
       "crusher": "الكسارة",
       "crusherReceiptStatus": "إيصال الكسارة",
       "crusherReceiptNumber": "رقم إيصال الكسارة",
@@ -358,7 +361,7 @@
       "transportPriceRequired": "سعر النقل مطلوب",
       "clientPriceRequired": "سعر العميل مطلوب",
       "recipientNameRequired": "اسم المستلم مطلوب",
-      "discountQtyNonNegative": "كمية الخصم لازم تكون رقمًا غير سالب"
+      "fineAmountNonNegative": "الغرامة لازم تكون مبلغًا غير سالب"
     }
   },
   "addTrip": {
@@ -414,6 +417,10 @@
     "noRows": "لا توجد بيانات لكشف الحساب",
     "noMovements": "لا توجد حركات بعد؛ المعروض هو رصيد أول المدة فقط.",
     "openingBalanceDescription": "رصيد أول المدة",
+    "fineDescription": "غرامة مالية",
+    "transportComponent": "تكلفة النقل",
+    "materialComponent": "تكلفة مواد الكسارة",
+    "accountingMismatch": "تعذر مطابقة إجمالي كشف الحساب مع رصيد الحساب",
     "columns": {
       "date": "التاريخ",
       "description": "البيان",
@@ -427,6 +434,7 @@
     "totals": {
       "quantity": "إجمالي الكمية",
       "value": "إجمالي القيمة",
+      "fines": "إجمالي الغرامات",
       "payments": "إجمالي الدفعات",
       "finalBalance": "الرصيد النهائي"
     }
@@ -466,8 +474,7 @@
     "attachmentsTitle": "مرفقات النقلة",
     "fields": {
       "tripNumber": "رقم النقلة",
-      "clientCubicReported": "تكعيب العميل المُبلّغ",
-      "discountQuantity": "كمية الخصم"
+      "clientCubicReported": "تكعيب العميل المُبلّغ"
     }
   },
   "app": {

@@ -1,10 +1,13 @@
 import { z } from 'zod'
 import arMessages from '../renderer/src/i18n/locales/ar.json'
+import { toMinorUnits } from './accounting'
 
 export const validationMessages = {
   tripDateRequired: arMessages.tripForm.validation.tripDateRequired,
   tripDateInvalid: arMessages.tripForm.validation.tripDateInvalid,
-  discountQtyNonNegative: arMessages.tripForm.validation.discountQtyNonNegative,
+  fineAmountNonNegative: arMessages.tripForm.validation.fineAmountNonNegative,
+  moneyDecimals: arMessages.common.validation.moneyDecimals,
+  positivePrice: arMessages.common.validation.positivePrice,
   shiftStartDateRequired: arMessages.createShift.validation.startDateRequired,
   shiftStartDateInvalid: arMessages.createShift.validation.startDateInvalid,
   shiftEndDateRequired: arMessages.shifts.validation.endDateRequired,
@@ -41,4 +44,19 @@ export function positiveNumberSchema(message: string): z.ZodNumber {
 
 export function nonNegativeNumberSchema(message: string): z.ZodNumber {
   return z.number({ error: message }).finite(message).min(0, message)
+}
+
+export function moneySchema(message: string): z.ZodNumber {
+  return z
+    .number({ error: message })
+    .finite(message)
+    .refine((value) => toMinorUnits(value) !== null, validationMessages.moneyDecimals)
+}
+
+export function positiveMoneySchema(message: string): z.ZodNumber {
+  return moneySchema(message).gt(0, message)
+}
+
+export function nonNegativeMoneySchema(message: string): z.ZodNumber {
+  return moneySchema(message).min(0, message)
 }

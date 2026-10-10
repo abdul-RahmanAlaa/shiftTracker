@@ -6,16 +6,16 @@ interface InsertTripInput {
   tripDate: string
   crusherCubic: number
   clientCubicReported: number
-  discountQty: number
-  discountReason: string | null
+  fineAmountMinor: number
+  fineReason: string | null
   location: string | null
   crusherId: number
-  stonePrice: number | null
+  stonePriceMinor: number
   crusherReceiptStatus: string
   crusherReceiptNo: number | null
   clientId: number
-  transportPrice: number
-  clientPrice: number
+  transportPriceMinor: number
+  clientPriceMinor: number
   recipientNameStatus: string
   recipientName: string | null
   clientReceiptNo: string | null
@@ -28,16 +28,16 @@ interface UpdateTripInput {
   tripDate: string
   crusherCubic: number
   clientCubicReported: number
-  discountQty: number
-  discountReason: string | null
+  fineAmountMinor: number
+  fineReason: string | null
   location: string | null
   crusherId: number
-  stonePrice: number
+  stonePriceMinor: number
   crusherReceiptStatus: string
   crusherReceiptNo: number | null
   clientId: number
-  transportPrice: number
-  clientPrice: number
+  transportPriceMinor: number
+  clientPriceMinor: number
   recipientNameStatus: string
   recipientName: string | null
   clientReceiptNo: string | null
@@ -51,16 +51,16 @@ export interface TripRow {
   tripDate: string
   crusherCubic: number
   clientCubicReported: number
-  discountQty: number
-  discountReason: string | null
+  fineAmountMinor: number
+  fineReason: string | null
   location: string | null
   crusherId: number
-  stonePrice: number | null
+  stonePriceMinor: number
   crusherReceiptStatus: string
   crusherReceiptNo: number | null
   clientId: number
-  transportPrice: number
-  clientPrice: number
+  transportPriceMinor: number
+  clientPriceMinor: number
   recipientNameStatus: string
   recipientName: string | null
   clientReceiptNo: string | null
@@ -79,12 +79,11 @@ export interface TripWithContextRow {
   crusherCubic: number
   clientName: string
   clientCubicReported: number
-  discountQty: number
-  discountReason: string | null
-  effectiveClientCubic: number
-  stonePrice: number | null
-  transportPrice: number
-  clientPrice: number
+  fineAmountMinor: number
+  fineReason: string | null
+  stonePriceMinor: number
+  transportPriceMinor: number
+  clientPriceMinor: number
   crusherReceiptStatus: string
   crusherReceiptNo: number | null
   recipientNameStatus: string
@@ -112,15 +111,15 @@ export function insertTrip(input: InsertTripInput): void {
   const stmt = db.prepare(`
     INSERT INTO Trip (
       id, shift_id, trip_date, crusher_cubic, client_cubic_reported,
-      discount_qty, discount_reason, location, crusher_id, stone_price,
+      fine_amount, fine_reason, location, crusher_id, stone_price,
       crusher_receipt_status, crusher_receipt_no, client_id, transport_price,
       client_price, recipient_name_status, recipient_name, client_receipt_no, notes,
       material_type_id
     ) VALUES (
       @id, @shiftId, @tripDate, @crusherCubic, @clientCubicReported,
-      @discountQty, @discountReason, @location, @crusherId, @stonePrice,
-      @crusherReceiptStatus, @crusherReceiptNo, @clientId, @transportPrice,
-      @clientPrice, @recipientNameStatus, @recipientName, @clientReceiptNo, @notes,
+      @fineAmountMinor, @fineReason, @location, @crusherId, @stonePriceMinor,
+      @crusherReceiptStatus, @crusherReceiptNo, @clientId, @transportPriceMinor,
+      @clientPriceMinor, @recipientNameStatus, @recipientName, @clientReceiptNo, @notes,
       @materialTypeId
     )
   `)
@@ -130,10 +129,10 @@ export function insertTrip(input: InsertTripInput): void {
 const TRIP_COLUMNS = `
   id, shift_id as shiftId, trip_date as tripDate,
   crusher_cubic as crusherCubic, client_cubic_reported as clientCubicReported,
-  discount_qty as discountQty, discount_reason as discountReason,
-  location, crusher_id as crusherId, stone_price as stonePrice,
+  fine_amount as fineAmountMinor, fine_reason as fineReason,
+  location, crusher_id as crusherId, stone_price as stonePriceMinor,
   crusher_receipt_status as crusherReceiptStatus, crusher_receipt_no as crusherReceiptNo,
-  client_id as clientId, transport_price as transportPrice, client_price as clientPrice,
+  client_id as clientId, transport_price as transportPriceMinor, client_price as clientPriceMinor,
   recipient_name_status as recipientNameStatus, recipient_name as recipientName,
   client_receipt_no as clientReceiptNo, notes, material_type_id as materialTypeId
 `
@@ -169,12 +168,11 @@ export function listAllTrips(): TripWithContextRow[] {
         t.crusher_cubic as crusherCubic,
         c.name as clientName,
         t.client_cubic_reported as clientCubicReported,
-        t.discount_qty as discountQty,
-        t.discount_reason as discountReason,
-        (t.client_cubic_reported - t.discount_qty) as effectiveClientCubic,
-        t.stone_price as stonePrice,
-        t.transport_price as transportPrice,
-        t.client_price as clientPrice,
+        t.fine_amount as fineAmountMinor,
+        t.fine_reason as fineReason,
+        t.stone_price as stonePriceMinor,
+        t.transport_price as transportPriceMinor,
+        t.client_price as clientPriceMinor,
         t.crusher_receipt_status as crusherReceiptStatus,
         t.crusher_receipt_no as crusherReceiptNo,
         t.recipient_name_status as recipientNameStatus,
@@ -207,16 +205,16 @@ export function updateTrip(input: UpdateTripInput): void {
       trip_date = @tripDate,
       crusher_cubic = @crusherCubic,
       client_cubic_reported = @clientCubicReported,
-      discount_qty = @discountQty,
-      discount_reason = @discountReason,
+      fine_amount = @fineAmountMinor,
+      fine_reason = @fineReason,
       location = @location,
       crusher_id = @crusherId,
-      stone_price = @stonePrice,
+      stone_price = @stonePriceMinor,
       crusher_receipt_status = @crusherReceiptStatus,
       crusher_receipt_no = @crusherReceiptNo,
       client_id = @clientId,
-      transport_price = @transportPrice,
-      client_price = @clientPrice,
+      transport_price = @transportPriceMinor,
+      client_price = @clientPriceMinor,
       recipient_name_status = @recipientNameStatus,
       recipient_name = @recipientName,
       client_receipt_no = @clientReceiptNo,

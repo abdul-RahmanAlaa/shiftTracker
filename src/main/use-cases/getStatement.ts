@@ -1,20 +1,27 @@
 import {
+  calculateClientAccount,
+  calculateClientTrip,
+  calculateContractorAccount,
+  calculateContractorTrip,
+  fromMinorUnits,
+  sumMinorUnits
+} from '../accounting'
+import {
   getClientEntity,
   getContractorEntity,
-  getClientStatementCharges,
-  getClientStatementPayments,
-  getContractorStatementCharges,
-  getContractorStatementPayments,
-  StatementChargeRow,
+  getClientStatementInputs,
+  getContractorStatementInputs,
   StatementPaymentRow
 } from '../repository/statementRepository'
+import arMessages from '../../renderer/src/i18n/locales/ar.json'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
 
 export interface StatementRow {
   date: string
-  kind: 'OPENING' | 'CHARGE' | 'PAYMENT'
+  kind: 'OPENING' | 'CHARGE' | 'FINE' | 'PAYMENT'
+  component: 'TRANSPORT' | 'MATERIAL' | null
   description: string | null
   quantity: number | null
   price: number | null
@@ -30,67 +37,87 @@ export interface Statement {
   finalBalance: number
 }
 
+interface DraftRow extends Omit<StatementRow, 'runningBalance' | 'value' | 'payment'> {
+  valueMinor: number | null
+  paymentMinor: number | null
+  sortGroup: number
+  sortId: string
+  sortComponent: number
+}
+
 function buildStatement(
   entityName: string,
-  openingBalance: number,
+  openingBalanceMinor: number,
   openingBalanceDate: string | null,
-  charges: StatementChargeRow[],
-  payments: StatementPaymentRow[]
+  rows: DraftRow[]
 ): Statement {
-  type Draft = Omit<StatementRow, 'runningBalance'>
-
-  const draftRows: Draft[] = []
-
-  draftRows.push({
-    date: openingBalanceDate ?? charges[0]?.date ?? payments[0]?.date ?? '',
-    kind: 'OPENING',
-    description: null,
-    quantity: null,
-    price: null,
-    value: openingBalance,
-    payment: null,
-    notes: null
-  })
-
-  for (const c of charges) {
-    draftRows.push({
-      date: c.date,
-      kind: 'CHARGE',
-      description: c.description,
-      quantity: c.quantity,
-      price: c.price,
-      value: c.value,
-      payment: null,
-      notes: null
-    })
-  }
-
-  for (const p of payments) {
-    draftRows.push({
-      date: p.date,
-      kind: 'PAYMENT',
-      description: p.description,
+  const draftRows: DraftRow[] = [
+    {
+      date: openingBalanceDate ?? rows[0]?.date ?? '',
+      kind: 'OPENING',
+      component: null,
+      description: null,
       quantity: null,
       price: null,
-      value: null,
-      payment: p.amount,
-      notes: p.notes
-    })
-  }
+      valueMinor: openingBalanceMinor,
+      paymentMinor: null,
+      notes: null,
+      sortGroup: 0,
+      sortId: '',
+      sortComponent: 0
+    },
+    ...rows
+  ]
 
   draftRows.sort((a, b) => {
     if (a.kind === 'OPENING') return -1
     if (b.kind === 'OPENING') return 1
-    return a.date.localeCompare(b.date)
+    return (
+      a.date.localeCompare(b.date) ||
+      a.sortGroup - b.sortGroup ||
+      a.sortId.localeCompare(b.sortId) ||
+      a.sortComponent - b.sortComponent
+    )
   })
 
-  let balance = 0
-  const rows: StatementRow[] = draftRows.map((r) => {
-    balance += (r.value ?? 0) - (r.payment ?? 0)
-    return { ...r, runningBalance: balance }
+  let balanceMinor = 0
+  const statementRows = draftRows.map((row): StatementRow => {
+    balanceMinor = sumMinorUnits([balanceMinor, row.valueMinor ?? 0, -(row.paymentMinor ?? 0)])
+    return {
+      date: row.date,
+      kind: row.kind,
+      component: row.component,
+      description: row.description,
+      quantity: row.quantity,
+      price: row.price,
+      value: row.valueMinor === null ? null : fromMinorUnits(row.valueMinor),
+      payment: row.paymentMinor === null ? null : fromMinorUnits(row.paymentMinor),
+      notes: row.notes,
+      runningBalance: fromMinorUnits(balanceMinor)
+    }
   })
+  return {
+    entityName,
+    rows: statementRows,
+    finalBalance: fromMinorUnits(balanceMinor)
+  }
+}
 
-  return { entityName, rows, finalBalance: balance }
+function paymentRows(rows: StatementPaymentRow[], sortGroup: number): DraftRow[] {
+  return rows.map((row, index) => ({
+    date: row.date,
+    kind: 'PAYMENT',
+    component: null,
+    description: row.description,
+    quantity: null,
+    price: null,
+    valueMinor: null,
+    paymentMinor: row.amountMinor,
+    notes: row.notes,
+    sortGroup,
+    sortId: String(index).padStart(10, '0'),
+    sortComponent: 0
+  }))
 }
 
 export function getClientStatement(input: { clientId: number }): UseCaseResult<Statement> {
@@ -98,21 +125,60 @@ export function getClientStatement(input: { clientId: number }): UseCaseResult<S
     return { ok: false, errors: [{ field: 'clientId', message: 'العميل مطلوب' }] }
   }
   const entity = getClientEntity(input.clientId)
-  if (!entity) {
+  const account = getClientStatementInputs(input.clientId)
+  if (!entity || !account) {
     return { ok: false, errors: [{ field: 'clientId', message: 'العميل ده مش موجود' }] }
   }
-  const charges = getClientStatementCharges(input.clientId)
-  const payments = getClientStatementPayments(input.clientId)
-  return {
-    ok: true,
-    data: buildStatement(
-      entity.name,
-      entity.openingBalance,
-      entity.openingBalanceDate,
-      charges,
-      payments
-    )
+  const drafts: DraftRow[] = []
+  for (const trip of account.trips) {
+    const amounts = calculateClientTrip(trip)
+    drafts.push({
+      date: trip.date,
+      kind: 'CHARGE',
+      component: null,
+      description: trip.description,
+      quantity: trip.clientCubicReported,
+      price: fromMinorUnits(trip.clientPriceMinor),
+      valueMinor: amounts.chargeMinor,
+      paymentMinor: null,
+      notes: null,
+      sortGroup: 1,
+      sortId: trip.id,
+      sortComponent: 0
+    })
+    if (amounts.fineMinor > 0) {
+      drafts.push({
+        date: trip.date,
+        kind: 'FINE',
+        component: null,
+        description: null,
+        quantity: null,
+        price: null,
+        valueMinor: -amounts.fineMinor,
+        paymentMinor: null,
+        notes: trip.fineReason,
+        sortGroup: 1,
+        sortId: trip.id,
+        sortComponent: 1
+      })
+    }
   }
+  drafts.push(...paymentRows(account.payments, 2))
+
+  const totals = calculateClientAccount(account)
+  const statement = buildStatement(
+    entity.name,
+    account.openingBalanceMinor,
+    entity.openingBalanceDate,
+    drafts
+  )
+  if (statement.finalBalance !== fromMinorUnits(totals.balanceMinor)) {
+    return {
+      ok: false,
+      errors: [{ field: 'root', message: arMessages.statementsPage.accountingMismatch }]
+    }
+  }
+  return { ok: true, data: statement }
 }
 
 export function getContractorStatement(input: { contractorId: number }): UseCaseResult<Statement> {
@@ -120,19 +186,58 @@ export function getContractorStatement(input: { contractorId: number }): UseCase
     return { ok: false, errors: [{ field: 'contractorId', message: 'مقاول النقل مطلوب' }] }
   }
   const entity = getContractorEntity(input.contractorId)
-  if (!entity) {
+  const account = getContractorStatementInputs(input.contractorId)
+  if (!entity || !account) {
     return { ok: false, errors: [{ field: 'contractorId', message: 'مقاول النقل ده مش موجود' }] }
   }
-  const charges = getContractorStatementCharges(input.contractorId)
-  const payments = getContractorStatementPayments(input.contractorId)
-  return {
-    ok: true,
-    data: buildStatement(
-      entity.name,
-      entity.openingBalance,
-      entity.openingBalanceDate,
-      charges,
-      payments
+  const drafts: DraftRow[] = []
+  for (const trip of account.trips) {
+    const amounts = calculateContractorTrip(trip)
+    drafts.push(
+      {
+        date: trip.date,
+        kind: 'CHARGE',
+        component: 'TRANSPORT',
+        description: trip.description,
+        quantity: trip.clientCubicReported,
+        price: fromMinorUnits(trip.transportPriceMinor),
+        valueMinor: amounts.transportMinor,
+        paymentMinor: null,
+        notes: null,
+        sortGroup: 1,
+        sortId: trip.id,
+        sortComponent: 0
+      },
+      {
+        date: trip.date,
+        kind: 'CHARGE',
+        component: 'MATERIAL',
+        description: trip.description,
+        quantity: trip.crusherCubic,
+        price: fromMinorUnits(trip.stonePriceMinor),
+        valueMinor: amounts.materialMinor,
+        paymentMinor: null,
+        notes: null,
+        sortGroup: 1,
+        sortId: trip.id,
+        sortComponent: 1
+      }
     )
   }
+  drafts.push(...paymentRows(account.payments, 2))
+
+  const totals = calculateContractorAccount(account)
+  const statement = buildStatement(
+    entity.name,
+    account.openingBalanceMinor,
+    entity.openingBalanceDate,
+    drafts
+  )
+  if (statement.finalBalance !== fromMinorUnits(totals.balanceMinor)) {
+    return {
+      ok: false,
+      errors: [{ field: 'root', message: arMessages.statementsPage.accountingMismatch }]
+    }
+  }
+  return { ok: true, data: statement }
 }

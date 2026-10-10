@@ -4,14 +4,25 @@ import {
   getClientById,
   updateClient as updateClientInDb,
   deleteClient as deleteClientInDb,
-  ClientRow
+  ClientStorageRow
 } from '../repository/clientRepository'
+import { fromMinorUnits, toMinorUnits } from '../accounting'
+import { validationMessages } from '../validation'
 
 type UseCaseResult<T> =
   { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
 
 interface SqliteError extends Error {
   code: string
+}
+
+interface ClientRow {
+  id: number
+  name: string
+  initialPrice: number | null
+  location: string | null
+  openingBalance: number
+  openingBalanceDate: string | null
 }
 
 function isSqliteError(err: unknown): err is SqliteError {
@@ -31,10 +42,25 @@ interface ClientInput {
 function validateClientInput(input: ClientInput): { field: string; message: string }[] {
   const errors: { field: string; message: string }[] = []
   if (!input.name?.trim()) errors.push({ field: 'name', message: 'اسم العميل مطلوب' })
-  if (input.initialPrice !== undefined && input.initialPrice < 0) {
-    errors.push({ field: 'initialPrice', message: 'السعر لازم يكون رقم موجب' })
+  if (input.initialPrice !== undefined && input.initialPrice <= 0) {
+    errors.push({ field: 'initialPrice', message: validationMessages.positivePrice })
+  }
+  if (input.initialPrice !== undefined && toMinorUnits(input.initialPrice) === null) {
+    errors.push({ field: 'initialPrice', message: validationMessages.moneyDecimals })
+  }
+  if (input.openingBalance !== undefined && toMinorUnits(input.openingBalance) === null) {
+    errors.push({ field: 'openingBalance', message: validationMessages.moneyDecimals })
   }
   return errors
+}
+
+function clientRowToPublic(row: ClientStorageRow): ClientRow {
+  const { initialPriceMinor, openingBalanceMinor, ...rest } = row
+  return {
+    ...rest,
+    initialPrice: initialPriceMinor === null ? null : fromMinorUnits(initialPriceMinor),
+    openingBalance: fromMinorUnits(openingBalanceMinor)
+  }
 }
 
 export function createClient(input: ClientInput): UseCaseResult<ClientRow> {
@@ -42,16 +68,36 @@ export function createClient(input: ClientInput): UseCaseResult<ClientRow> {
   if (errors.length > 0) return { ok: false, errors }
 
   const name = input.name.trim()
-  const initialPrice = input.initialPrice ?? null
+  const initialPriceMinor =
+    input.initialPrice === undefined ? null : toMinorUnits(input.initialPrice)
+  const openingBalanceMinor = toMinorUnits(input.openingBalance ?? 0)
+  if (openingBalanceMinor === null) {
+    return {
+      ok: false,
+      errors: [{ field: 'openingBalance', message: validationMessages.moneyDecimals }]
+    }
+  }
   const location = input.location?.trim() || null
-  const openingBalance = input.openingBalance ?? 0
   const openingBalanceDate = input.openingBalanceDate?.trim() || null
 
   try {
-    const id = insertClient(name, initialPrice, location, openingBalance, openingBalanceDate)
+    const id = insertClient(
+      name,
+      initialPriceMinor,
+      location,
+      openingBalanceMinor,
+      openingBalanceDate
+    )
     return {
       ok: true,
-      data: { id, name, initialPrice, location, openingBalance, openingBalanceDate }
+      data: {
+        id,
+        name,
+        initialPrice: initialPriceMinor === null ? null : fromMinorUnits(initialPriceMinor),
+        location,
+        openingBalance: fromMinorUnits(openingBalanceMinor),
+        openingBalanceDate
+      }
     }
   } catch (err: unknown) {
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -62,7 +108,7 @@ export function createClient(input: ClientInput): UseCaseResult<ClientRow> {
 }
 
 export function listClients(): UseCaseResult<ClientRow[]> {
-  return { ok: true, data: listClientsInDb() }
+  return { ok: true, data: listClientsInDb().map(clientRowToPublic) }
 }
 
 export function updateClient(input: ClientInput & { id: number }): UseCaseResult<ClientRow> {
@@ -71,20 +117,43 @@ export function updateClient(input: ClientInput & { id: number }): UseCaseResult
 
   const existing = getClientById(input.id)
   const name = input.name.trim()
-  const initialPrice = input.initialPrice ?? existing?.initialPrice ?? null
+  const initialPriceMinor =
+    input.initialPrice === undefined
+      ? (existing?.initialPriceMinor ?? null)
+      : toMinorUnits(input.initialPrice)
   const location =
     input.location !== undefined ? input.location?.trim() || null : (existing?.location ?? null)
-  const openingBalance = input.openingBalance ?? existing?.openingBalance ?? 0
+  const openingBalanceMinor =
+    input.openingBalance === undefined
+      ? (existing?.openingBalanceMinor ?? 0)
+      : toMinorUnits(input.openingBalance)
   const openingBalanceDate =
     input.openingBalanceDate !== undefined
       ? input.openingBalanceDate?.trim() || null
       : (existing?.openingBalanceDate ?? null)
+  if (openingBalanceMinor === null) {
+    return { ok: false, errors: [{ field: 'openingBalance', message: 'المبلغ غير صالح' }] }
+  }
 
   try {
-    updateClientInDb(input.id, name, initialPrice, location, openingBalance, openingBalanceDate)
+    updateClientInDb(
+      input.id,
+      name,
+      initialPriceMinor,
+      location,
+      openingBalanceMinor,
+      openingBalanceDate
+    )
     return {
       ok: true,
-      data: { id: input.id, name, initialPrice, location, openingBalance, openingBalanceDate }
+      data: {
+        id: input.id,
+        name,
+        initialPrice: initialPriceMinor === null ? null : fromMinorUnits(initialPriceMinor),
+        location,
+        openingBalance: fromMinorUnits(openingBalanceMinor),
+        openingBalanceDate
+      }
     }
   } catch (err: unknown) {
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_UNIQUE') {

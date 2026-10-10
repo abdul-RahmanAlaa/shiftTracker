@@ -1,9 +1,9 @@
 import { getDb } from '../db'
 
-export interface CrusherRow {
+export interface CrusherStorageRow {
   id: number
   name: string
-  initialPrice: number | null
+  initialPriceMinor: number | null
 }
 
 export function insertCrusher(name: string, initialPrice: number | null): number {
@@ -13,11 +13,11 @@ export function insertCrusher(name: string, initialPrice: number | null): number
   return result.lastInsertRowid as number
 }
 
-export function listCrushers(): CrusherRow[] {
+export function listCrushers(): CrusherStorageRow[] {
   const db = getDb()
   return db
-    .prepare('SELECT id, name, initial_price as initialPrice FROM Crusher ORDER BY name')
-    .all() as CrusherRow[]
+    .prepare('SELECT id, name, initial_price as initialPriceMinor FROM Crusher ORDER BY name')
+    .all() as CrusherStorageRow[]
 }
 
 export function getCrusherIdByName(name: string): number | undefined {

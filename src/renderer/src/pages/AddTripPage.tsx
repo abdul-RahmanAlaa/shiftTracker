@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import { hasAtMostTwoDecimals } from '@/lib/money'
 
 type NamedOption = { id: number; name: string }
 type OpenShift = {
@@ -66,11 +67,18 @@ export const tripSchema = z
     tripDate: z.string().min(1, i18n.t('tripForm.validation.tripDateRequired')),
     crusherCubic: z.number().positive(i18n.t('tripForm.validation.crusherCubicRequired')),
     clientCubicReported: z.number().positive(i18n.t('tripForm.validation.clientCubicRequired')),
-    discountQty: z.number().nonnegative().optional(),
-    discountReason: z.string().optional(),
+    fineAmount: z
+      .number()
+      .nonnegative(i18n.t('tripForm.validation.fineAmountNonNegative'))
+      .refine(hasAtMostTwoDecimals, i18n.t('common.validation.moneyDecimals'))
+      .optional(),
+    fineReason: z.string().optional(),
     location: z.string().optional(),
     crusherId: z.number().int().positive(i18n.t('tripForm.validation.crusherRequired')),
-    stonePrice: z.number().positive(i18n.t('tripForm.validation.stonePriceRequired')),
+    stonePrice: z
+      .number()
+      .positive(i18n.t('tripForm.validation.stonePriceRequired'))
+      .refine(hasAtMostTwoDecimals, i18n.t('common.validation.moneyDecimals')),
     crusherReceiptStatus: z.enum(['PROVIDED', 'CONFIRMED_MISSING', 'UNKNOWN']),
     crusherReceiptNo: z
       .number()
@@ -79,8 +87,14 @@ export const tripSchema = z
       .optional(),
     clientId: z.number().int().positive(i18n.t('tripForm.validation.clientRequired')),
     materialTypeId: z.number().int().positive(i18n.t('tripForm.validation.materialTypeRequired')),
-    transportPrice: z.number().positive(i18n.t('tripForm.validation.transportPriceRequired')),
-    clientPrice: z.number().positive(i18n.t('tripForm.validation.clientPriceRequired')),
+    transportPrice: z
+      .number()
+      .positive(i18n.t('tripForm.validation.transportPriceRequired'))
+      .refine(hasAtMostTwoDecimals, i18n.t('common.validation.moneyDecimals')),
+    clientPrice: z
+      .number()
+      .positive(i18n.t('tripForm.validation.clientPriceRequired'))
+      .refine(hasAtMostTwoDecimals, i18n.t('common.validation.moneyDecimals')),
     recipientNameStatus: z.enum(['PROVIDED', 'UNCLEAR']),
     recipientName: z.string().optional(),
     clientReceiptNo: z.string().optional(),
@@ -109,7 +123,8 @@ export function NumberField({
   control,
   name,
   label,
-  required = false
+  required = false,
+  money = false
 }: {
   control:
     | ReturnType<typeof useForm<CreateShiftValues>>['control']
@@ -117,6 +132,7 @@ export function NumberField({
   name: string
   label: string
   required?: boolean
+  money?: boolean
 }): React.JSX.Element {
   return (
     <FormField
@@ -131,6 +147,7 @@ export function NumberField({
           <FormControl>
             <Input
               type="number"
+              step={money ? '0.01' : 'any'}
               value={field.value ?? ''}
               onChange={(event) =>
                 field.onChange(event.target.value === '' ? undefined : Number(event.target.value))
@@ -179,8 +196,8 @@ export function AddTripPage(): React.JSX.Element {
       tripDate: '',
       crusherCubic: 0,
       clientCubicReported: 0,
-      discountQty: 0,
-      discountReason: '',
+      fineAmount: 0,
+      fineReason: '',
       location: '',
       crusherId: undefined,
       materialTypeId: undefined,
@@ -275,8 +292,8 @@ export function AddTripPage(): React.JSX.Element {
       tripForm.reset({
         ...tripForm.getValues(),
         tripDate: '',
-        discountQty: 0,
-        discountReason: '',
+        fineAmount: 0,
+        fineReason: '',
         crusherReceiptNo: undefined,
         recipientName: '',
         clientReceiptNo: '',
@@ -469,15 +486,16 @@ export function TripForm({
             />
             <NumberField
               control={form.control}
-              name="discountQty"
-              label={t('tripForm.fields.discount')}
+              name="fineAmount"
+              label={t('tripForm.fields.fineAmount')}
+              money
             />
             <FormField
               control={form.control}
-              name="discountReason"
+              name="fineReason"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t('tripForm.fields.discountReason')}</FormLabel>
+                  <FormLabel>{t('tripForm.fields.fineReason')}</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -574,6 +592,7 @@ export function TripForm({
               name="stonePrice"
               label={t('tripForm.fields.stonePrice')}
               required
+              money
             />
             <FormField
               control={form.control}
@@ -679,12 +698,14 @@ export function TripForm({
               name="transportPrice"
               label={t('tripForm.fields.transportPrice')}
               required
+              money
             />
             <NumberField
               control={form.control}
               name="clientPrice"
               label={t('tripForm.fields.clientPrice')}
               required
+              money
             />
             <FormField
               control={form.control}

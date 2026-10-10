@@ -25,6 +25,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { hasAtMostTwoDecimals } from '@/lib/money'
 
 export const ledgerEntrySchema = z.object({
   entryDate: z.string().min(1, i18n.t('ledgerEntryForm.validation.dateRequired')),
@@ -35,6 +36,7 @@ export const ledgerEntrySchema = z.object({
   amount: z
     .number({ message: i18n.t('ledgerEntryForm.validation.amountRequired') })
     .finite(i18n.t('common.validation.amountFiniteNonZero'))
+    .refine(hasAtMostTwoDecimals, i18n.t('common.validation.moneyDecimals'))
     .refine((amount) => amount !== 0, i18n.t('common.validation.amountFiniteNonZero')),
   shiftId: z.string().optional(),
   contractorId: z.number().int().positive().optional(),
@@ -149,6 +151,7 @@ export function LedgerEntryForm({
               <FormControl>
                 <Input
                   type="number"
+                  step="0.01"
                   value={field.value ?? ''}
                   onChange={(event) =>
                     field.onChange(

@@ -26,7 +26,8 @@ interface MaterialTypeRow {
 
 interface StatementRow {
   date: string
-  kind: 'OPENING' | 'CHARGE' | 'PAYMENT'
+  kind: 'OPENING' | 'CHARGE' | 'FINE' | 'PAYMENT'
+  component: 'TRANSPORT' | 'MATERIAL' | null
   description: string | null
   quantity: number | null
   price: number | null
@@ -48,11 +49,11 @@ interface TripRow {
   tripDate: string
   crusherCubic: number
   clientCubicReported: number
-  discountQty: number
-  discountReason: string | null
+  fineAmount: number
+  fineReason: string | null
   location: string | null
   crusherId: number
-  stonePrice: number | null
+  stonePrice: number
   crusherReceiptStatus: string
   crusherReceiptNo: number | null
   clientId: number
@@ -76,10 +77,9 @@ interface TripWithContextRow {
   crusherCubic: number
   clientName: string
   clientCubicReported: number
-  discountQty: number
-  discountReason: string | null
-  effectiveClientCubic: number
-  stonePrice: number | null
+  fineAmount: number
+  fineReason: string | null
+  stonePrice: number
   transportPrice: number
   clientPrice: number
   crusherReceiptStatus: string
@@ -116,7 +116,9 @@ interface LedgerRow {
 
 interface ContractorAccount {
   transportTotal: number
+  materialTotal: number
   ledgerTotal: number
+  openingBalance: number
   balance: number
   entries: LedgerRow[]
 }
@@ -126,8 +128,8 @@ interface CreateTripInput {
   tripDate: string
   crusherCubic: number
   clientCubicReported: number
-  discountQty?: number
-  discountReason?: string
+  fineAmount?: number
+  fineReason?: string
   location?: string
   crusherId: number
   stonePrice: number
@@ -167,8 +169,10 @@ interface ClientPaymentRow {
 
 interface ClientAccount {
   receivableTotal: number
+  fineTotal: number
   totalCubic: number
   paidTotal: number
+  openingBalance: number
   balance: number
   payments: ClientPaymentRow[]
 }
@@ -367,8 +371,8 @@ interface Api {
     tripDate: string
     crusherCubic: number
     clientCubicReported: number
-    discountQty?: number
-    discountReason?: string
+    fineAmount?: number
+    fineReason?: string
     location?: string
     crusherId: number
     stonePrice: number
@@ -443,8 +447,8 @@ interface Api {
     tripDate: string
     crusherCubic: number
     clientCubicReported: number
-    discountQty?: number
-    discountReason?: string
+    fineAmount?: number
+    fineReason?: string
     location?: string
     crusherId: number
     stonePrice: number
