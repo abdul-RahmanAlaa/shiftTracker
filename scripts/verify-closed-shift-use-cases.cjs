@@ -955,6 +955,9 @@ try {
     const shift = createOwnShift()
     const rejectedFine = createTrip({ ...tripInput(shift.id), fineAmount: 5.255 })
     const rejectedPrice = createTrip({ ...tripInput(shift.id), stonePrice: 5.255 })
+    const rejectedTransportPrice = rejectedTripCreate({ transportPrice: 5.255 })
+    const rejectedClientPrice = rejectedTripCreate({ clientPrice: 5.255 })
+    const rejectedUpdatePrice = rejectedTripUpdate({ clientPrice: 5.255 })
     const rejectedLedger = createLedgerEntry({
       entryDate: '2026-01-10',
       movementType: 'PAYMENT',
@@ -1000,6 +1003,9 @@ try {
     return {
       rejectedFine,
       rejectedPrice,
+      rejectedTransportPrice,
+      rejectedClientPrice,
+      rejectedUpdatePrice,
       rejectedLedger,
       rejectedPayment,
       rejectedOpening,
@@ -1022,6 +1028,15 @@ try {
       output.rejectedFine.errors.some((error) => error.field === 'fineAmount') &&
       output.rejectedPrice?.ok === false &&
       output.rejectedPrice.errors.some((error) => error.field === 'stonePrice') &&
+      output.rejectedTransportPrice?.response?.ok === false &&
+      output.rejectedTransportPrice.response.errors.some((error) => error.field === 'transportPrice') &&
+      output.rejectedTransportPrice.unchanged &&
+      output.rejectedClientPrice?.response?.ok === false &&
+      output.rejectedClientPrice.response.errors.some((error) => error.field === 'clientPrice') &&
+      output.rejectedClientPrice.unchanged &&
+      output.rejectedUpdatePrice?.response?.ok === false &&
+      output.rejectedUpdatePrice.response.errors.some((error) => error.field === 'clientPrice') &&
+      output.rejectedUpdatePrice.unchanged &&
       output.rejectedLedger?.ok === false &&
       output.rejectedLedger.errors.some((error) => error.field === 'amount') &&
       output.rejectedPayment?.ok === false &&
@@ -1126,11 +1141,49 @@ try {
     let invalidZeroPriceRejected = false
     let invalidNegativePriceRejected = false
     let invalidZeroInitialPriceRejected = false
-    let invalidDateRejected = false
     try { db.prepare('UPDATE Trip SET stone_price = 0 WHERE id = ?').run(trip.data.id) } catch { invalidZeroPriceRejected = true }
     try { db.prepare('UPDATE Trip SET transport_price = -1 WHERE id = ?').run(trip.data.id) } catch { invalidNegativePriceRejected = true }
     try { db.prepare('UPDATE Crusher SET initial_price = 0 WHERE id = ?').run(crusherId) } catch { invalidZeroInitialPriceRejected = true }
-    try { db.prepare('UPDATE Trip SET trip_date = ? WHERE id = ?').run('not-a-date', trip.data.id) } catch { invalidDateRejected = true }
+
+    const ledger = createLedger()
+    const payment = createClientPayment({
+      entryDate: '2026-02-01',
+      clientId,
+      amount: 100,
+      notes: 'Date constraint fixture'
+    })
+    if (!ledger.ok || !payment.ok) throw new Error('Date constraint fixture setup failed')
+    const dateChecks = [
+      { label: 'Shift.start_date', sql: 'UPDATE Shift SET start_date = ? WHERE id = ?', id: created.data.id },
+      { label: 'Shift.end_date', sql: 'UPDATE Shift SET end_date = ? WHERE id = ?', id: created.data.id },
+      { label: 'Trip.trip_date', sql: 'UPDATE Trip SET trip_date = ? WHERE id = ?', id: trip.data.id },
+      { label: 'Ledger.entry_date', sql: 'UPDATE Ledger SET entry_date = ? WHERE id = ?', id: ledger.data.id },
+      { label: 'ClientPayment.entry_date', sql: 'UPDATE ClientPayment SET entry_date = ? WHERE id = ?', id: payment.data.id },
+      { label: 'Client.opening_balance_date', sql: 'UPDATE Client SET opening_balance_date = ? WHERE id = ?', id: clientId },
+      { label: 'TransportContractor.opening_balance_date', sql: 'UPDATE TransportContractor SET opening_balance_date = ? WHERE id = ?', id: contractorId }
+    ]
+    const invalidDates = ['2026-13-45', '2026-00-10', '2026-02-30', 'not-a-date']
+    const dateResults = dateChecks.map((check) => {
+      const rejected = invalidDates.map((date) => {
+        try {
+          db.prepare(check.sql).run(date, check.id)
+          return false
+        } catch {
+          return true
+        }
+      })
+      let validAccepted = false
+      try {
+        db.prepare(check.sql).run('2026-02-28', check.id)
+        validAccepted = true
+      } catch {}
+      console.log(
+        'DATE CHECK ' + check.label +
+          ' | invalid rejected ' + rejected.filter(Boolean).length + '/' + invalidDates.length +
+          ' | valid accepted ' + validAccepted
+      )
+      return { label: check.label, rejected, validAccepted }
+    })
 
     db.prepare("UPDATE Shift SET status = 'REOPENED' WHERE id = ?").run(created.data.id)
     const reopenedCanStart = createShift(shiftInput)
@@ -1140,7 +1193,7 @@ try {
       invalidZeroPriceRejected,
       invalidNegativePriceRejected,
       invalidZeroInitialPriceRejected,
-      invalidDateRejected,
+      dateResults,
       reopenedCanStart
     }
   }, (actual) => {
@@ -1150,8 +1203,34 @@ try {
       output.invalidZeroPriceRejected === true &&
       output.invalidNegativePriceRejected === true &&
       output.invalidZeroInitialPriceRejected === true &&
-      output.invalidDateRejected === true &&
+      output.dateResults.length === 7 &&
+      output.dateResults.every(
+        (dateCheck) =>
+          dateCheck.rejected.every(Boolean) && dateCheck.validAccepted
+      ) &&
       output.reopenedCanStart?.ok === true
+  })
+  runCase('A8 required statement indexes are used by query planner', 'Trip(client_id), Shift(contractor_id), Ledger(driver_id), and Ledger(shift_id) use indexes', () => {
+    const queries = [
+      { label: 'Trip by client_id', table: 'Trip', sql: 'EXPLAIN QUERY PLAN SELECT id FROM Trip WHERE client_id = ?', value: clientId },
+      { label: 'Shift by contractor_id', table: 'Shift', sql: 'EXPLAIN QUERY PLAN SELECT id FROM Shift WHERE contractor_id = ?', value: contractorId },
+      { label: 'Ledger by driver_id', table: 'Ledger', sql: 'EXPLAIN QUERY PLAN SELECT id FROM Ledger WHERE driver_id = ?', value: driverId },
+      { label: 'Ledger by shift_id', table: 'Ledger', sql: 'EXPLAIN QUERY PLAN SELECT id FROM Ledger WHERE shift_id = ?', value: openShiftId }
+    ]
+    const plans = queries.map((query) => {
+      const details = db.prepare(query.sql).all(query.value).map((row) => row.detail)
+      console.log('QUERY PLAN ' + query.label + ' | ' + details.join(' ; '))
+      return { ...query, details }
+    })
+    return { plans }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.plans.length === 4 &&
+      output.plans.every(
+        (plan) =>
+          plan.details.some((detail) => /USING (?:COVERING )?INDEX/.test(detail)) &&
+          !plan.details.some((detail) => detail.includes('SCAN ' + plan.table))
+      )
   })
   runCase('A7 closing a shift creates no automatic ledger settlement', 'ledger rows are unchanged by closeShift', () => {
     const shift = createOwnShift()

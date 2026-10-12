@@ -149,6 +149,7 @@ interface ShiftListRow {
   id: string
   vehicleNo: number
   driverId: number
+  contractorId: number
   driverName: string
   crusherCubicDefault: number
   clientCubicDefault: number

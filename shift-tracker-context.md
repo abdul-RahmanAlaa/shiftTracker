@@ -37,13 +37,16 @@ Constraints and derived objects in the live schema:
 - `Trip.recipient_name_status` accepts `PROVIDED` and `UNCLEAR`.
 - `Attachment.entity_type` accepts `TRIP` and `SHIFT`; `kind` accepts `CRUSHER_RECEIPT`, `CLIENT_RECEIPT`, and `CLOSING_SHEET`. `entity_id` is polymorphic and has no declared foreign key.
 - `Ledger.movement_type` accepts `ADVANCE`, `PAYMENT`, and `OTHER`.
-- Indexes: partial unique `idx_trip_crusher_receipt` on non-null `(crusher_id, crusher_receipt_no)`; partial unique OPEN-shift indexes by vehicle and driver; `Trip(shift_id, client_id, crusher_id)`, `Ledger(contractor_id, driver_id, shift_id)`, `ClientPayment(client_id)`, `Shift(driver_id, status)`, `Shift(vehicle_no, status)`, and `Attachment(entity_type, entity_id)`.
+- Indexes: partial unique `idx_trip_crusher_receipt` on non-null `(crusher_id, crusher_receipt_no)`; partial unique OPEN-shift indexes by vehicle and driver; single-column `Trip(shift_id)`, `Trip(client_id)`, `Trip(crusher_id)`, `Ledger(contractor_id)`, `Ledger(driver_id)`, `Ledger(shift_id)`, `Shift(contractor_id)`, and `ClientPayment(client_id)` indexes; `Shift(driver_id, status)`, `Shift(vehicle_no, status)`, and `Attachment(entity_type, entity_id)`.
 - Views: `ShiftStats` (`shift_id`, `actual_trip_count`, `reported_trip_count`, `has_count_mismatch`). The unused `TripAccounting` view is removed; SQL does not calculate financial line amounts.
 - Money is held in integer piasters in SQLite and converted to/from decimal pounds at main-process boundaries. Cubic quantities remain REAL. The schema checks integer money, positive prices and cubic quantities, non-negative fine amounts, non-zero signed ledger/payment amounts, and real `YYYY-MM-DD` dates.
+- Date CHECKs require `strftime('%Y-%m-%d', value, '+0 days') IS NOT NULL` as well as equality with the stored value, so invalid dates that normalize to NULL cannot pass SQLite CHECK semantics. Nullable `end_date` and opening-balance dates remain nullable.
+- Part A.1 removes the unused `insertImportedShift`, removes a duplicate driver-name projection from shift listing, exposes `contractorId` in the shift-list preload type, uses the shared money-decimal validation message for client updates, and reports the actual invalid money field for trip create/update.
+- Contractor statement total quantity sums only non-MATERIAL rows, preserving the transport/client cubic total; client statement quantity totals are unchanged. The unused `allTrips.columns.net` locale key was removed.
 
 ## Version Handling
 
-The current source uses the Part A baseline at `CURRENT_VERSION = 4` and initializes a new DB via `SCHEMA` and `user_version = 4`.
+The current source uses the Part A.1 baseline at `CURRENT_VERSION = 5` and initializes a new DB via `SCHEMA` and `user_version = 5`.
 
 Important decisions in the live code:
 
@@ -52,7 +55,7 @@ Important decisions in the live code:
 - Part A tests use temporary user-data directories; no real database was accessed or reset.
 - No backup is created before schema initialization. The `closeShift` backup runs after closing; if it fails, the error is logged, the close still succeeds, and the renderer shows a warning.
 
-Part A establishes the new version-4 baseline only. It does not establish a delete-on-every-update policy; subsequent schema upgrades belong to the Part B migration runner.
+Part A.1 establishes the version-5 baseline only. It does not establish a delete-on-every-update policy; subsequent schema upgrades belong to the Part B migration runner.
 
 ## Backend Fixes and Decisions
 
@@ -104,7 +107,7 @@ The final user-facing name for the accounts page is `حركة النقدية`. T
 - Contractor balance sign is the reverse of client sign, using the same formula: client positive means the client owes us; contractor positive means we owe the contractor. Both contractor statement surfaces explain this sign; calculations and colors are unchanged.
 - Execution order: B2 + B8, then B6 + B7, then the rest.
 - The Accounts page final name is `حركة النقدية`. Do not reopen this naming decision.
-- Part A establishes schema baseline version 4 and refuses older databases. Do not reset a database as part of routine updates; the explicit one-time development reset and ordered migration runner are gated in Part B.
+- Part A.1 establishes schema baseline version 5 and refuses older databases. Do not reset a database as part of routine updates; the explicit one-time development reset and ordered migration runner are gated in Part B.
 - The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
 - B7 update semantics are PUT: update requests carry the full row state; every nullable field is required and must be sent as a value or `null`, where `null` clears nullable columns. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. No update field falls back to its existing value.
 - Ledger entries and client payments may use negative amounts for refunds or reversals (for example, refunding part of a client payment or returning an excess driver advance). Zero is rejected. The statement formula is unchanged (`balance = opening + charges - payments`), so a negative payment raises the balance.
@@ -120,7 +123,8 @@ The final user-facing name for the accounts page is `حركة النقدية`. T
 - R8: Shift snapshots contractor_id at creation; historical accounting uses it, not the vehicle's current contractor.
 - T1: money columns are INTEGER piasters in SQLite and decimal pounds at renderer/IPC; main-process boundaries convert and reject amounts with more than two decimals.
 - T2: one shared TypeScript accounting module calculates derived money from raw rows; SQL does not calculate line amounts. The unused TripAccounting view is removed.
-- T3: schema version 4 baseline includes fine columns, Shift.contractor_id, integer money, stone_price NOT NULL, the approved CHECK constraints and indexes, and partial unique indexes for OPEN shifts by vehicle and driver.
+- T3: schema version 5 baseline includes fine columns, Shift.contractor_id, integer money, stone_price NOT NULL, the approved CHECK constraints and indexes, and partial unique indexes for OPEN shifts by vehicle and driver.
+- Part A.1 hardens all seven date CHECKs against NULL `strftime` results, uses the approved single-column Trip and Ledger indexes plus `Shift(contractor_id)`, and confirms via query-plan harness checks that the requested account lookups use indexes. Contractor statement quantity excludes the MATERIAL row quantity; client totals are unchanged.
 - Implementation assumptions: one fine per trip and half-up rounding per trip line, as specified by the owner.
 - A CLOSED shift stays locked: no ledger entry can be created, edited, deleted, or moved to or from it. Correction paths are `reopenShift`, or an `OTHER` entry without a shift and with a note. A reopened shift is finished but temporarily unlocked only to correct a mistake. `Shift.status` values are `OPEN`, `CLOSED`, and `REOPENED`. `REOPENED` is not an open shift: it never counts in the driver/vehicle open-shift checks, never blocks creating a new shift for the same driver or vehicle, and does not appear in lists used to start new work. A reopened shift accepts everything an open shift accepts: new trips, trip edits and deletes, ledger entries, and attachments. When a REOPENED shift is closed again, the user re-enters the reported trip count, which is required and validated against the actual trip count before the close transaction writes. `closeShift` validates it as an integer >= 0, checks mismatch against that new count before writes, then updates `Shift.reported_trip_count`, sets `CLOSED`, and updates the reopen log in one transaction. The close dialog pre-fills the count from `reportedTripCount ?? actualTripCount ?? 0` for any shift; main requires the count explicitly with no fallback. Trips can be added to a REOPENED shift from the shift detail page. Every reopen requires a non-empty reason and is logged in `ShiftReopenLog`.
 

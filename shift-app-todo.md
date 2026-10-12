@@ -22,7 +22,7 @@ Updated from the current working tree. This file is the operational source-of-tr
 - [ ] Reopen shift (not a B-item): REOPENED status, ShiftReopenLog, reopen dialog, re-close with reported count; fixed in code, not manually tested.
 - [ ] Vehicle open-shift guard: createShift rejects a second open shift on the same vehicle while allowing a reopened shift to start a new shift; fixed in code, not manually tested.
 - [ ] Batch 1 runtime validation and use-case verification harness: fixed in code, not manually tested.
-- [ ] B8: Part A uses schema version 4 and refuses older databases. The explicit one-time development reset and ordered migration runner are gated in Part B and have not been started.
+- [ ] B8: Part A.1 finalizes schema version 5 and refuses older databases. The explicit one-time development reset and ordered migration runner are gated in Part B and have not been started.
 - [ ] B9: open; delete failures and rejected IPC calls still need user-visible handling.
 - [ ] B10: open; contractor/driver edit forms remain duplicated and unlocked.
 - [ ] B11: partially addressed; account balances now include opening balances and share statement calculations. Empty-state rendering, account number formatting, and duplicate client-payment notes remain open.
@@ -53,7 +53,7 @@ Only items marked [x] were confirmed by the user in Electron; unchecked items ar
 
 ## Operational Notes
 
-- `CURRENT_VERSION` is `4` in `src/main/db.ts`.
+- `CURRENT_VERSION` is `5` in `src/main/db.ts`.
 - Part A retains the fresh-baseline version gate and refuses older databases. The one-time development reset procedure and ordered migrations are deferred to gated Part B. No real database was accessed or reset.
 - No backup is created before schema initialization; after closing, backup failures are logged and shown to the user without failing the close.
 - The current UI label for the accounts page is `حركة النقدية`, not `الحسابات`.
@@ -65,7 +65,7 @@ Only items marked [x] were confirmed by the user in Electron; unchecked items ar
 - Contractor balance sign is the reverse of client sign, using the same formula: client positive means the client owes us; contractor positive means we owe the contractor. Both contractor statement surfaces explain this sign; calculations and colors are unchanged.
 - Execution order: B2 + B8, then B6 + B7, then the rest.
 - The Accounts page final name is `حركة النقدية`. Do not reopen this naming decision.
-- Part A establishes schema baseline version 4 and refuses older databases. Do not reset a database as part of routine updates; the explicit one-time development reset and ordered migration runner are gated in Part B.
+- Part A.1 establishes schema baseline version 5 and refuses older databases. Do not reset a database as part of routine updates; the explicit one-time development reset and ordered migration runner are gated in Part B.
 - The source is the authority; stale docs and historical migration claims are ignored when they do not match checked-out code.
 - B7 update semantics are PUT: update requests carry the full row state; every nullable field is required and must be sent as a value or `null`, where `null` clears nullable columns. `Ledger.contractor_id` remains `NOT NULL` in the current schema, so the contractor is derived from a selected shift or required when no shift is selected. No update field falls back to its existing value.
 - Ledger entries and client payments may use negative amounts for refunds or reversals (for example, refunding part of a client payment or returning an excess driver advance). Zero is rejected. The statement formula is unchanged (`balance = opening + charges - payments`), so a negative payment raises the balance.
@@ -81,7 +81,8 @@ Only items marked [x] were confirmed by the user in Electron; unchecked items ar
 - R8: Shift snapshots contractor_id at creation; historical accounting uses it, not the vehicle's current contractor.
 - T1: money columns are INTEGER piasters in SQLite and decimal pounds at renderer/IPC; main-process boundaries convert and reject amounts with more than two decimals.
 - T2: one shared TypeScript accounting module calculates derived money from raw rows; SQL does not calculate line amounts. The unused TripAccounting view is removed.
-- T3: schema version 4 baseline includes fine columns, Shift.contractor_id, integer money, stone_price NOT NULL, the approved CHECK constraints and indexes, and partial unique indexes for OPEN shifts by vehicle and driver.
+- T3: schema version 5 baseline includes fine columns, Shift.contractor_id, integer money, stone_price NOT NULL, the approved CHECK constraints and indexes, and partial unique indexes for OPEN shifts by vehicle and driver.
+- Part A.1 hardens all seven date CHECKs against NULL `strftime` results, uses the approved single-column Trip and Ledger indexes plus `Shift(contractor_id)`, and confirms via query-plan harness checks that the requested account lookups use indexes. Contractor statement quantity excludes the MATERIAL row quantity; client totals are unchanged.
 - Implementation assumptions: one fine per trip and half-up rounding per trip line, as specified by the owner.
 - A CLOSED shift stays locked: no ledger entry can be created, edited, deleted, or moved to or from it. Correction paths are `reopenShift`, or an `OTHER` entry without a shift and with a note. A reopened shift is finished but temporarily unlocked only to correct a mistake. `Shift.status` values are `OPEN`, `CLOSED`, and `REOPENED`. `REOPENED` is not an open shift: it never counts in the driver/vehicle open-shift checks, never blocks creating a new shift for the same driver or vehicle, and does not appear in lists used to start new work. A reopened shift accepts everything an open shift accepts: new trips, trip edits and deletes, ledger entries, and attachments. When a REOPENED shift is closed again, the user re-enters the reported trip count, which is required and validated against the actual trip count before the close transaction writes. `closeShift` validates it as an integer >= 0, checks mismatch against that new count before writes, then updates `Shift.reported_trip_count`, sets `CLOSED`, and updates the reopen log in one transaction. The close dialog pre-fills the count from `reportedTripCount ?? actualTripCount ?? 0` for any shift; main requires the count explicitly with no fallback. Trips can be added to a REOPENED shift from the shift detail page. Every reopen requires a non-empty reason and is logged in `ShiftReopenLog`.
 
@@ -156,6 +157,9 @@ Only items marked [x] were confirmed by the user in Electron; unchecked items ar
 - [ ] Confirm opening balances appear in both Accounts and Statements even when opening_balance_date is later than some transactions.
 - [ ] Reassign a vehicle to another contractor after a shift is created; confirm old shift charges remain with the original contractor.
 - [ ] Confirm every monetary input rejects more than two decimal places, accepts 5.25 exactly, and renderer money steps remain 0.01.
+- [ ] Confirm the Statements contractor total-quantity footer sums transport/client cubic only and excludes the MATERIAL row quantity.
+- [ ] Confirm all seven schema date columns reject invalid calendar dates, including normalized/impossible dates, while nullable dates still accept NULL.
+- [ ] Confirm query plans use the required Trip(client_id), Shift(contractor_id), Ledger(driver_id), and Ledger(shift_id) indexes.
 
 Automated use-case check command: `npm run verify:use-cases` (not a manual test). E2E smoke command: `npm run test:e2e` (builds the app then runs Playwright; not a manual test).
 

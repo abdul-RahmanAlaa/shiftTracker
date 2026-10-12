@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { app, dialog } from 'electron'
 import { join } from 'path'
 
-const CURRENT_VERSION = 4
+const CURRENT_VERSION = 5
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS TripIdCounter (
@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS TransportContractor (
     opening_balance_date IS NULL OR (
       length(opening_balance_date) = 10 AND
       opening_balance_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+      strftime('%Y-%m-%d', opening_balance_date, '+0 days') IS NOT NULL AND
       strftime('%Y-%m-%d', opening_balance_date, '+0 days') = opening_balance_date
     )
   )
@@ -63,6 +64,7 @@ CREATE TABLE IF NOT EXISTS Client (
     opening_balance_date IS NULL OR (
       length(opening_balance_date) = 10 AND
       opening_balance_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+      strftime('%Y-%m-%d', opening_balance_date, '+0 days') IS NOT NULL AND
       strftime('%Y-%m-%d', opening_balance_date, '+0 days') = opening_balance_date
     )
   )
@@ -91,12 +93,14 @@ CREATE TABLE IF NOT EXISTS Shift (
   CHECK (
     length(start_date) = 10 AND
     start_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+    strftime('%Y-%m-%d', start_date, '+0 days') IS NOT NULL AND
     strftime('%Y-%m-%d', start_date, '+0 days') = start_date
   ),
   CHECK (
     end_date IS NULL OR (
       length(end_date) = 10 AND
       end_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+      strftime('%Y-%m-%d', end_date, '+0 days') IS NOT NULL AND
       strftime('%Y-%m-%d', end_date, '+0 days') = end_date
     )
   )
@@ -117,6 +121,7 @@ CREATE TABLE IF NOT EXISTS Trip (
   trip_date               TEXT NOT NULL CHECK (
     length(trip_date) = 10 AND
     trip_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+    strftime('%Y-%m-%d', trip_date, '+0 days') IS NOT NULL AND
     strftime('%Y-%m-%d', trip_date, '+0 days') = trip_date
   ),
   crusher_cubic           REAL NOT NULL,
@@ -171,8 +176,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_crusher_receipt
 ON Trip (crusher_id, crusher_receipt_no)
 WHERE crusher_receipt_no IS NOT NULL;
 
-CREATE INDEX IF NOT EXISTS idx_trip_shift_client_crusher
-ON Trip (shift_id, client_id, crusher_id);
+CREATE INDEX IF NOT EXISTS idx_trip_shift ON Trip (shift_id);
+CREATE INDEX IF NOT EXISTS idx_trip_client ON Trip (client_id);
+CREATE INDEX IF NOT EXISTS idx_trip_crusher ON Trip (crusher_id);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_shift_open_vehicle
 ON Shift (vehicle_no) WHERE status = 'OPEN';
@@ -182,12 +188,14 @@ ON Shift (driver_id) WHERE status = 'OPEN';
 
 CREATE INDEX IF NOT EXISTS idx_shift_driver_status ON Shift (driver_id, status);
 CREATE INDEX IF NOT EXISTS idx_shift_vehicle_status ON Shift (vehicle_no, status);
+CREATE INDEX IF NOT EXISTS idx_shift_contractor ON Shift (contractor_id);
 
 CREATE TABLE IF NOT EXISTS Ledger (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   entry_date     TEXT NOT NULL CHECK (
     length(entry_date) = 10 AND
     entry_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+    strftime('%Y-%m-%d', entry_date, '+0 days') IS NOT NULL AND
     strftime('%Y-%m-%d', entry_date, '+0 days') = entry_date
   ),
   driver_id      INTEGER REFERENCES Driver(id),
@@ -198,8 +206,9 @@ CREATE TABLE IF NOT EXISTS Ledger (
   notes          TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_ledger_contractor_driver_shift
-ON Ledger (contractor_id, driver_id, shift_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_contractor ON Ledger (contractor_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_driver ON Ledger (driver_id);
+CREATE INDEX IF NOT EXISTS idx_ledger_shift ON Ledger (shift_id);
 
 CREATE VIEW IF NOT EXISTS ShiftStats AS
 SELECT
@@ -217,6 +226,7 @@ CREATE TABLE IF NOT EXISTS ClientPayment (
   entry_date  TEXT NOT NULL CHECK (
     length(entry_date) = 10 AND
     entry_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+    strftime('%Y-%m-%d', entry_date, '+0 days') IS NOT NULL AND
     strftime('%Y-%m-%d', entry_date, '+0 days') = entry_date
   ),
   client_id   INTEGER NOT NULL REFERENCES Client(id),

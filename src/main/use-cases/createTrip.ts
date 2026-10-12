@@ -168,15 +168,28 @@ export function createTrip(input: CreateTripInput): UseCaseResult<{ id: string }
   const stonePriceMinor = toMinorUnits(input.stonePrice)
   const transportPriceMinor = toMinorUnits(input.transportPrice)
   const clientPriceMinor = toMinorUnits(input.clientPrice)
-  if (
-    fineAmountMinor === null ||
-    stonePriceMinor === null ||
-    transportPriceMinor === null ||
-    clientPriceMinor === null
-  ) {
+  if (fineAmountMinor === null) {
     return {
       ok: false,
       errors: [{ field: 'fineAmount', message: validationMessages.moneyDecimals }]
+    }
+  }
+  if (stonePriceMinor === null) {
+    return {
+      ok: false,
+      errors: [{ field: 'stonePrice', message: validationMessages.moneyDecimals }]
+    }
+  }
+  if (transportPriceMinor === null) {
+    return {
+      ok: false,
+      errors: [{ field: 'transportPrice', message: validationMessages.moneyDecimals }]
+    }
+  }
+  if (clientPriceMinor === null) {
+    return {
+      ok: false,
+      errors: [{ field: 'clientPrice', message: validationMessages.moneyDecimals }]
     }
   }
   const id = getNextTripId()
@@ -253,15 +266,28 @@ export function updateTrip(input: UpdateTripInput): UseCaseResult<{ id: string }
   const stonePriceMinor = toMinorUnits(input.stonePrice)
   const transportPriceMinor = toMinorUnits(input.transportPrice)
   const clientPriceMinor = toMinorUnits(input.clientPrice)
-  if (
-    fineAmountMinor === null ||
-    stonePriceMinor === null ||
-    transportPriceMinor === null ||
-    clientPriceMinor === null
-  ) {
+  if (fineAmountMinor === null) {
     return {
       ok: false,
       errors: [{ field: 'fineAmount', message: validationMessages.moneyDecimals }]
+    }
+  }
+  if (stonePriceMinor === null) {
+    return {
+      ok: false,
+      errors: [{ field: 'stonePrice', message: validationMessages.moneyDecimals }]
+    }
+  }
+  if (transportPriceMinor === null) {
+    return {
+      ok: false,
+      errors: [{ field: 'transportPrice', message: validationMessages.moneyDecimals }]
+    }
+  }
+  if (clientPriceMinor === null) {
+    return {
+      ok: false,
+      errors: [{ field: 'clientPrice', message: validationMessages.moneyDecimals }]
     }
   }
 

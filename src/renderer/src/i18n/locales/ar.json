@@ -441,10 +441,7 @@
   },
   "allTrips": {
     "title": "كل النقلات",
-    "detailsTitle": "تفاصيل النقلة {{id}}",
-    "columns": {
-      "net": "الصافي"
-    }
+    "detailsTitle": "تفاصيل النقلة {{id}}"
   },
   "settingsPage": {
     "title": "بيانات أساسية",

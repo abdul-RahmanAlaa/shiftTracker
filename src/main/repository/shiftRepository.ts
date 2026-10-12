@@ -50,34 +50,6 @@ export function insertShift(input: InsertShiftInput): void {
   stmt.run(input)
 }
 
-export function insertImportedShift(input: {
-  id: string
-  vehicleNo: number
-  driverId: number
-  crusherCubicDefault: number
-  clientCubicDefault: number
-  startDate: string
-  endDate: string | null
-}): void {
-  const db = getDb()
-  db.prepare(
-    `
-    INSERT INTO Shift (
-      id, vehicle_no, driver_id, crusher_cubic_default, client_cubic_default,
-      start_date, end_date, status, reported_destination, reported_trip_count, notes
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'OPEN', NULL, NULL, NULL)
-  `
-  ).run(
-    input.id,
-    input.vehicleNo,
-    input.driverId,
-    input.crusherCubicDefault,
-    input.clientCubicDefault,
-    input.startDate,
-    input.endDate
-  )
-}
-
 interface ShiftRow {
   id: string
   status: string
@@ -191,6 +163,7 @@ export interface ShiftListRow {
   id: string
   vehicleNo: number
   driverId: number
+  contractorId: number
   driverName: string
   crusherCubicDefault: number
   clientCubicDefault: number
@@ -207,7 +180,7 @@ export function listAllShifts(): ShiftListRow[] {
     .prepare(
       `
       SELECT
-        s.id, s.vehicle_no as vehicleNo, s.driver_id as driverId, d.name as driverName,
+        s.id, s.vehicle_no as vehicleNo, s.driver_id as driverId,
         s.contractor_id as contractorId, d.name as driverName,
         s.crusher_cubic_default as crusherCubicDefault,
         s.client_cubic_default as clientCubicDefault, s.status,

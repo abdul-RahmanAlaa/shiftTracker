@@ -41,3 +41,5 @@ After ANY task that changes code, schema, behavior, decisions, or backlog status
 6. The report must contain only the report: no internal notes, no drafts, no planning text, no truncation. Plain markdown only.
 7. Language: write every response in English; switch only if the user explicitly asks in the current message. Do not translate existing Arabic text.
 8. Output files: UTF-8 without BOM; never PowerShell `>` redirection; patch via `git diff --output=`, including new untracked files; show real command output for exit codes; never write 'None' under Could not verify unless everything was exercised.
+
+Report size: in last-report.md print only the harness SUMMARY line, the case count and any failing cases; write the full result table to scripts/last-harness-output.txt (gitignored) and do not paste it. Generate the patch without markdown files: git diff --output=last-diff.patch -- . ':(exclude)*.md'. Docs changes are described in one line per file.

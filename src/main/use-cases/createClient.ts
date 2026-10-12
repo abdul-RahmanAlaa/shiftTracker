@@ -132,7 +132,10 @@ export function updateClient(input: ClientInput & { id: number }): UseCaseResult
       ? input.openingBalanceDate?.trim() || null
       : (existing?.openingBalanceDate ?? null)
   if (openingBalanceMinor === null) {
-    return { ok: false, errors: [{ field: 'openingBalance', message: 'المبلغ غير صالح' }] }
+    return {
+      ok: false,
+      errors: [{ field: 'openingBalance', message: validationMessages.moneyDecimals }]
+    }
   }
 
   try {

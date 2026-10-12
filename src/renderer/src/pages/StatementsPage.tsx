@@ -188,7 +188,12 @@ export function StatementsPage(): React.JSX.Element {
   ]
 
   const rows = statement?.rows ?? []
-  const totalQuantity = rows.reduce((total, row) => total + (row.quantity ?? 0), 0)
+  const totalQuantity = rows.reduce(
+    (total, row) =>
+      total +
+      (entityType === 'contractor' && row.component === 'MATERIAL' ? 0 : (row.quantity ?? 0)),
+    0
+  )
   const totalValue = rows.reduce(
     (total, row) => total + (row.kind === 'CHARGE' ? (row.value ?? 0) : 0),
     0
