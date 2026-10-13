@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -41,6 +42,7 @@ import {
   getClientPaymentColumns,
   type ClientAccount
 } from './AccountTables'
+const ipcApi = createIpcApi()
 
 type Client = { id: number; name: string }
 const emptyValue = '__none__'
@@ -68,13 +70,13 @@ export function ClientAccountPage(): React.JSX.Element {
   })
 
   useEffect(() => {
-    void window.api.listClients().then((result) => {
+    void ipcApi.listClients().then((result) => {
       if (result.ok) setClients(result.data)
     })
   }, [])
 
   async function loadAccount(clientId: number): Promise<void> {
-    const result = await window.api.getClientAccount({ clientId })
+    const result = await ipcApi.getClientAccount({ clientId })
     if (result.ok) {
       setAccount(result.data)
     } else {
@@ -98,13 +100,13 @@ export function ClientAccountPage(): React.JSX.Element {
   async function handleCreatePayment(values: PaymentFormValues): Promise<void> {
     if (!selectedClientId) return
     const result = editingPaymentId
-      ? await window.api.updateClientPayment({
+      ? await ipcApi.updateClientPayment({
           id: editingPaymentId,
           clientId: selectedClientId,
           ...values,
           notes: values.notes?.trim() || null
         })
-      : await window.api.createClientPayment({ clientId: selectedClientId, ...values })
+      : await ipcApi.createClientPayment({ clientId: selectedClientId, ...values })
 
     if (result.ok) {
       paymentForm.reset()
@@ -136,7 +138,7 @@ export function ClientAccountPage(): React.JSX.Element {
 
   async function handleDeletePayment(payment: { id: number }): Promise<void> {
     if (!confirm(t('clientAccount.deleteConfirmation', { id: payment.id }))) return
-    const result = await window.api.deleteClientPayment({ id: payment.id })
+    const result = await ipcApi.deleteClientPayment({ id: payment.id })
     if (result.ok && selectedClientId) {
       if (editingPaymentId === payment.id) {
         setEditingPaymentId(null)

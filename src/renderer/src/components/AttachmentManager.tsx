@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useRef, useState } from 'react'
 import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
@@ -12,10 +13,11 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+const ipcApi = createIpcApi()
 
 type AttachmentEntityType = 'TRIP' | 'SHIFT'
 type AttachmentRow = Extract<
-  Awaited<ReturnType<typeof window.api.listEntityAttachments>>,
+  Awaited<ReturnType<typeof ipcApi.listEntityAttachments>>,
   { ok: true }
 >['data'][number]
 type AttachmentKind = AttachmentRow['kind']
@@ -147,13 +149,13 @@ export function AttachmentManager({
   useEffect(() => {
     let cancelled = false
     async function loadAttachments(): Promise<void> {
-      const result = await window.api.listEntityAttachments({ entityType, entityId })
+      const result = await ipcApi.listEntityAttachments({ entityType, entityId })
       if (cancelled) return
       const nextAttachments = result.ok ? result.data : []
       setAttachments(nextAttachments)
       const photoResults = await Promise.all(
         nextAttachments.map(async (attachment) => {
-          const photoResult = await window.api.getAttachmentPhoto({
+          const photoResult = await ipcApi.getAttachmentPhoto({
             attachmentId: attachment.id
           })
           return [attachment.id, photoResult.ok ? photoResult.data.dataUri : null] as const
@@ -213,7 +215,7 @@ export function AttachmentManager({
     try {
       const dataUri = await createCroppedImage(imageToCrop, croppedAreaPixels, rotation)
       const imageBase64 = dataUri.replace(/^data:image\/jpeg;base64,/, '')
-      const result = await window.api.addAttachment({
+      const result = await ipcApi.addAttachment({
         entityType,
         entityId,
         kind: kindToAdd,
@@ -237,7 +239,7 @@ export function AttachmentManager({
     const label = kindLabel(attachment.kind)
     if (!confirm(t('receiptPhoto.confirmDelete', { label }))) return
     setOperationError(null)
-    const result = await window.api.removeAttachment({ id: attachment.id })
+    const result = await ipcApi.removeAttachment({ id: attachment.id })
     if (!result.ok) {
       setOperationError(result.errors.map((error) => error.message).join(', '))
       return

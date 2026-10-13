@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { hasAtMostTwoDecimals } from '@/lib/money'
+const ipcApi = createIpcApi()
 
 const contractorSchema = z.object({
   name: z.string().min(1, i18n.t('contractorsSettings.validation.nameRequired')),
@@ -68,13 +70,13 @@ export function ContractorsSettings(): React.JSX.Element {
 
   async function loadContractors(): Promise<void> {
     setLoading(true)
-    const result = await window.api.listContractors()
+    const result = await ipcApi.listContractors()
     if (result.ok) setContractors(result.data)
     setLoading(false)
   }
 
   useEffect(() => {
-    void window.api.listContractors().then((result) => {
+    void ipcApi.listContractors().then((result) => {
       if (result.ok) setContractors(result.data)
       setLoading(false)
     })
@@ -97,8 +99,8 @@ export function ContractorsSettings(): React.JSX.Element {
       throw error
     }
     const result = editingContractorId
-      ? await window.api.updateContractor({ id: editingContractorId, ...parsedValues })
-      : await window.api.createContractor(parsedValues)
+      ? await ipcApi.updateContractor({ id: editingContractorId, ...parsedValues })
+      : await ipcApi.createContractor(parsedValues)
     if (result.ok) {
       setIsDialogOpen(false)
       contractorForm.reset({ name: '', phone: '', openingBalance: '', openingBalanceDate: '' })
@@ -134,7 +136,7 @@ export function ContractorsSettings(): React.JSX.Element {
 
   async function handleDeleteContractor(contractor: Contractor): Promise<void> {
     if (!confirm(t('contractorsSettings.deleteConfirmation', { name: contractor.name }))) return
-    const result = await window.api.deleteContractor({ id: contractor.id })
+    const result = await ipcApi.deleteContractor({ id: contractor.id })
     if (result.ok) {
       if (editingContractorId === contractor.id) cancelEditingContractor()
       await loadContractors()

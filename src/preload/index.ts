@@ -2,46 +2,57 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { CreateShiftInput } from '../main/use-cases/createShift'
 import type { CloseShiftInput, CloseShiftResult } from '../main/use-cases/closeShift'
+interface FailedUseCaseResult {
+  ok: false
+  errors: { field: string; message: string }[]
+}
+
+async function invoke<T>(channel: string, ...args: unknown[]): Promise<T | FailedUseCaseResult> {
+  try {
+    return await ipcRenderer.invoke(channel, ...args)
+  } catch {
+    return { ok: false, errors: [{ field: '_form', message: 'UNEXPECTED_ERROR' }] }
+  }
+}
 
 const api = {
   createDriver: (input: { name: string; phone1?: string; phone2?: string }) =>
-    ipcRenderer.invoke('driver:create', input),
+    invoke('driver:create', input),
   createClient: (input: {
     name: string
     initialPrice?: number
     location?: string
     openingBalance?: number
     openingBalanceDate?: string
-  }) => ipcRenderer.invoke('client:create', input),
+  }) => invoke('client:create', input),
   createCrusher: (input: { name: string; initialPrice?: number }) =>
-    ipcRenderer.invoke('crusher:create', input),
-  createMaterialType: (input: { name: string }) => ipcRenderer.invoke('materialType:create', input),
+    invoke('crusher:create', input),
+  createMaterialType: (input: { name: string }) => invoke('materialType:create', input),
   createContractor: (input: {
     name: string
     phone?: string
     openingBalance?: number
     openingBalanceDate?: string
-  }) => ipcRenderer.invoke('contractor:create', input),
+  }) => invoke('contractor:create', input),
   createVehicle: (input: {
     vehicleNo: number
     trailerNo: number
     contractorId: number
     defaultCubic?: number
     ownerName?: string
-  }) => ipcRenderer.invoke('vehicle:create', input),
-  createShift: (input: CreateShiftInput) => ipcRenderer.invoke('shift:create', input),
+  }) => invoke('vehicle:create', input),
+  createShift: (input: CreateShiftInput) => invoke('shift:create', input),
   closeShift: (input: CloseShiftInput): Promise<CloseShiftResult> =>
-    ipcRenderer.invoke('shift:close', input),
-  reopenShift: (input: { shiftId: string; reason: string }) =>
-    ipcRenderer.invoke('shift:reopen', input),
-  listDrivers: () => ipcRenderer.invoke('driver:list'),
-  listMaterialTypes: () => ipcRenderer.invoke('materialType:list'),
-  listContractors: () => ipcRenderer.invoke('contractor:list'),
-  listVehicles: () => ipcRenderer.invoke('vehicle:list'),
-  listOpenShifts: () => ipcRenderer.invoke('shift:listOpen'),
+    invoke<CloseShiftResult>('shift:close', input),
+  reopenShift: (input: { shiftId: string; reason: string }) => invoke('shift:reopen', input),
+  listDrivers: () => invoke('driver:list'),
+  listMaterialTypes: () => invoke('materialType:list'),
+  listContractors: () => invoke('contractor:list'),
+  listVehicles: () => invoke('vehicle:list'),
+  listOpenShifts: () => invoke('shift:listOpen'),
   updateDriver: (input: { id: number; name: string; phone1?: string; phone2?: string }) =>
-    ipcRenderer.invoke('driver:update', input),
-  deleteDriver: (input: { id: number }) => ipcRenderer.invoke('driver:delete', input),
+    invoke('driver:update', input),
+  deleteDriver: (input: { id: number }) => invoke('driver:delete', input),
   updateClient: (input: {
     id: number
     name: string
@@ -49,30 +60,29 @@ const api = {
     location?: string
     openingBalance?: number
     openingBalanceDate?: string
-  }) => ipcRenderer.invoke('client:update', input),
-  deleteClient: (input: { id: number }) => ipcRenderer.invoke('client:delete', input),
+  }) => invoke('client:update', input),
+  deleteClient: (input: { id: number }) => invoke('client:delete', input),
   updateCrusher: (input: { id: number; name: string; initialPrice?: number }) =>
-    ipcRenderer.invoke('crusher:update', input),
-  deleteCrusher: (input: { id: number }) => ipcRenderer.invoke('crusher:delete', input),
-  updateMaterialType: (input: { id: number; name: string }) =>
-    ipcRenderer.invoke('materialType:update', input),
-  deleteMaterialType: (input: { id: number }) => ipcRenderer.invoke('materialType:delete', input),
+    invoke('crusher:update', input),
+  deleteCrusher: (input: { id: number }) => invoke('crusher:delete', input),
+  updateMaterialType: (input: { id: number; name: string }) => invoke('materialType:update', input),
+  deleteMaterialType: (input: { id: number }) => invoke('materialType:delete', input),
   updateContractor: (input: {
     id: number
     name: string
     phone?: string
     openingBalance?: number
     openingBalanceDate?: string
-  }) => ipcRenderer.invoke('contractor:update', input),
-  deleteContractor: (input: { id: number }) => ipcRenderer.invoke('contractor:delete', input),
+  }) => invoke('contractor:update', input),
+  deleteContractor: (input: { id: number }) => invoke('contractor:delete', input),
   updateVehicle: (input: {
     vehicleNo: number
     trailerNo: number
     contractorId: number
     defaultCubic?: number
     ownerName?: string
-  }) => ipcRenderer.invoke('vehicle:update', input),
-  deleteVehicle: (input: { vehicleNo: number }) => ipcRenderer.invoke('vehicle:delete', input),
+  }) => invoke('vehicle:update', input),
+  deleteVehicle: (input: { vehicleNo: number }) => invoke('vehicle:delete', input),
   createTrip: (input: {
     shiftId: string
     tripDate: string
@@ -93,14 +103,13 @@ const api = {
     recipientName?: string
     clientReceiptNo?: string
     notes?: string
-  }) => ipcRenderer.invoke('trip:create', input),
-  listTripsByShift: (input: { shiftId: string }) => ipcRenderer.invoke('trip:listByShift', input),
-  listTripLocations: () => ipcRenderer.invoke('trip:listLocations'),
-  listAllTrips: () => ipcRenderer.invoke('trip:listAll'),
-  listClients: () => ipcRenderer.invoke('client:list'),
-  listCrushers: () => ipcRenderer.invoke('crusher:list'),
-  getDriverOpenShift: (input: { driverId: number }) =>
-    ipcRenderer.invoke('shift:getForDriver', input),
+  }) => invoke('trip:create', input),
+  listTripsByShift: (input: { shiftId: string }) => invoke('trip:listByShift', input),
+  listTripLocations: () => invoke('trip:listLocations'),
+  listAllTrips: () => invoke('trip:listAll'),
+  listClients: () => invoke('client:list'),
+  listCrushers: () => invoke('crusher:list'),
+  getDriverOpenShift: (input: { driverId: number }) => invoke('shift:getForDriver', input),
   createLedgerEntry: (input: {
     entryDate: string
     driverId?: number
@@ -109,7 +118,7 @@ const api = {
     shiftId?: string
     contractorId?: number
     notes?: string
-  }) => ipcRenderer.invoke('ledger:create', input),
+  }) => invoke('ledger:create', input),
   updateLedgerEntry: (input: {
     id: number
     entryDate: string
@@ -119,33 +128,30 @@ const api = {
     shiftId: string | null
     contractorId: number | null
     notes: string | null
-  }) => ipcRenderer.invoke('ledger:update', input),
-  deleteLedgerEntry: (input: { id: number }) => ipcRenderer.invoke('ledger:delete', input),
-  listLedgerEntries: () => ipcRenderer.invoke('ledger:list'),
-  getContractorAccount: (input: { contractorId: number }) =>
-    ipcRenderer.invoke('account:contractor', input),
-  getDriverHistory: (input: { driverId: number }) => ipcRenderer.invoke('account:driver', input),
-  getClientAccount: (input: { clientId: number }) => ipcRenderer.invoke('account:client', input),
-  getClientStatement: (input: { clientId: number }) =>
-    ipcRenderer.invoke('statement:client', input),
+  }) => invoke('ledger:update', input),
+  deleteLedgerEntry: (input: { id: number }) => invoke('ledger:delete', input),
+  listLedgerEntries: () => invoke('ledger:list'),
+  getContractorAccount: (input: { contractorId: number }) => invoke('account:contractor', input),
+  getDriverHistory: (input: { driverId: number }) => invoke('account:driver', input),
+  getClientAccount: (input: { clientId: number }) => invoke('account:client', input),
+  getClientStatement: (input: { clientId: number }) => invoke('statement:client', input),
   getContractorStatement: (input: { contractorId: number }) =>
-    ipcRenderer.invoke('statement:contractor', input),
+    invoke('statement:contractor', input),
   createClientPayment: (input: {
     entryDate: string
     clientId: number
     amount: number
     notes?: string
-  }) => ipcRenderer.invoke('client:payment:create', input),
+  }) => invoke('client:payment:create', input),
   updateClientPayment: (input: {
     id: number
     entryDate: string
     clientId: number
     amount: number
     notes: string | null
-  }) => ipcRenderer.invoke('client:payment:update', input),
-  deleteClientPayment: (input: { id: number }) =>
-    ipcRenderer.invoke('client:payment:delete', input),
-  listShifts: () => ipcRenderer.invoke('shift:listAll'),
+  }) => invoke('client:payment:update', input),
+  deleteClientPayment: (input: { id: number }) => invoke('client:payment:delete', input),
+  listShifts: () => invoke('shift:listAll'),
   updateTrip: (input: {
     id: string
     tripDate: string
@@ -166,19 +172,18 @@ const api = {
     recipientName?: string
     clientReceiptNo?: string
     notes?: string
-  }) => ipcRenderer.invoke('trip:update', input),
-  deleteTrip: (input: { id: string }) => ipcRenderer.invoke('trip:delete', input),
+  }) => invoke('trip:update', input),
+  deleteTrip: (input: { id: string }) => invoke('trip:delete', input),
   addAttachment: (input: {
     entityType: 'TRIP' | 'SHIFT'
     entityId: string
     kind: 'CRUSHER_RECEIPT' | 'CLIENT_RECEIPT' | 'CLOSING_SHEET'
     imageBase64: string
-  }) => ipcRenderer.invoke('attachment:add', input),
-  removeAttachment: (input: { id: number }) => ipcRenderer.invoke('attachment:remove', input),
+  }) => invoke('attachment:add', input),
+  removeAttachment: (input: { id: number }) => invoke('attachment:remove', input),
   listEntityAttachments: (input: { entityType: 'TRIP' | 'SHIFT'; entityId: string }) =>
-    ipcRenderer.invoke('attachment:list', input),
-  getAttachmentPhoto: (input: { attachmentId: number }) =>
-    ipcRenderer.invoke('attachment:getPhoto', input)
+    invoke('attachment:list', input),
+  getAttachmentPhoto: (input: { attachmentId: number }) => invoke('attachment:getPhoto', input)
 }
 
 if (process.contextIsolated) {

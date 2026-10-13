@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/DataTable'
-
 export type LedgerRow = Extract<
   Awaited<ReturnType<typeof window.api.getDriverHistory>>,
   { ok: true }

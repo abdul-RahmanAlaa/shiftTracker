@@ -47,6 +47,8 @@ import { createContractor } from '../src/main/use-cases/createContractor'
 import { createCrusher } from '../src/main/use-cases/createCrusher'
 import { getClientAccount, getContractorAccount } from '../src/main/use-cases/getAccounts'
 import { getClientStatement, getContractorStatement } from '../src/main/use-cases/getStatement'
+import { wrapHandler } from '../src/main/ipcWrapper'
+import { getUnhandledIpcErrors } from '../src/renderer/src/lib/ipcErrors'
 
 const outcomes = []
 const harnessUserData = process.env.SHIFT_TRACKER_USER_DATA
@@ -58,6 +60,27 @@ function runCase(name, expected, operation, passes) {
   let actual
   try {
     actual = { threw: false, value: operation() }
+  } catch (error) {
+    actual = { threw: true, error: error instanceof Error ? error.message : String(error) }
+  }
+  const pass = passes(actual)
+  if (!pass) outcomes.push(name)
+  console.log(
+    '| ' +
+      name.replaceAll('|', '\\|') +
+      ' | ' +
+      (pass ? 'PASS' : 'FAIL') +
+      ' | ' +
+      expected.replaceAll('|', '\\|') +
+      ' |'
+  )
+  if (!pass) console.log('DETAIL ' + name + ' | ' + JSON.stringify(actual))
+  return actual
+}
+async function runAsyncCase(name, expected, operation, passes) {
+  let actual
+  try {
+    actual = { threw: false, value: await operation() }
   } catch (error) {
     actual = { threw: true, error: error instanceof Error ? error.message : String(error) }
   }
@@ -805,6 +828,7 @@ let paymentId
 let reopenedCountShiftId
 let fixtureSequence = 0
 
+async function runHarness() {
 try {
   console.log('| Case | Result | Expected |')
   console.log('| --- | --- | --- |')
@@ -1847,6 +1871,64 @@ try {
     return output?.closed?.ok === true && output.before === output.after
   })
 
+  await runAsyncCase('E1 IPC wrapper passes through success and failure results unchanged', 'both result objects retain identity', async () => {
+    const success = { ok: true, data: { id: 1 } }
+    const failure = { ok: false, errors: [{ field: 'name', message: 'invalid' }] }
+    const passSuccess = await wrapHandler(() => success)()
+    const passFailure = await wrapHandler(() => failure)()
+    return { passSuccess, passFailure, success, failure }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.passSuccess === output?.success && output?.passFailure === output?.failure
+  })
+  await runAsyncCase('E2 IPC wrapper converts a thrown error and logs once', 'exact sentinel failure, one log, no throw', async () => {
+    const logged = []
+    const wrapped = wrapHandler(() => {
+      throw new Error('private detail')
+    }, (error) => logged.push(error))
+    const value = await wrapped()
+    return { value, logged }
+  }, (actual) => {
+    const output = result(actual)
+    return output?.value?.ok === false &&
+      output.value.errors.length === 1 &&
+      output.value.errors[0].field === '_form' &&
+      output.value.errors[0].message === 'UNEXPECTED_ERROR' &&
+      output.logged.length === 1 &&
+      output.logged[0] instanceof Error
+  })
+  await runAsyncCase('E3 IPC wrapper converts a rejected promise', 'exact sentinel failure, no throw', async () => {
+    const value = await wrapHandler(() => Promise.reject(new Error('private detail')))()
+    return value
+  }, (actual) => {
+    const value = result(actual)
+    return value?.ok === false &&
+      value.errors.length === 1 &&
+      value.errors[0].field === '_form' &&
+      value.errors[0].message === 'UNEXPECTED_ERROR'
+  })
+  runCase('E4 renderer IPC helper returns translated form and unknown-field errors', 'two errors returned; known field omitted', () => {
+    return getUnhandledIpcErrors(
+      {
+        ok: false,
+        errors: [
+          { field: '_form', message: 'UNEXPECTED_ERROR' },
+          { field: 'unknown', message: 'validation' },
+          { field: 'name', message: 'field validation' }
+        ]
+      },
+      ['name'],
+      (key) => 'translated:' + key
+    )
+  }, (actual) => {
+    const errors = result(actual)
+    return errors?.length === 2 &&
+      errors[0].field === '_form' &&
+      errors[0].message === 'translated:ipcErrors.unexpected' &&
+      errors[1].field === 'unknown' &&
+      errors[1].message === 'validation'
+  })
+
   console.log('SUMMARY ' + (outcomes.length === 0 ? 'PASS' : 'FAIL') + ' | failed cases: ' + JSON.stringify(outcomes))
   if (outcomes.length > 0) process.exitCode = 1
 } finally {
@@ -1854,6 +1936,9 @@ try {
   process.env.SHIFT_TRACKER_USER_DATA = harnessUserData
   fs.rmSync(harnessUserData, { recursive: true, force: true })
 }
+}
+
+void runHarness()
 `
 
 async function main() {

@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -14,14 +15,15 @@ import { ShiftBreadcrumb } from '@/components/ShiftBreadcrumb'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TripForm, tripSchema } from './AddTripPage'
 import type { ResourceState, TripValues } from './AddTripPage'
+const ipcApi = createIpcApi()
 
 type TripRow = Extract<
-  Awaited<ReturnType<typeof window.api.listTripsByShift>>,
+  Awaited<ReturnType<typeof ipcApi.listTripsByShift>>,
   { ok: true }
 >['data'][number]
 
 type ShiftListRow = Extract<
-  Awaited<ReturnType<typeof window.api.listShifts>>,
+  Awaited<ReturnType<typeof ipcApi.listShifts>>,
   { ok: true }
 >['data'][number]
 
@@ -110,7 +112,7 @@ export function ShiftDetailPage(): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([window.api.listShifts(), window.api.listTripsByShift({ shiftId })]).then(
+    void Promise.all([ipcApi.listShifts(), ipcApi.listTripsByShift({ shiftId })]).then(
       ([shiftResult, tripResult]) => {
         if (cancelled) return
         setShift(
@@ -127,12 +129,12 @@ export function ShiftDetailPage(): React.JSX.Element {
 
   useEffect(() => {
     void Promise.all([
-      window.api.listDrivers(),
-      window.api.listVehicles(),
-      window.api.listCrushers(),
-      window.api.listClients(),
-      window.api.listMaterialTypes(),
-      window.api.listTripLocations()
+      ipcApi.listDrivers(),
+      ipcApi.listVehicles(),
+      ipcApi.listCrushers(),
+      ipcApi.listClients(),
+      ipcApi.listMaterialTypes(),
+      ipcApi.listTripLocations()
     ]).then(([drivers, vehicles, crushers, clients, materialTypes, locations]) => {
       setResources({
         drivers: drivers.ok ? drivers.data : [],
@@ -146,7 +148,7 @@ export function ShiftDetailPage(): React.JSX.Element {
   }, [])
 
   async function loadShiftTrips(): Promise<void> {
-    const result = await window.api.listTripsByShift({ shiftId })
+    const result = await ipcApi.listTripsByShift({ shiftId })
     if (result.ok) {
       setTrips(result.data)
       setShift((current) =>
@@ -183,7 +185,7 @@ export function ShiftDetailPage(): React.JSX.Element {
 
   async function handleCreateTrip(values: TripValues): Promise<void> {
     addTripForm.clearErrors('root')
-    const result = await window.api.createTrip({ shiftId, ...values })
+    const result = await ipcApi.createTrip({ shiftId, ...values })
     if (!result.ok) {
       const generalErrors: string[] = []
       result.errors.forEach((error) => {
@@ -233,7 +235,7 @@ export function ShiftDetailPage(): React.JSX.Element {
 
   async function handleUpdateTrip(values: TripValues): Promise<void> {
     if (!editingTripId) return
-    const result = await window.api.updateTrip({ id: editingTripId, ...values })
+    const result = await ipcApi.updateTrip({ id: editingTripId, ...values })
     if (result.ok) {
       setEditingTripId(null)
       await loadShiftTrips()
@@ -248,7 +250,7 @@ export function ShiftDetailPage(): React.JSX.Element {
 
   async function handleDeleteTrip(trip: TripRow): Promise<void> {
     if (!confirm(t('shifts.deleteTripConfirmation', { id: trip.id }))) return
-    const result = await window.api.deleteTrip({ id: trip.id })
+    const result = await ipcApi.deleteTrip({ id: trip.id })
     if (result.ok) await loadShiftTrips()
   }
 

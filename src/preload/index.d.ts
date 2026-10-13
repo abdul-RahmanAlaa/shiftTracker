@@ -5,6 +5,7 @@ interface UseCaseResult<T> {
   data: T
 }
 
+/** Includes the `_form` fallback returned when an IPC handler or invoke fails. */
 interface FailedUseCaseResult {
   ok: false
   errors: { field: string; message: string }[]

@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { hasAtMostTwoDecimals } from '@/lib/money'
+const ipcApi = createIpcApi()
 
 const crusherSchema = z.object({
   name: z.string().min(1, i18n.t('crushersSettings.validation.nameRequired')),
@@ -59,13 +61,13 @@ export function CrushersSettings(): React.JSX.Element {
 
   async function loadCrushers(): Promise<void> {
     setLoading(true)
-    const result = await window.api.listCrushers()
+    const result = await ipcApi.listCrushers()
     if (result.ok) setCrushers(result.data)
     setLoading(false)
   }
 
   useEffect(() => {
-    void window.api.listCrushers().then((result) => {
+    void ipcApi.listCrushers().then((result) => {
       if (result.ok) setCrushers(result.data)
       setLoading(false)
     })
@@ -89,8 +91,8 @@ export function CrushersSettings(): React.JSX.Element {
     }
 
     const result = editingCrusherId
-      ? await window.api.updateCrusher({ id: editingCrusherId, ...parsedValues })
-      : await window.api.createCrusher(parsedValues)
+      ? await ipcApi.updateCrusher({ id: editingCrusherId, ...parsedValues })
+      : await ipcApi.createCrusher(parsedValues)
     if (result.ok) {
       setIsDialogOpen(false)
       crusherForm.reset()
@@ -122,7 +124,7 @@ export function CrushersSettings(): React.JSX.Element {
 
   async function handleDeleteCrusher(crusher: Crusher): Promise<void> {
     if (!confirm(t('crushersSettings.deleteConfirmation', { name: crusher.name }))) return
-    const result = await window.api.deleteCrusher({ id: crusher.id })
+    const result = await ipcApi.deleteCrusher({ id: crusher.id })
     if (result.ok) {
       if (editingCrusherId === crusher.id) cancelEditingCrusher()
       await loadCrushers()

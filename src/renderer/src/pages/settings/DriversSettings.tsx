@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -27,6 +28,7 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+const ipcApi = createIpcApi()
 
 const driverSchema = z.object({
   name: z.string().min(1, i18n.t('driversSettings.validation.nameRequired')),
@@ -50,13 +52,13 @@ export function DriversSettings(): React.JSX.Element {
 
   async function loadDrivers(): Promise<void> {
     setLoading(true)
-    const result = await window.api.listDrivers()
+    const result = await ipcApi.listDrivers()
     if (result.ok) setDrivers(result.data)
     setLoading(false)
   }
 
   useEffect(() => {
-    void window.api.listDrivers().then((result) => {
+    void ipcApi.listDrivers().then((result) => {
       if (result.ok) setDrivers(result.data)
       setLoading(false)
     })
@@ -64,8 +66,8 @@ export function DriversSettings(): React.JSX.Element {
 
   async function handleSaveDriver(values: DriverFormValues): Promise<void> {
     const result = editingDriverId
-      ? await window.api.updateDriver({ id: editingDriverId, ...values })
-      : await window.api.createDriver(values)
+      ? await ipcApi.updateDriver({ id: editingDriverId, ...values })
+      : await ipcApi.createDriver(values)
     if (result.ok) {
       setIsDialogOpen(false)
       driverForm.reset()
@@ -98,7 +100,7 @@ export function DriversSettings(): React.JSX.Element {
 
   async function handleDeleteDriver(driver: Driver): Promise<void> {
     if (!confirm(t('driversSettings.deleteConfirmation', { name: driver.name }))) return
-    const result = await window.api.deleteDriver({ id: driver.id })
+    const result = await ipcApi.deleteDriver({ id: driver.id })
     if (result.ok) {
       if (editingDriverId === driver.id) cancelEditingDriver()
       await loadDrivers()

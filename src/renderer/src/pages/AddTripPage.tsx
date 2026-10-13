@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 /* eslint-disable react-refresh/only-export-components */
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -40,6 +41,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { hasAtMostTwoDecimals } from '@/lib/money'
+const ipcApi = createIpcApi()
 
 type NamedOption = { id: number; name: string }
 type OpenShift = {
@@ -219,12 +221,12 @@ export function AddTripPage(): React.JSX.Element {
 
   useEffect(() => {
     void Promise.all([
-      window.api.listDrivers(),
-      window.api.listVehicles(),
-      window.api.listCrushers(),
-      window.api.listClients(),
-      window.api.listMaterialTypes(),
-      window.api.listTripLocations()
+      ipcApi.listDrivers(),
+      ipcApi.listVehicles(),
+      ipcApi.listCrushers(),
+      ipcApi.listClients(),
+      ipcApi.listMaterialTypes(),
+      ipcApi.listTripLocations()
     ]).then(([drivers, vehicles, crushers, clients, materialTypes, locations]) => {
       setResources({
         drivers: drivers.ok ? drivers.data : [],
@@ -242,7 +244,7 @@ export function AddTripPage(): React.JSX.Element {
     setSelectedDriverId(driverId)
     createShiftForm.setValue('driverId', driverId)
     setCheckingShift(true)
-    const result = await window.api.getDriverOpenShift({ driverId })
+    const result = await ipcApi.getDriverOpenShift({ driverId })
     if (result.ok && result.data) {
       setOpenShift(result.data)
       syncTripDefaults(result.data)
@@ -262,7 +264,7 @@ export function AddTripPage(): React.JSX.Element {
 
   async function handleCreateShift(values: CreateShiftValues): Promise<boolean> {
     if (!values.driverId) return false
-    const result = await window.api.createShift(values)
+    const result = await ipcApi.createShift(values)
     if (!result.ok) {
       result.errors.forEach((error) => {
         if (error.field in values)
@@ -272,7 +274,7 @@ export function AddTripPage(): React.JSX.Element {
       })
       return false
     }
-    const shiftResult = await window.api.getDriverOpenShift({ driverId: values.driverId })
+    const shiftResult = await ipcApi.getDriverOpenShift({ driverId: values.driverId })
     if (shiftResult.ok && shiftResult.data) {
       setOpenShift(shiftResult.data)
       syncTripDefaults(shiftResult.data)
@@ -283,7 +285,7 @@ export function AddTripPage(): React.JSX.Element {
 
   async function handleCreateTrip(values: TripValues): Promise<void> {
     if (!openShift) return
-    const result = await window.api.createTrip({ shiftId: openShift.id, ...values })
+    const result = await ipcApi.createTrip({ shiftId: openShift.id, ...values })
     const message = result.ok
       ? t('addTrip.logs.created', { id: result.data?.id })
       : t('addTrip.logs.failed', { errors: result.errors?.map((x) => x.message).join(', ') })

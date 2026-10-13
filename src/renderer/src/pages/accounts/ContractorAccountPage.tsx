@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
@@ -43,6 +44,7 @@ import {
   type ContractorAccount,
   type LedgerRow
 } from './AccountTables'
+const ipcApi = createIpcApi()
 
 type Contractor = { id: number; name: string }
 type Driver = { id: number; name: string }
@@ -73,15 +75,13 @@ export function ContractorAccountPage(): React.JSX.Element {
   })
 
   useEffect(() => {
-    void Promise.all([
-      window.api.listContractors(),
-      window.api.listDrivers(),
-      window.api.listShifts()
-    ]).then(([contractorsResult, driversResult, shiftsResult]) => {
-      if (contractorsResult.ok) setContractors(contractorsResult.data)
-      if (driversResult.ok) setDrivers(driversResult.data)
-      if (shiftsResult.ok) setShifts(shiftsResult.data)
-    })
+    void Promise.all([ipcApi.listContractors(), ipcApi.listDrivers(), ipcApi.listShifts()]).then(
+      ([contractorsResult, driversResult, shiftsResult]) => {
+        if (contractorsResult.ok) setContractors(contractorsResult.data)
+        if (driversResult.ok) setDrivers(driversResult.data)
+        if (shiftsResult.ok) setShifts(shiftsResult.data)
+      }
+    )
   }, [])
 
   async function handleChange(value: string): Promise<void> {
@@ -92,7 +92,7 @@ export function ContractorAccountPage(): React.JSX.Element {
     }
     const contractorId = Number(value)
     setSelectedContractorId(contractorId)
-    const result = await window.api.getContractorAccount({ contractorId })
+    const result = await ipcApi.getContractorAccount({ contractorId })
     if (result.ok) {
       setAccount(result.data)
     } else {
@@ -141,16 +141,16 @@ export function ContractorAccountPage(): React.JSX.Element {
 
   async function handleSaveEntry(values: LedgerEntryFormValues): Promise<void> {
     const result = editingEntry
-      ? await window.api.updateLedgerEntry({
+      ? await ipcApi.updateLedgerEntry({
           id: editingEntry.id,
           ...values,
           driverId: values.driverId ?? null,
           shiftId: values.shiftId ?? null,
           contractorId: values.contractorId ?? null,
           notes: values.notes?.trim() || null
-        } satisfies Parameters<typeof window.api.updateLedgerEntry>[0])
-      : await window.api.createLedgerEntry(
-          values satisfies Parameters<typeof window.api.createLedgerEntry>[0]
+        } satisfies Parameters<typeof ipcApi.updateLedgerEntry>[0])
+      : await ipcApi.createLedgerEntry(
+          values satisfies Parameters<typeof ipcApi.createLedgerEntry>[0]
         )
     if (result.ok) {
       setIsEditDialogOpen(false)
@@ -171,7 +171,7 @@ export function ContractorAccountPage(): React.JSX.Element {
 
   async function handleDeleteEntry(entry: LedgerRow): Promise<void> {
     if (!confirm(t('allMovements.deleteConfirmation', { id: entry.id }))) return
-    const result = await window.api.deleteLedgerEntry({ id: entry.id })
+    const result = await ipcApi.deleteLedgerEntry({ id: entry.id })
     if (result.ok && selectedContractorId) {
       await handleChange(String(selectedContractorId))
     }

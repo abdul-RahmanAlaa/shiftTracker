@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -5,9 +6,10 @@ import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/DataTable'
 import { TripDetailsContent } from '@/components/TripDetailsContent'
 import { useFloatingWindows } from '@/components/FloatingWindowsContext'
+const ipcApi = createIpcApi()
 
 type AllTripsRow = Extract<
-  Awaited<ReturnType<typeof window.api.listAllTrips>>,
+  Awaited<ReturnType<typeof ipcApi.listAllTrips>>,
   { ok: true }
 >['data'][number]
 
@@ -50,7 +52,7 @@ export function AllTripsPage(): React.JSX.Element {
   ]
 
   useEffect(() => {
-    void window.api.listAllTrips().then((result) => {
+    void ipcApi.listAllTrips().then((result) => {
       if (result.ok) setTrips(result.data)
       setLoading(false)
     })

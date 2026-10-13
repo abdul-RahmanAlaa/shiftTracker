@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
@@ -20,9 +21,10 @@ import {
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog'
+const ipcApi = createIpcApi()
 
 type LedgerRow = Extract<
-  Awaited<ReturnType<typeof window.api.listLedgerEntries>>,
+  Awaited<ReturnType<typeof ipcApi.listLedgerEntries>>,
   { ok: true }
 >['data'][number]
 type Driver = { id: number; name: string }
@@ -54,17 +56,17 @@ export function AllMovementsPage(): React.JSX.Element {
 
   async function loadEntries(): Promise<void> {
     setLoading(true)
-    const result = await window.api.listLedgerEntries()
+    const result = await ipcApi.listLedgerEntries()
     if (result.ok) setEntries(result.data)
     setLoading(false)
   }
 
   useEffect(() => {
     void Promise.all([
-      window.api.listDrivers(),
-      window.api.listContractors(),
-      window.api.listShifts(),
-      window.api.listLedgerEntries()
+      ipcApi.listDrivers(),
+      ipcApi.listContractors(),
+      ipcApi.listShifts(),
+      ipcApi.listLedgerEntries()
     ]).then(([driversResult, contractorsResult, shiftsResult, entriesResult]) => {
       if (driversResult.ok) setDrivers(driversResult.data)
       if (contractorsResult.ok) setContractors(contractorsResult.data)
@@ -115,16 +117,16 @@ export function AllMovementsPage(): React.JSX.Element {
 
   async function handleSaveEntry(values: LedgerEntryFormValues): Promise<void> {
     const result = editingEntryId
-      ? await window.api.updateLedgerEntry({
+      ? await ipcApi.updateLedgerEntry({
           id: editingEntryId,
           ...values,
           driverId: values.driverId ?? null,
           shiftId: values.shiftId ?? null,
           contractorId: values.contractorId ?? null,
           notes: values.notes?.trim() || null
-        } satisfies Parameters<typeof window.api.updateLedgerEntry>[0])
-      : await window.api.createLedgerEntry(
-          values satisfies Parameters<typeof window.api.createLedgerEntry>[0]
+        } satisfies Parameters<typeof ipcApi.updateLedgerEntry>[0])
+      : await ipcApi.createLedgerEntry(
+          values satisfies Parameters<typeof ipcApi.createLedgerEntry>[0]
         )
 
     if (result.ok) {
@@ -145,7 +147,7 @@ export function AllMovementsPage(): React.JSX.Element {
 
   async function handleDeleteEntry(entry: LedgerRow): Promise<void> {
     if (!confirm(t('allMovements.deleteConfirmation', { id: entry.id }))) return
-    const result = await window.api.deleteLedgerEntry({ id: entry.id })
+    const result = await ipcApi.deleteLedgerEntry({ id: entry.id })
     if (result.ok) {
       if (editingEntryId === entry.id) {
         setEditingEntryId(null)

@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { hasAtMostTwoDecimals } from '@/lib/money'
+const ipcApi = createIpcApi()
 
 const clientSchema = z.object({
   name: z.string().min(1, i18n.t('clientsSettings.validation.nameRequired')),
@@ -82,13 +84,13 @@ export function ClientsSettings(): React.JSX.Element {
 
   async function loadClients(): Promise<void> {
     setLoading(true)
-    const result = await window.api.listClients()
+    const result = await ipcApi.listClients()
     if (result.ok) setClients(result.data)
     setLoading(false)
   }
 
   useEffect(() => {
-    void window.api.listClients().then((result) => {
+    void ipcApi.listClients().then((result) => {
       if (result.ok) setClients(result.data)
       setLoading(false)
     })
@@ -112,8 +114,8 @@ export function ClientsSettings(): React.JSX.Element {
     }
 
     const result = editingClientId
-      ? await window.api.updateClient({ id: editingClientId, ...parsedValues })
-      : await window.api.createClient(parsedValues)
+      ? await ipcApi.updateClient({ id: editingClientId, ...parsedValues })
+      : await ipcApi.createClient(parsedValues)
     if (result.ok) {
       setIsDialogOpen(false)
       clientForm.reset()
@@ -148,7 +150,7 @@ export function ClientsSettings(): React.JSX.Element {
 
   async function handleDeleteClient(client: Client): Promise<void> {
     if (!confirm(t('clientsSettings.deleteConfirmation', { name: client.name }))) return
-    const result = await window.api.deleteClient({ id: client.id })
+    const result = await ipcApi.deleteClient({ id: client.id })
     if (result.ok) {
       if (editingClientId === client.id) cancelEditingClient()
       await loadClients()

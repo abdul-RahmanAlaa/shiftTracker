@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -21,18 +22,19 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+const ipcApi = createIpcApi()
 
 type EntityType = 'client' | 'contractor'
 type ClientOption = Extract<
-  Awaited<ReturnType<typeof window.api.listClients>>,
+  Awaited<ReturnType<typeof ipcApi.listClients>>,
   { ok: true }
 >['data'][number]
 type ContractorOption = Extract<
-  Awaited<ReturnType<typeof window.api.listContractors>>,
+  Awaited<ReturnType<typeof ipcApi.listContractors>>,
   { ok: true }
 >['data'][number]
 type Statement = Extract<
-  Awaited<ReturnType<typeof window.api.getClientStatement>>,
+  Awaited<ReturnType<typeof ipcApi.getClientStatement>>,
   { ok: true }
 >['data']
 type StatementRow = Statement['rows'][number]
@@ -62,7 +64,7 @@ export function StatementsPage(): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([window.api.listClients(), window.api.listContractors()])
+    void Promise.all([ipcApi.listClients(), ipcApi.listContractors()])
       .then(([clientsResult, contractorsResult]) => {
         if (cancelled) return
         if (clientsResult.ok) setClients(clientsResult.data)
@@ -87,8 +89,8 @@ export function StatementsPage(): React.JSX.Element {
 
     const request =
       entityType === 'client'
-        ? window.api.getClientStatement({ clientId: selectedEntityId })
-        : window.api.getContractorStatement({ contractorId: selectedEntityId })
+        ? ipcApi.getClientStatement({ clientId: selectedEntityId })
+        : ipcApi.getContractorStatement({ contractorId: selectedEntityId })
 
     void request
       .then((result) => {

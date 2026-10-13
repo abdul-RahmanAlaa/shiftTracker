@@ -34,6 +34,8 @@
 `renderer -> preload (window.api) -> ipcMain -> use-cases -> repositories -> SQLite`
 
 - `src/main/index.ts` registers IPC handlers; `src/preload/index.ts` exposes `window.api`, and `src/preload/index.d.ts` types it.
+- `src/main/ipcWrapper.ts` converts thrown or rejected IPC handlers into the standard `_form` error result and logs the original error. Preload invocation rejections use the same failure result.
+- `src/renderer/src/lib/ipcErrors.ts` translates unexpected IPC failures and surfaces errors that cannot be shown beside known form fields; field-level validation remains with each form.
 - Use cases return `{ ok: true, data }` or `{ ok: false, errors }`, where each error has a `field` and `message`.
 - Runtime validation is in main-process use cases and shared schemas/helpers in `src/main/validation.ts`; renderer forms also use Zod for immediate field feedback.
 - Every user-visible renderer string comes from `src/renderer/src/i18n/locales/ar.json`. Do not hardcode user-visible text in renderer code.
@@ -50,6 +52,7 @@
 | File or directory                           | Responsibility                                                 |
 | ------------------------------------------- | -------------------------------------------------------------- |
 | `src/main/index.ts`                         | Electron startup, IPC handlers, window creation                |
+| `src/main/ipcWrapper.ts`                    | IPC exception logging and standard failure results             |
 | `src/main/db.ts`                            | Immutable version-5 schema baseline, safe opening, logging     |
 | `src/main/migrations.ts`                    | Ordered numbered migrations and verified pre-migration backups |
 | `src/main/validation.ts`                    | Shared date, number, and money validation                      |
@@ -64,6 +67,7 @@
 | `src/renderer/src/pages/`                   | Main pages and settings/account subpages                       |
 | `src/renderer/src/components/`              | Shared forms, tables, dialogs, details, and attachments        |
 | `src/renderer/src/lib/enumLabels.ts`        | Shared labels for stored enum values                           |
+| `src/renderer/src/lib/ipcErrors.ts`         | Translation and display of unhandled IPC errors                |
 | `src/renderer/src/i18n/`                    | Arabic translation setup and locale                            |
 | `scripts/verify-closed-shift-use-cases.cjs` | Isolated real-use-case verification harness                    |
 | `scripts/db-inspect.cjs`                    | Read-only database integrity and row-count inspection          |
@@ -180,74 +184,75 @@ The wildcard route redirects to `/`. Shared renderer components include `DataTab
 
 Priority order reflects user-visible correctness first, then operational risks and manual confirmation.
 
-1. **High — IPC error visibility:** failed delete results and rejected IPC promises are not consistently surfaced to the user. Review `src/renderer/src/pages/` and `src/renderer/src/pages/AddTripPage.tsx`.
-2. **High — ledger edit forms:** contractor and driver account pages retain separate manual edit forms rather than applying the shared locking rules consistently. Review `src/renderer/src/pages/accounts/ContractorAccountPage.tsx` and `src/renderer/src/pages/accounts/DriverHistoryPage.tsx`.
-3. **High — migration definitions:** the ordered migration runner is present, but the numbered migrations list is empty; add a numbered migration with any future schema change. Review `src/main/migrations.ts`.
-4. **Medium — account and statement details:** filtered table empty-state handling, account number formatting, and duplicated client-payment notes need attention. Review `src/renderer/src/components/DataTable.tsx`, `src/renderer/src/pages/accounts/AccountTables.tsx`, and `src/main/repository/statementRepository.ts`.
-5. **Medium — async account loading:** rapid entity changes can race in account/history pages. Review `src/renderer/src/pages/accounts/ContractorAccountPage.tsx`, `src/renderer/src/pages/accounts/DriverHistoryPage.tsx`, and `src/renderer/src/pages/accounts/ClientAccountPage.tsx`.
-6. **Medium — attachment throughput:** shift details can request many full attachment data URIs. Review `src/renderer/src/pages/ShiftDetailPage.tsx` and `src/renderer/src/components/AttachmentManager.tsx`.
-7. **Medium — same-date ordering:** statement ordering for movements on one date needs an explicit, stable business order. Review `src/main/use-cases/getStatement.ts`.
-8. **Low — locale maintenance:** six unused locale entries remain, and there is no automated missing-translation-key check. Review `src/renderer/src/i18n/locales/ar.json` and `src/renderer/src/i18n/`.
-9. **Low — app packaging metadata:** boilerplate app metadata, window title, HTML language/direction, and app ID alignment need review. Review `package.json`, `src/renderer/index.html`, and `src/main/index.ts`.
-10. **Pending manual confirmation:** edit a shift-linked ledger row to have no shift; save and confirm the shift is empty after reopening.
-11. **Pending manual confirmation:** clear an allowed driver and ledger notes; save and confirm both remain empty after reopening.
-12. **Pending manual confirmation:** edit only a ledger amount and confirm its shift, driver, contractor, and notes are preserved.
-13. **Pending manual confirmation:** clear client-payment notes and confirm they remain empty after reopening.
-14. **Pending manual confirmation:** edit only a client-payment amount and confirm its notes are preserved.
-15. **Pending manual confirmation:** submit an invalid ledger combination and confirm a field error appears without a crash.
-16. **Pending manual confirmation:** enter a client payment of -300 and confirm both Accounts and Statements increase the balance by 300.
-17. **Pending manual confirmation:** enter a negative ledger amount and confirm it appears in driver history.
-18. **Pending manual confirmation:** confirm amount zero is rejected with a field error.
-19. **Pending manual confirmation:** edit a client payment to a negative amount.
-20. **Pending manual confirmation:** reopen a CLOSED shift with a reason and confirm its badge and editability.
-21. **Pending manual confirmation:** confirm reopen `shiftId` and `reason` errors appear beneath their controls.
-22. **Pending manual confirmation:** add a forgotten trip and its attachment to a REOPENED shift from its detail page.
-23. **Pending manual confirmation:** confirm reopened trip-count input has integer steps and a minimum of zero.
-24. **Pending manual confirmation:** close a CLOSED shift with a count and confirm the already-closed `shiftId` error.
-25. **Pending manual confirmation:** confirm a non-trip-field add-trip error appears and clears on resubmit or dialog close.
-26. **Pending manual confirmation:** reject reopening with an empty reason.
-27. **Pending manual confirmation:** start a new shift for the driver of a REOPENED shift.
-28. **Pending manual confirmation:** re-close a reopened shift and confirm normal close checks and backup.
-29. **Pending manual confirmation:** confirm an empty or wrong OPEN-shift close count produces a field error.
-30. **Pending manual confirmation:** close with the correct count and confirm it is stored.
-31. **Pending manual confirmation:** confirm the create-shift form has no reported-count field.
-32. **Pending manual confirmation:** confirm a second OPEN shift on one vehicle is rejected.
-33. **Pending manual confirmation:** confirm a trip price of zero is rejected beside its field.
-34. **Pending manual confirmation:** confirm a negative trip price is rejected.
-35. **Pending manual confirmation:** confirm an impossible date is rejected.
-36. **Pending manual confirmation:** confirm a shift with zero default cubic is rejected.
-37. **Pending manual confirmation:** verify create/update reject string, NaN, negative, and zero trip prices/cubics on the exact field without changing rows; quantities remain positive finite REAL values and unaffected by fines.
-38. **Pending manual confirmation:** verify impossible trip/start/end dates show invalid-date errors and empty values show required errors.
-39. **Pending manual confirmation:** create and edit a trip with empty optional renderer fields; confirm saves succeed and recipient status is sent as UNCLEAR.
-40. **Pending manual confirmation:** confirm createShift rejects supplied reported count and zero, negative, or string defaults without inserting a row.
-41. **Pending manual confirmation:** confirm a second OPEN shift is rejected, closing frees the vehicle, and REOPENED does not block a new shift.
-42. **Pending manual confirmation:** confirm end-before-start leaves the shift unchanged and CLOSED-with-invalid-count returns the already-closed `shiftId` error first.
-43. **Pending manual confirmation:** close an OPEN shift with a closing-sheet attachment and count zero; confirm CLOSED state and stored zero.
-44. **Pending manual confirmation:** re-close with a new matching count and confirm it is stored.
-45. **Pending manual confirmation:** re-close with a mismatched count and confirm the count-field error.
-46. **Pending manual confirmation:** confirm the re-close input pre-fills stored count, or actual count when unset.
-47. **Pending manual confirmation:** confirm a re-closed shift is locked against edits.
-48. **Pending manual confirmation:** inspect `ShiftReopenLog` and confirm its latest `closed_again_at` timestamp.
-49. **Pending manual confirmation:** reject a ledger entry assigned to a CLOSED shift beside its shift field.
-50. **Pending manual confirmation:** reject amount edits on ledger entries linked to CLOSED shifts.
-51. **Pending manual confirmation:** reject clearing the shift from a ledger entry linked to a CLOSED shift.
-52. **Pending manual confirmation:** reject moving a ledger entry from an OPEN shift to a CLOSED shift.
-53. **Pending manual confirmation:** accept an OTHER ledger entry without a shift when it has a contractor and note.
-54. **Pending manual confirmation:** confirm trip details label every receipt and recipient status value correctly.
-55. **Pending manual confirmation:** confirm ledger details display Advance and Payment correctly.
-56. **Pending manual confirmation:** make the backup folder unwritable and confirm close succeeds with a visible warning.
-57. **Pending manual confirmation:** confirm contractor statements show the sign note and client statements do not.
-58. **Pending manual confirmation:** enter a fixed fine and reason; confirm a separate negative client statement row.
-59. **Pending manual confirmation:** confirm a fine reduces client balance without changing reported cubic or client total cubic.
-60. **Pending manual confirmation:** confirm contractor transport uses reported client cubic and material uses crusher cubic as separate components.
-61. **Pending manual confirmation:** confirm opening balances appear in Accounts and Statements even when their date follows transactions.
-62. **Pending manual confirmation:** reassign a vehicle's contractor and confirm old shift charges stay with its creation-time contractor snapshot.
-63. **Pending manual confirmation:** confirm money inputs reject more than two decimals, accept 5.25 exactly, and renderer steps are 0.01.
-64. **Pending manual confirmation:** confirm contractor statement total quantity excludes MATERIAL row quantity.
-65. **Pending manual confirmation:** confirm all seven schema date columns reject impossible dates and nullable dates accept NULL.
-66. **Pending manual confirmation:** confirm query plans use Trip(client_id), Shift(contractor_id), Ledger(driver_id), and Ledger(shift_id) indexes.
-67. **Pending manual confirmation:** run the one-time development reset only after manual tests pass, following `docs/dev-reset-checklist.md`, and confirm the archived database with `npm run db:inspect`.
-68. **Pending manual confirmation:** confirm a pre-migration backup that fails verification is deleted while the source database remains unchanged.
+1. **High — ledger edit forms:** contractor and driver account pages retain separate manual edit forms rather than applying the shared locking rules consistently. Review `src/renderer/src/pages/accounts/ContractorAccountPage.tsx` and `src/renderer/src/pages/accounts/DriverHistoryPage.tsx`.
+2. **High — migration definitions:** the ordered migration runner is present, but the numbered migrations list is empty; add a numbered migration with any future schema change. Review `src/main/migrations.ts`.
+3. **Medium — account and statement details:** filtered table empty-state handling, account number formatting, and duplicated client-payment notes need attention. Review `src/renderer/src/components/DataTable.tsx`, `src/renderer/src/pages/accounts/AccountTables.tsx`, and `src/main/repository/statementRepository.ts`.
+4. **Medium — async account loading:** rapid entity changes can race in account/history pages. Review `src/renderer/src/pages/accounts/ContractorAccountPage.tsx`, `src/renderer/src/pages/accounts/DriverHistoryPage.tsx`, and `src/renderer/src/pages/accounts/ClientAccountPage.tsx`.
+5. **Medium — attachment throughput:** shift details can request many full attachment data URIs. Review `src/renderer/src/pages/ShiftDetailPage.tsx` and `src/renderer/src/components/AttachmentManager.tsx`.
+6. **Medium — same-date ordering:** statement ordering for movements on one date needs an explicit, stable business order. Review `src/main/use-cases/getStatement.ts`.
+7. **Low — locale maintenance:** six unused locale entries remain, and there is no automated missing-translation-key check. Review `src/renderer/src/i18n/locales/ar.json` and `src/renderer/src/i18n/`.
+8. **Low — app packaging metadata:** boilerplate app metadata, window title, HTML language/direction, and app ID alignment need review. Review `package.json`, `src/renderer/index.html`, and `src/main/index.ts`.
+9. **Pending manual confirmation:** edit a shift-linked ledger row to have no shift; save and confirm the shift is empty after reopening.
+10. **Pending manual confirmation:** clear an allowed driver and ledger notes; save and confirm both remain empty after reopening.
+11. **Pending manual confirmation:** edit only a ledger amount and confirm its shift, driver, contractor, and notes are preserved.
+12. **Pending manual confirmation:** clear client-payment notes and confirm they remain empty after reopening.
+13. **Pending manual confirmation:** edit only a client-payment amount and confirm its notes are preserved.
+14. **Pending manual confirmation:** submit an invalid ledger combination and confirm a field error appears without a crash.
+15. **Pending manual confirmation:** enter a client payment of -300 and confirm both Accounts and Statements increase the balance by 300.
+16. **Pending manual confirmation:** enter a negative ledger amount and confirm it appears in driver history.
+17. **Pending manual confirmation:** confirm amount zero is rejected with a field error.
+18. **Pending manual confirmation:** edit a client payment to a negative amount.
+19. **Pending manual confirmation:** reopen a CLOSED shift with a reason and confirm its badge and editability.
+20. **Pending manual confirmation:** confirm reopen `shiftId` and `reason` errors appear beneath their controls.
+21. **Pending manual confirmation:** add a forgotten trip and its attachment to a REOPENED shift from its detail page.
+22. **Pending manual confirmation:** confirm reopened trip-count input has integer steps and a minimum of zero.
+23. **Pending manual confirmation:** close a CLOSED shift with a count and confirm the already-closed `shiftId` error.
+24. **Pending manual confirmation:** confirm a non-trip-field add-trip error appears and clears on resubmit or dialog close.
+25. **Pending manual confirmation:** reject reopening with an empty reason.
+26. **Pending manual confirmation:** start a new shift for the driver of a REOPENED shift.
+27. **Pending manual confirmation:** re-close a reopened shift and confirm normal close checks and backup.
+28. **Pending manual confirmation:** confirm an empty or wrong OPEN-shift close count produces a field error.
+29. **Pending manual confirmation:** close with the correct count and confirm it is stored.
+30. **Pending manual confirmation:** confirm the create-shift form has no reported-count field.
+31. **Pending manual confirmation:** confirm a second OPEN shift on one vehicle is rejected.
+32. **Pending manual confirmation:** confirm a trip price of zero is rejected beside its field.
+33. **Pending manual confirmation:** confirm a negative trip price is rejected.
+34. **Pending manual confirmation:** confirm an impossible date is rejected.
+35. **Pending manual confirmation:** confirm a shift with zero default cubic is rejected.
+36. **Pending manual confirmation:** verify create/update reject string, NaN, negative, and zero trip prices/cubics on the exact field without changing rows; quantities remain positive finite REAL values and unaffected by fines.
+37. **Pending manual confirmation:** verify impossible trip/start/end dates show invalid-date errors and empty values show required errors.
+38. **Pending manual confirmation:** simulate a failed delete and confirm a visible failure message appears.
+39. **Pending manual confirmation:** simulate an IPC handler throw and confirm the generic error appears while the app remains usable.
+40. **Pending manual confirmation:** create and edit a trip with empty optional renderer fields; confirm saves succeed and recipient status is sent as UNCLEAR.
+41. **Pending manual confirmation:** confirm createShift rejects supplied reported count and zero, negative, or string defaults without inserting a row.
+42. **Pending manual confirmation:** confirm a second OPEN shift is rejected, closing frees the vehicle, and REOPENED does not block a new shift.
+43. **Pending manual confirmation:** confirm end-before-start leaves the shift unchanged and CLOSED-with-invalid-count returns the already-closed `shiftId` error first.
+44. **Pending manual confirmation:** close an OPEN shift with a closing-sheet attachment and count zero; confirm CLOSED state and stored zero.
+45. **Pending manual confirmation:** re-close with a new matching count and confirm it is stored.
+46. **Pending manual confirmation:** re-close with a mismatched count and confirm the count-field error.
+47. **Pending manual confirmation:** confirm the re-close input pre-fills stored count, or actual count when unset.
+48. **Pending manual confirmation:** confirm a re-closed shift is locked against edits.
+49. **Pending manual confirmation:** inspect `ShiftReopenLog` and confirm its latest `closed_again_at` timestamp.
+50. **Pending manual confirmation:** reject a ledger entry assigned to a CLOSED shift beside its shift field.
+51. **Pending manual confirmation:** reject amount edits on ledger entries linked to CLOSED shifts.
+52. **Pending manual confirmation:** reject clearing the shift from a ledger entry linked to a CLOSED shift.
+53. **Pending manual confirmation:** reject moving a ledger entry from an OPEN shift to a CLOSED shift.
+54. **Pending manual confirmation:** accept an OTHER ledger entry without a shift when it has a contractor and note.
+55. **Pending manual confirmation:** confirm trip details label every receipt and recipient status value correctly.
+56. **Pending manual confirmation:** confirm ledger details display Advance and Payment correctly.
+57. **Pending manual confirmation:** make the backup folder unwritable and confirm close succeeds with a visible warning.
+58. **Pending manual confirmation:** confirm contractor statements show the sign note and client statements do not.
+59. **Pending manual confirmation:** enter a fixed fine and reason; confirm a separate negative client statement row.
+60. **Pending manual confirmation:** confirm a fine reduces client balance without changing reported cubic or client total cubic.
+61. **Pending manual confirmation:** confirm contractor transport uses reported client cubic and material uses crusher cubic as separate components.
+62. **Pending manual confirmation:** confirm opening balances appear in Accounts and Statements even when their date follows transactions.
+63. **Pending manual confirmation:** reassign a vehicle's contractor and confirm old shift charges stay with its creation-time contractor snapshot.
+64. **Pending manual confirmation:** confirm money inputs reject more than two decimals, accept 5.25 exactly, and renderer steps are 0.01.
+65. **Pending manual confirmation:** confirm contractor statement total quantity excludes MATERIAL row quantity.
+66. **Pending manual confirmation:** confirm all seven schema date columns reject impossible dates and nullable dates accept NULL.
+67. **Pending manual confirmation:** confirm query plans use Trip(client_id), Shift(contractor_id), Ledger(driver_id), and Ledger(shift_id) indexes.
+68. **Pending manual confirmation:** run the one-time development reset only after manual tests pass, following `docs/dev-reset-checklist.md`, and confirm the archived database with `npm run db:inspect`.
+69. **Pending manual confirmation:** confirm a pre-migration backup that fails verification is deleted while the source database remains unchanged.
 
 ## 9. Locked decisions
 

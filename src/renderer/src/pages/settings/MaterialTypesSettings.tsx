@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -27,6 +28,7 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+const ipcApi = createIpcApi()
 
 const materialTypeSchema = z.object({
   name: z.string().min(1, i18n.t('materialTypesSettings.validation.nameRequired'))
@@ -48,13 +50,13 @@ export function MaterialTypesSettings(): React.JSX.Element {
 
   async function loadMaterialTypes(): Promise<void> {
     setLoading(true)
-    const result = await window.api.listMaterialTypes()
+    const result = await ipcApi.listMaterialTypes()
     if (result.ok) setMaterialTypes(result.data)
     setLoading(false)
   }
 
   useEffect(() => {
-    void window.api.listMaterialTypes().then((result) => {
+    void ipcApi.listMaterialTypes().then((result) => {
       if (result.ok) setMaterialTypes(result.data)
       setLoading(false)
     })
@@ -62,8 +64,8 @@ export function MaterialTypesSettings(): React.JSX.Element {
 
   async function handleSaveMaterialType(values: MaterialTypeFormInput): Promise<void> {
     const result = editingMaterialTypeId
-      ? await window.api.updateMaterialType({ id: editingMaterialTypeId, ...values })
-      : await window.api.createMaterialType(values)
+      ? await ipcApi.updateMaterialType({ id: editingMaterialTypeId, ...values })
+      : await ipcApi.createMaterialType(values)
 
     if (result.ok) {
       setIsDialogOpen(false)
@@ -93,7 +95,7 @@ export function MaterialTypesSettings(): React.JSX.Element {
 
   async function handleDeleteMaterialType(materialType: MaterialType): Promise<void> {
     if (!confirm(t('materialTypesSettings.deleteConfirmation', { name: materialType.name }))) return
-    const result = await window.api.deleteMaterialType({ id: materialType.id })
+    const result = await ipcApi.deleteMaterialType({ id: materialType.id })
     if (result.ok) {
       if (editingMaterialTypeId === materialType.id) cancelEditingMaterialType()
       await loadMaterialTypes()

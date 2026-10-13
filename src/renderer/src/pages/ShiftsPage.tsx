@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -24,13 +25,14 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+const ipcApi = createIpcApi()
 
 type ShiftListRow = Extract<
-  Awaited<ReturnType<typeof window.api.listShifts>>,
+  Awaited<ReturnType<typeof ipcApi.listShifts>>,
   { ok: true }
 >['data'][number]
 type AttachmentRow = Extract<
-  Awaited<ReturnType<typeof window.api.listEntityAttachments>>,
+  Awaited<ReturnType<typeof ipcApi.listEntityAttachments>>,
   { ok: true }
 >['data'][number]
 type CloseShiftValues = { shiftId: string; endDate: string; reportedTripCount: number }
@@ -81,16 +83,14 @@ export function ShiftsPage(): React.JSX.Element {
   })
 
   useEffect(() => {
-    void Promise.all([
-      window.api.listShifts(),
-      window.api.listDrivers(),
-      window.api.listVehicles()
-    ]).then(([shiftResult, driversResult, vehiclesResult]) => {
-      if (shiftResult.ok) setShifts(shiftResult.data)
-      if (driversResult.ok) setDrivers(driversResult.data)
-      if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
-      setLoading(false)
-    })
+    void Promise.all([ipcApi.listShifts(), ipcApi.listDrivers(), ipcApi.listVehicles()]).then(
+      ([shiftResult, driversResult, vehiclesResult]) => {
+        if (shiftResult.ok) setShifts(shiftResult.data)
+        if (driversResult.ok) setDrivers(driversResult.data)
+        if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
+        setLoading(false)
+      }
+    )
   }, [])
 
   useEffect(() => {
@@ -99,8 +99,8 @@ export function ShiftsPage(): React.JSX.Element {
     let cancelled = false
     void (async () => {
       const [shiftAttachmentsResult, tripsResult] = await Promise.all([
-        window.api.listEntityAttachments({ entityType: 'SHIFT', entityId: closeShiftId }),
-        window.api.listTripsByShift({ shiftId: closeShiftId })
+        ipcApi.listEntityAttachments({ entityType: 'SHIFT', entityId: closeShiftId }),
+        ipcApi.listTripsByShift({ shiftId: closeShiftId })
       ])
 
       if (cancelled) return
@@ -113,7 +113,7 @@ export function ShiftsPage(): React.JSX.Element {
       if (tripsResult.ok) {
         const attachmentResults = await Promise.all(
           tripsResult.data.map((trip) =>
-            window.api.listEntityAttachments({ entityType: 'TRIP', entityId: trip.id })
+            ipcApi.listEntityAttachments({ entityType: 'TRIP', entityId: trip.id })
           )
         )
 
@@ -139,12 +139,12 @@ export function ShiftsPage(): React.JSX.Element {
   }, [closeShiftId, attachmentRefreshVersion])
 
   async function loadShifts(): Promise<void> {
-    const result = await window.api.listShifts()
+    const result = await ipcApi.listShifts()
     if (result.ok) setShifts(result.data)
   }
 
   async function handleCreateShift(values: CreateShiftValues): Promise<boolean> {
-    const result = await window.api.createShift(values)
+    const result = await ipcApi.createShift(values)
     if (!result.ok) {
       result.errors.forEach((error) => {
         if (error.field in values) {
@@ -164,7 +164,7 @@ export function ShiftsPage(): React.JSX.Element {
   async function handleCloseShift(values: CloseShiftValues): Promise<void> {
     setCloseShiftErrors([])
     setCloseShiftBackupWarning(false)
-    const result = await window.api.closeShift({
+    const result = await ipcApi.closeShift({
       shiftId: values.shiftId,
       endDate: values.endDate,
       reportedTripCount: values.reportedTripCount
@@ -195,7 +195,7 @@ export function ShiftsPage(): React.JSX.Element {
 
   async function handleReopenShift(values: { shiftId: string; reason: string }): Promise<void> {
     setReopenShiftRootError(null)
-    const result = await window.api.reopenShift(values)
+    const result = await ipcApi.reopenShift(values)
     if (!result.ok) {
       result.errors.forEach((error) => {
         if (error.field === 'shiftId' || error.field === 'reason') {

@@ -1,3 +1,4 @@
+import { createIpcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -34,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+const ipcApi = createIpcApi()
 
 const vehicleSchema = z.object({
   vehicleNo: z.number().int().positive(i18n.t('vehiclesSettings.validation.vehicleNoRequired')),
@@ -76,8 +78,8 @@ export function VehiclesSettings(): React.JSX.Element {
   async function loadVehicles(): Promise<void> {
     setLoading(true)
     const [contractorsResult, vehiclesResult] = await Promise.all([
-      window.api.listContractors(),
-      window.api.listVehicles()
+      ipcApi.listContractors(),
+      ipcApi.listVehicles()
     ])
     if (contractorsResult.ok) setContractors(contractorsResult.data)
     if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
@@ -85,7 +87,7 @@ export function VehiclesSettings(): React.JSX.Element {
   }
 
   useEffect(() => {
-    void Promise.all([window.api.listContractors(), window.api.listVehicles()]).then(
+    void Promise.all([ipcApi.listContractors(), ipcApi.listVehicles()]).then(
       ([contractorsResult, vehiclesResult]) => {
         if (contractorsResult.ok) setContractors(contractorsResult.data)
         if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
@@ -96,8 +98,8 @@ export function VehiclesSettings(): React.JSX.Element {
 
   async function handleSaveVehicle(values: VehicleFormValues): Promise<void> {
     const result = editingVehicleNo
-      ? await window.api.updateVehicle(values)
-      : await window.api.createVehicle(values)
+      ? await ipcApi.updateVehicle(values)
+      : await ipcApi.createVehicle(values)
     if (result.ok) {
       setIsDialogOpen(false)
       vehicleForm.reset()
@@ -138,7 +140,7 @@ export function VehiclesSettings(): React.JSX.Element {
 
   async function handleDeleteVehicle(vehicleNo: number): Promise<void> {
     if (!confirm(t('vehiclesSettings.deleteConfirmation', { vehicleNo }))) return
-    const result = await window.api.deleteVehicle({ vehicleNo })
+    const result = await ipcApi.deleteVehicle({ vehicleNo })
     if (result.ok) {
       if (editingVehicleNo === vehicleNo) cancelEditingVehicle()
       await loadVehicles()
