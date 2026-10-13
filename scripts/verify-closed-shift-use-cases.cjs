@@ -52,6 +52,7 @@ import {
   getKnownFormFields,
   getUnhandledIpcErrors
 } from '../src/renderer/src/lib/ipcErrors'
+import { createLatestGuard } from '../src/renderer/src/lib/latestGuard'
 
 const outcomes = []
 const harnessUserData = process.env.SHIFT_TRACKER_USER_DATA
@@ -1966,6 +1967,51 @@ try {
     return cases?.length === 22 &&
       cases.every((item) => JSON.stringify(item.actual) === JSON.stringify(item.expected))
   })
+  runCase('R1 latest guard accepts only the newest token', 'older token rejected and newest token accepted', () => {
+    const guard = createLatestGuard()
+    const olderToken = guard.next()
+    const latestToken = guard.next()
+    return {
+      olderAccepted: guard.isLatest(olderToken),
+      latestAccepted: guard.isLatest(latestToken)
+    }
+  }, (actual) => {
+    const value = result(actual)
+    return value?.olderAccepted === false && value.latestAccepted === true
+  })
+  runCase('R2 latest guard cancellation invalidates outstanding tokens', 'all old tokens rejected and a post-cancel token accepted', () => {
+    const guard = createLatestGuard()
+    const outstandingTokens = [guard.next(), guard.next()]
+    guard.cancel()
+    const postCancelToken = guard.next()
+    return {
+      outstandingAccepted: outstandingTokens.map((token) => guard.isLatest(token)),
+      postCancelAccepted: guard.isLatest(postCancelToken)
+    }
+  }, (actual) => {
+    const value = result(actual)
+    return value?.outstandingAccepted?.length === 2 &&
+      value.outstandingAccepted.every((accepted) => accepted === false) &&
+      value.postCancelAccepted === true
+  })
+  await runAsyncCase('R3 latest guard discards stale async load results', 'only B is applied when A resolves after B', async () => {
+    const guard = createLatestGuard()
+    const applied = []
+    let resolveA
+    let resolveB
+    async function load(promise) {
+      const token = guard.next()
+      const value = await promise
+      if (guard.isLatest(token)) applied.push(value)
+    }
+    const loadA = load(new Promise((resolve) => { resolveA = resolve }))
+    const loadB = load(new Promise((resolve) => { resolveB = resolve }))
+    resolveB('B')
+    await loadB
+    resolveA('A')
+    await loadA
+    return applied
+  }, (actual) => JSON.stringify(result(actual)) === JSON.stringify(['B']))
 
   console.log('SUMMARY ' + (outcomes.length === 0 ? 'PASS' : 'FAIL') + ' | failed cases: ' + JSON.stringify(outcomes))
   if (outcomes.length > 0) process.exitCode = 1

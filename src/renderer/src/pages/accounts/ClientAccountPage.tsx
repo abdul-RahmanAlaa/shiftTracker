@@ -1,5 +1,6 @@
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useState } from 'react'
+import { createLatestGuard } from '@/lib/latestGuard'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
@@ -60,7 +61,9 @@ export function ClientAccountPage(): React.JSX.Element {
   const { t } = useTranslation()
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClientId, setSelectedClientId] = useState<number>()
+  const [accountReloadVersion, setAccountReloadVersion] = useState(0)
   const [account, setAccount] = useState<ClientAccount | null>(null)
+  const accountLoadGuard = useRef(createLatestGuard())
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false)
   const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null)
   const paymentForm = useForm<PaymentFormValues>({
@@ -68,23 +71,40 @@ export function ClientAccountPage(): React.JSX.Element {
     defaultValues: { entryDate: '', amount: undefined, notes: '' }
   })
 
+  const loadAccount = useCallback(async (clientId: number): Promise<void> => {
+    const token = accountLoadGuard.current.next()
+    const result = await ipcApi.getClientAccount({ clientId })
+    if (!accountLoadGuard.current.isLatest(token)) return
+    if (result.ok) {
+      setAccount(result.data)
+    } else {
+      setAccount(null)
+    }
+  }, [])
+
   useEffect(() => {
     void ipcApi.listClients().then((result) => {
       if (result.ok) setClients(result.data)
     })
   }, [])
 
-  async function loadAccount(clientId: number): Promise<void> {
-    const result = await ipcApi.getClientAccount({ clientId })
-    if (result.ok) {
-      setAccount(result.data)
-    } else {
-      setAccount(null)
+  useEffect(() => () => accountLoadGuard.current.cancel(), [])
+
+  useEffect(() => {
+    if (selectedClientId === undefined) return
+    accountLoadGuard.current.cancel()
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) void loadAccount(selectedClientId)
+    })
+    return () => {
+      cancelled = true
     }
-  }
+  }, [accountReloadVersion, loadAccount, selectedClientId])
 
   async function handleChange(value: string): Promise<void> {
     if (value === emptyValue) {
+      accountLoadGuard.current.cancel()
       setSelectedClientId(undefined)
       setAccount(null)
       setIsPaymentDialogOpen(false)
@@ -92,8 +112,8 @@ export function ClientAccountPage(): React.JSX.Element {
       return
     }
     const clientId = Number(value)
+    accountLoadGuard.current.cancel()
     setSelectedClientId(clientId)
-    await loadAccount(clientId)
   }
 
   async function handleCreatePayment(values: PaymentFormValues): Promise<void> {
@@ -111,7 +131,7 @@ export function ClientAccountPage(): React.JSX.Element {
       paymentForm.reset()
       setEditingPaymentId(null)
       setIsPaymentDialogOpen(false)
-      await loadAccount(selectedClientId)
+      setAccountReloadVersion((version) => version + 1)
     } else {
       result.errors.forEach((error) => {
         if (error.field in values)
@@ -138,12 +158,12 @@ export function ClientAccountPage(): React.JSX.Element {
   async function handleDeletePayment(payment: { id: number }): Promise<void> {
     if (!confirm(t('clientAccount.deleteConfirmation', { id: payment.id }))) return
     const result = await ipcApi.deleteClientPayment({ id: payment.id })
-    if (result.ok && selectedClientId) {
+    if (result.ok) {
       if (editingPaymentId === payment.id) {
         setEditingPaymentId(null)
         paymentForm.reset()
       }
-      await loadAccount(selectedClientId)
+      setAccountReloadVersion((version) => version + 1)
     }
   }
 

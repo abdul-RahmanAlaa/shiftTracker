@@ -1,5 +1,6 @@
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useState } from 'react'
+import { createLatestGuard } from '@/lib/latestGuard'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
@@ -49,7 +50,9 @@ export function DriverHistoryPage(): React.JSX.Element {
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [selectedDriverId, setSelectedDriverId] = useState<number>()
+  const [historyReloadVersion, setHistoryReloadVersion] = useState(0)
   const [history, setHistory] = useState<LedgerRow[]>([])
+  const historyLoadGuard = useRef(createLatestGuard())
   const [shifts, setShifts] = useState<Shift[]>([])
   const [editingEntry, setEditingEntry] = useState<LedgerRow | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
@@ -67,6 +70,17 @@ export function DriverHistoryPage(): React.JSX.Element {
     } as LedgerEntryFormValues
   })
 
+  const loadHistory = useCallback(async (driverId: number): Promise<void> => {
+    const token = historyLoadGuard.current.next()
+    const result = await ipcApi.getDriverHistory({ driverId })
+    if (!historyLoadGuard.current.isLatest(token)) return
+    if (result.ok) {
+      setHistory(result.data)
+    } else {
+      setHistory([])
+    }
+  }, [])
+
   useEffect(() => {
     void Promise.all([ipcApi.listDrivers(), ipcApi.listContractors(), ipcApi.listShifts()]).then(
       ([driversResult, contractorsResult, shiftsResult]) => {
@@ -77,20 +91,30 @@ export function DriverHistoryPage(): React.JSX.Element {
     )
   }, [])
 
+  useEffect(() => () => historyLoadGuard.current.cancel(), [])
+
+  useEffect(() => {
+    if (selectedDriverId === undefined) return
+    historyLoadGuard.current.cancel()
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) void loadHistory(selectedDriverId)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [historyReloadVersion, loadHistory, selectedDriverId])
+
   async function handleChange(value: string): Promise<void> {
     if (value === emptyValue) {
+      historyLoadGuard.current.cancel()
       setSelectedDriverId(undefined)
       setHistory([])
       return
     }
     const driverId = Number(value)
+    historyLoadGuard.current.cancel()
     setSelectedDriverId(driverId)
-    const result = await ipcApi.getDriverHistory({ driverId })
-    if (result.ok) {
-      setHistory(result.data)
-    } else {
-      setHistory([])
-    }
   }
 
   function getDefaultLedgerValues(driverId?: number): LedgerEntryFormValues {
@@ -150,7 +174,7 @@ export function DriverHistoryPage(): React.JSX.Element {
       setIsCreateDialogOpen(false)
       setEditingEntry(null)
       ledgerForm.reset(getDefaultLedgerValues())
-      if (selectedDriverId) await handleChange(String(selectedDriverId))
+      setHistoryReloadVersion((version) => version + 1)
     } else {
       result.errors.forEach((error) => {
         if (error.field in values) {
@@ -165,8 +189,8 @@ export function DriverHistoryPage(): React.JSX.Element {
   async function handleDeleteEntry(entry: LedgerRow): Promise<void> {
     if (!confirm(t('allMovements.deleteConfirmation', { id: entry.id }))) return
     const result = await ipcApi.deleteLedgerEntry({ id: entry.id })
-    if (result.ok && selectedDriverId) {
-      await handleChange(String(selectedDriverId))
+    if (result.ok) {
+      setHistoryReloadVersion((version) => version + 1)
     }
   }
 

@@ -1,5 +1,6 @@
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useState } from 'react'
+import { createLatestGuard } from '@/lib/latestGuard'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
@@ -56,7 +57,9 @@ export function ContractorAccountPage(): React.JSX.Element {
   const [drivers, setDrivers] = useState<Driver[]>([])
   const [shifts, setShifts] = useState<Shift[]>([])
   const [selectedContractorId, setSelectedContractorId] = useState<number>()
+  const [accountReloadVersion, setAccountReloadVersion] = useState(0)
   const [account, setAccount] = useState<ContractorAccount | null>(null)
+  const accountLoadGuard = useRef(createLatestGuard())
   const [editingEntry, setEditingEntry] = useState<LedgerRow | null>(null)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -73,6 +76,17 @@ export function ContractorAccountPage(): React.JSX.Element {
     } as LedgerEntryFormValues
   })
 
+  const loadAccount = useCallback(async (contractorId: number): Promise<void> => {
+    const token = accountLoadGuard.current.next()
+    const result = await ipcApi.getContractorAccount({ contractorId })
+    if (!accountLoadGuard.current.isLatest(token)) return
+    if (result.ok) {
+      setAccount(result.data)
+    } else {
+      setAccount(null)
+    }
+  }, [])
+
   useEffect(() => {
     void Promise.all([ipcApi.listContractors(), ipcApi.listDrivers(), ipcApi.listShifts()]).then(
       ([contractorsResult, driversResult, shiftsResult]) => {
@@ -83,20 +97,30 @@ export function ContractorAccountPage(): React.JSX.Element {
     )
   }, [])
 
+  useEffect(() => () => accountLoadGuard.current.cancel(), [])
+
+  useEffect(() => {
+    if (selectedContractorId === undefined) return
+    accountLoadGuard.current.cancel()
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) void loadAccount(selectedContractorId)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [accountReloadVersion, loadAccount, selectedContractorId])
+
   async function handleChange(value: string): Promise<void> {
     if (value === emptyValue) {
+      accountLoadGuard.current.cancel()
       setSelectedContractorId(undefined)
       setAccount(null)
       return
     }
     const contractorId = Number(value)
+    accountLoadGuard.current.cancel()
     setSelectedContractorId(contractorId)
-    const result = await ipcApi.getContractorAccount({ contractorId })
-    if (result.ok) {
-      setAccount(result.data)
-    } else {
-      setAccount(null)
-    }
   }
 
   function getDefaultLedgerValues(contractorId?: number): LedgerEntryFormValues {
@@ -156,7 +180,7 @@ export function ContractorAccountPage(): React.JSX.Element {
       setIsCreateDialogOpen(false)
       setEditingEntry(null)
       ledgerForm.reset(getDefaultLedgerValues())
-      if (selectedContractorId) await handleChange(String(selectedContractorId))
+      setAccountReloadVersion((version) => version + 1)
     } else {
       result.errors.forEach((error) => {
         if (error.field in values) {
@@ -171,8 +195,8 @@ export function ContractorAccountPage(): React.JSX.Element {
   async function handleDeleteEntry(entry: LedgerRow): Promise<void> {
     if (!confirm(t('allMovements.deleteConfirmation', { id: entry.id }))) return
     const result = await ipcApi.deleteLedgerEntry({ id: entry.id })
-    if (result.ok && selectedContractorId) {
-      await handleChange(String(selectedContractorId))
+    if (result.ok) {
+      setAccountReloadVersion((version) => version + 1)
     }
   }
 
