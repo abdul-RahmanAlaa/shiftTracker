@@ -27,7 +27,10 @@ if (!process.versions.electron) {
 }
 
 const entry = `
-import { initDatabase, getDb } from '../src/main/db'
+import Database from 'better-sqlite3'
+import crypto from 'node:crypto'
+import { initDatabase, getDb, SCHEMA, CURRENT_VERSION } from '../src/main/db'
+import { MigrationError, runMigrations } from '../src/main/migrations'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createLedgerEntry, updateLedgerEntry, deleteLedgerEntry } from '../src/main/use-cases/createLedgerEntry'
@@ -45,6 +48,11 @@ import { getClientAccount, getContractorAccount } from '../src/main/use-cases/ge
 import { getClientStatement, getContractorStatement } from '../src/main/use-cases/getStatement'
 
 const outcomes = []
+const harnessUserData = process.env.SHIFT_TRACKER_USER_DATA
+const migrationRoot = path.join(process.env.SHIFT_TRACKER_USER_DATA, 'migration-cases')
+globalThis.__migrationDialog = []
+globalThis.__migrationQuitCount = 0
+
 function runCase(name, expected, operation, passes) {
   let actual
   try {
@@ -191,6 +199,479 @@ function updateLedger(id, overrides = {}) {
   })
 }
 
+function newMigrationDirectory(name) {
+  const directory = path.join(migrationRoot, name)
+  fs.mkdirSync(directory, { recursive: true })
+  return directory
+}
+
+function createBaselineDatabase(directory, filename = 'shift-tracker.db') {
+  const databasePath = path.join(directory, filename)
+  const fixtureDb = new Database(databasePath)
+  fixtureDb.exec(SCHEMA)
+  fixtureDb.pragma('user_version = ' + CURRENT_VERSION)
+  return { databasePath, fixtureDb }
+}
+
+function createFixtureDatabase(directory, version, tableName = 'Fixture') {
+  const databasePath = path.join(directory, 'shift-tracker.db')
+  const fixtureDb = new Database(databasePath)
+  fixtureDb.exec('CREATE TABLE ' + tableName + ' (id INTEGER PRIMARY KEY, value TEXT NOT NULL)')
+  fixtureDb.prepare('INSERT INTO ' + tableName + ' (id, value) VALUES (1, ?)').run('preserved')
+  fixtureDb.pragma('user_version = ' + version)
+  fixtureDb.close()
+  return databasePath
+}
+
+function schemaSnapshot(fixtureDb) {
+  return fixtureDb
+    .prepare(
+      "SELECT type, name, tbl_name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' ORDER BY type, name"
+    )
+    .all()
+}
+
+function fileSnapshot(directory) {
+  return fs
+    .readdirSync(directory, { withFileTypes: true })
+    .sort((left, right) => left.name.localeCompare(right.name))
+    .map((entry) => {
+      const itemPath = path.join(directory, entry.name)
+      if (!entry.isFile()) return { name: entry.name, type: 'directory' }
+      const bytes = fs.readFileSync(itemPath)
+      return {
+        name: entry.name,
+        type: 'file',
+        size: bytes.length,
+        hash: crypto.createHash('sha256').update(bytes).digest('hex')
+      }
+    })
+}
+
+function refusalIsNonDestructive(directory, version, unversioned) {
+  const databasePath = createFixtureDatabase(
+    directory,
+    version,
+    unversioned ? 'UnversionedFixture' : 'VersionedFixture'
+  )
+  const before = fileSnapshot(directory)
+  process.env.SHIFT_TRACKER_USER_DATA = directory
+  globalThis.__migrationDialog = []
+  globalThis.__migrationQuitCount = 0
+  let surfacedError
+  try {
+    initDatabase()
+  } catch (error) {
+    surfacedError = error
+  }
+  const after = fileSnapshot(directory)
+  const file = after.find((entry) => entry.name === path.basename(databasePath))
+  const expectedCode = unversioned
+    ? 'UNVERSIONED_DATABASE'
+    : version > CURRENT_VERSION
+      ? 'NEWER_DATABASE_VERSION'
+      : 'UNSUPPORTED_OLD_VERSION'
+  const surfaced = surfacedError instanceof MigrationError && surfacedError.code === expectedCode
+  const dialogIncludesPathAndVersion =
+    globalThis.__migrationDialog.length === 2 &&
+    globalThis.__migrationDialog[1].includes(directory) &&
+    globalThis.__migrationDialog[1].includes(String(version)) &&
+    !globalThis.__migrationDialog[1].toLowerCase().includes('delete')
+  const sidecarsUnchanged = ['-wal', '-shm'].every((suffix) => {
+    const name = path.basename(databasePath) + suffix
+    const beforeItem = before.find((entry) => entry.name === name)
+    const afterItem = after.find((entry) => entry.name === name)
+    return JSON.stringify(beforeItem) === JSON.stringify(afterItem)
+  })
+  return {
+    surfaced,
+    dialogIncludesPathAndVersion,
+    quitCalled: globalThis.__migrationQuitCount === 1,
+    fileUnchanged: before.some((entry) => entry.name === file?.name && entry.hash === file?.hash),
+    sidecarsUnchanged,
+    folderUnchanged: JSON.stringify(before) === JSON.stringify(after)
+  }
+}
+
+function runMigrationCases() {
+  runCase(
+    'M1 fresh baseline matches direct SCHEMA',
+    'fresh database reaches latest version and sqlite_master equals direct SCHEMA execution',
+    () => {
+      const directory = newMigrationDirectory('M1')
+      process.env.SHIFT_TRACKER_USER_DATA = directory
+      const initialized = initDatabase()
+      const initializedVersion = initialized.pragma('user_version', { simple: true })
+      const initializedSchema = schemaSnapshot(initialized)
+      initialized.close()
+
+      const direct = new Database(path.join(directory, 'direct-schema.db'))
+      direct.exec(SCHEMA)
+      const directSchema = schemaSnapshot(direct)
+      direct.close()
+      return {
+        initializedVersion,
+        expectedVersion: CURRENT_VERSION,
+        schemasEqual: JSON.stringify(initializedSchema) === JSON.stringify(directSchema)
+      }
+    },
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.initializedVersion === value.expectedVersion && value.schemasEqual === true
+      )
+    }
+  )
+
+  runCase(
+    'M2 migration and verified backup',
+    'version 6, preserved row, backup exists with version 5 and integrity ok',
+    () => {
+      const directory = newMigrationDirectory('M2')
+      const { databasePath, fixtureDb } = createBaselineDatabase(directory)
+      fixtureDb
+        .prepare('INSERT INTO Client (name, opening_balance) VALUES (?, ?)')
+        .run('M2 client', 125)
+      const migration = {
+        version: 6,
+        name: 'add client migration note',
+        up(database) {
+          database.exec('ALTER TABLE Client ADD COLUMN migration_note TEXT')
+        }
+      }
+      runMigrations(fixtureDb, [migration], {
+        baselineVersion: CURRENT_VERSION,
+        backupDirectory: path.join(directory, 'backups')
+      })
+      const version = fixtureDb.pragma('user_version', { simple: true })
+      const client = fixtureDb.prepare('SELECT name, opening_balance, migration_note FROM Client').get()
+      fixtureDb.close()
+      const backups = fs.readdirSync(path.join(directory, 'backups'))
+      const backupPath = path.join(directory, 'backups', backups[0])
+      const backupDb = new Database(backupPath, { readonly: true, fileMustExist: true })
+      const backupVersion = backupDb.pragma('user_version', { simple: true })
+      const integrity = backupDb.pragma('integrity_check', { simple: true })
+      backupDb.close()
+      return {
+        version,
+        preserved: client?.name === 'M2 client' && client?.opening_balance === 125,
+        addedColumn: client?.migration_note === null,
+        backupExists: backups.length === 1 && fs.existsSync(backupPath),
+        backupVersion,
+        integrity
+      }
+    },
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.version === 6 &&
+        value.preserved &&
+        value.addedColumn &&
+        value.backupExists &&
+        value.backupVersion === CURRENT_VERSION &&
+        value.integrity === 'ok'
+      )
+    }
+  )
+
+  runCase(
+    'M3 migration rollback with structured error',
+    'version 5, added column absent, row intact, backup exists, MIGRATION_FAILED surfaced',
+    () => {
+      const directory = newMigrationDirectory('M3')
+      const { fixtureDb } = createBaselineDatabase(directory)
+      fixtureDb.prepare('INSERT INTO Client (name) VALUES (?)').run('M3 client')
+      let error
+      try {
+        runMigrations(
+          fixtureDb,
+          [
+            {
+              version: 6,
+              name: 'alter then fail',
+              up(database) {
+                database.exec(
+                  "ALTER TABLE Client ADD COLUMN should_rollback TEXT; INSERT INTO Client (name) VALUES ('temporary')"
+                )
+                throw new Error('intentional migration failure')
+              }
+            }
+          ],
+          {
+            baselineVersion: CURRENT_VERSION,
+            backupDirectory: path.join(directory, 'backups')
+          }
+        )
+      } catch (caught) {
+        error = caught
+      }
+      const version = fixtureDb.pragma('user_version', { simple: true })
+      const columns = fixtureDb.pragma('table_info(Client)')
+      const clients = fixtureDb.prepare('SELECT name FROM Client').all()
+      fixtureDb.close()
+      const backups = fs.readdirSync(path.join(directory, 'backups'))
+      return {
+        structuredError: error instanceof MigrationError && error.code === 'MIGRATION_FAILED',
+        errorVersion: error instanceof MigrationError ? error.version : undefined,
+        backupPath: error instanceof MigrationError ? error.backupPath : undefined,
+        version,
+        columnAbsent: !columns.some((column) => column.name === 'should_rollback'),
+        rowsIntact: clients.length === 1 && clients[0].name === 'M3 client',
+        backupExists: backups.length === 1
+      }
+    },
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.structuredError &&
+        value.errorVersion === CURRENT_VERSION &&
+        typeof value.backupPath === 'string' &&
+        value.version === CURRENT_VERSION &&
+        value.columnAbsent &&
+        value.rowsIntact &&
+        value.backupExists
+      )
+    }
+  )
+
+  runCase(
+    'M4 newer database refusal',
+    'version 99 refusal is structured, logged to dialog, quits, and preserves every file and sidecar',
+    () => refusalIsNonDestructive(newMigrationDirectory('M4'), 99, false),
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.surfaced &&
+        value.dialogIncludesPathAndVersion &&
+        value.quitCalled &&
+        value.fileUnchanged &&
+        value.sidecarsUnchanged &&
+        value.folderUnchanged
+      )
+    }
+  )
+
+  runCase(
+    'M5 unversioned database refusal',
+    'version 0 with user tables is refused, dialog and quit run, and all files remain unchanged',
+    () => refusalIsNonDestructive(newMigrationDirectory('M5'), 0, true),
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.surfaced &&
+        value.dialogIncludesPathAndVersion &&
+        value.quitCalled &&
+        value.fileUnchanged &&
+        value.sidecarsUnchanged &&
+        value.folderUnchanged
+      )
+    }
+  )
+
+  runCase(
+    'M6 below-baseline database refusal',
+    'version 3 refusal is structured, logged to dialog, quits, and preserves every file and sidecar',
+    () => refusalIsNonDestructive(newMigrationDirectory('M6'), 3, false),
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.surfaced &&
+        value.dialogIncludesPathAndVersion &&
+        value.quitCalled &&
+        value.fileUnchanged &&
+        value.sidecarsUnchanged &&
+        value.folderUnchanged
+      )
+    }
+  )
+
+  runCase(
+    'M7 foreign-key-off rebuild and violation rollback',
+    'valid rebuild commits with empty FK check; invalid rebuild rolls back and keeps version 5',
+    () => {
+      const successDirectory = newMigrationDirectory('M7-success')
+      const successPath = path.join(successDirectory, 'shift-tracker.db')
+      const successDb = new Database(successPath)
+      successDb.pragma('foreign_keys = ON')
+      successDb.exec(
+        "CREATE TABLE Parent (id INTEGER PRIMARY KEY, label TEXT NOT NULL);" +
+          'CREATE TABLE Child (id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL REFERENCES Parent(id));' +
+          "INSERT INTO Parent VALUES (1, 'parent');" +
+          'INSERT INTO Child VALUES (1, 1);'
+      )
+      successDb.pragma('user_version = ' + CURRENT_VERSION)
+      runMigrations(
+        successDb,
+        [
+          {
+            version: 6,
+            name: 'rebuild parent',
+            foreignKeys: 'off',
+            up(database) {
+              database.exec(
+                'CREATE TABLE ParentNew (id INTEGER PRIMARY KEY, label TEXT NOT NULL, note TEXT);' +
+                  'INSERT INTO ParentNew (id, label) SELECT id, label FROM Parent;' +
+                  'DROP TABLE Parent;' +
+                  'ALTER TABLE ParentNew RENAME TO Parent;'
+              )
+            }
+          }
+        ],
+        {
+          baselineVersion: CURRENT_VERSION,
+          backupDirectory: path.join(successDirectory, 'backups')
+        }
+      )
+      const successVersion = successDb.pragma('user_version', { simple: true })
+      const successForeignKeys = successDb.pragma('foreign_keys', { simple: true })
+      const successViolations = successDb.pragma('foreign_key_check')
+      const child = successDb.prepare('SELECT parent_id FROM Child WHERE id = 1').get()
+      successDb.close()
+
+      const failureDirectory = newMigrationDirectory('M7-failure')
+      const failurePath = path.join(failureDirectory, 'shift-tracker.db')
+      const failureDb = new Database(failurePath)
+      failureDb.pragma('foreign_keys = ON')
+      failureDb.exec(
+        'CREATE TABLE Parent (id INTEGER PRIMARY KEY);' +
+          'CREATE TABLE Child (id INTEGER PRIMARY KEY, parent_id INTEGER NOT NULL REFERENCES Parent(id));' +
+          'INSERT INTO Parent VALUES (1);' +
+          'INSERT INTO Child VALUES (1, 1);'
+      )
+      failureDb.pragma('user_version = ' + CURRENT_VERSION)
+      let violationError
+      try {
+        runMigrations(
+          failureDb,
+          [
+            {
+              version: 6,
+              name: 'introduce invalid foreign key',
+              foreignKeys: 'off',
+              up(database) {
+                database.prepare('INSERT INTO Child (id, parent_id) VALUES (2, 999)').run()
+              }
+            }
+          ],
+          {
+            baselineVersion: CURRENT_VERSION,
+            backupDirectory: path.join(failureDirectory, 'backups')
+          }
+        )
+      } catch (error) {
+        violationError = error
+      }
+      const failureVersion = failureDb.pragma('user_version', { simple: true })
+      const failureChildren = failureDb.prepare('SELECT id FROM Child ORDER BY id').all()
+      const failureForeignKeys = failureDb.pragma('foreign_keys', { simple: true })
+      failureDb.close()
+      return {
+        successVersion,
+        successForeignKeys,
+        successNoViolations: successViolations.length === 0,
+        childPreserved: child?.parent_id === 1,
+        failureStructured: violationError instanceof MigrationError && violationError.code === 'MIGRATION_FAILED',
+        failureVersion,
+        failureRowsRolledBack:
+          failureChildren.length === 1 && failureChildren[0].id === 1,
+        failureForeignKeys
+      }
+    },
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.successVersion === 6 &&
+        value.successForeignKeys === 1 &&
+        value.successNoViolations &&
+        value.childPreserved &&
+        value.failureStructured &&
+        value.failureVersion === CURRENT_VERSION &&
+        value.failureRowsRolledBack &&
+        value.failureForeignKeys === 1
+      )
+    }
+  )
+
+  runCase(
+    'M8 pre-migration backup failure aborts',
+    'backup failure is structured and leaves baseline version, columns, and rows unchanged',
+    () => {
+      const directory = newMigrationDirectory('M8')
+      const { fixtureDb } = createBaselineDatabase(directory)
+      fixtureDb.prepare('INSERT INTO Client (name) VALUES (?)').run('M8 client')
+      const backupDirectory = path.join(directory, 'backups')
+      fs.writeFileSync(backupDirectory, 'not a directory')
+      let error
+      try {
+        runMigrations(
+          fixtureDb,
+          [
+            {
+              version: 6,
+              name: 'must not run',
+              up(database) {
+                database.exec('ALTER TABLE Client ADD COLUMN should_not_exist TEXT')
+              }
+            }
+          ],
+          {
+            baselineVersion: CURRENT_VERSION,
+            backupDirectory
+          }
+        )
+      } catch (caught) {
+        error = caught
+      }
+      const version = fixtureDb.pragma('user_version', { simple: true })
+      const columns = fixtureDb.pragma('table_info(Client)')
+      const clients = fixtureDb.prepare('SELECT name FROM Client').all()
+      fixtureDb.close()
+      return {
+        structuredBackupError:
+          error instanceof MigrationError && error.code === 'BACKUP_FAILED',
+        version,
+        migrationNotApplied: !columns.some((column) => column.name === 'should_not_exist'),
+        rowsIntact: clients.length === 1 && clients[0].name === 'M8 client',
+        backupBlockerRemains: fs.readFileSync(backupDirectory, 'utf8') === 'not a directory'
+      }
+    },
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.structuredBackupError &&
+        value.version === CURRENT_VERSION &&
+        value.migrationNotApplied &&
+        value.rowsIntact &&
+        value.backupBlockerRemains
+      )
+    }
+  )
+
+  runCase(
+    'M9 every refusal preserves database, sidecars, and directory listing',
+    'newer, unversioned, and below-baseline refusal snapshots are each identical before and after',
+    () => {
+      const cases = [
+        refusalIsNonDestructive(newMigrationDirectory('M9-newer'), 99, false),
+        refusalIsNonDestructive(newMigrationDirectory('M9-unversioned'), 0, true),
+        refusalIsNonDestructive(newMigrationDirectory('M9-old'), 3, false)
+      ]
+      return {
+        eachRefusalPreservedAll:
+          cases.length === 3 &&
+          cases.every(
+            (value) =>
+              value.surfaced &&
+              value.fileUnchanged &&
+              value.sidecarsUnchanged &&
+              value.folderUnchanged
+          )
+      }
+    },
+    (actual) => result(actual)?.eachRefusalPreservedAll === true
+  )
+}
+
 let db
 let contractorId
 let driverId
@@ -206,9 +687,12 @@ let reopenedCountShiftId
 let fixtureSequence = 0
 
 try {
-  db = initDatabase()
   console.log('| Case | Result | Expected |')
   console.log('| --- | --- | --- |')
+  runMigrationCases()
+
+  process.env.SHIFT_TRACKER_USER_DATA = harnessUserData
+  db = initDatabase()
   const contractorInsert = db.prepare('INSERT INTO TransportContractor (name) VALUES (?)').run('Verify Contractor')
   contractorId = Number(contractorInsert.lastInsertRowid)
   const driverInsert = db.prepare('INSERT INTO Driver (name) VALUES (?)').run('Verify Driver')
@@ -1248,7 +1732,8 @@ try {
   if (outcomes.length > 0) process.exitCode = 1
 } finally {
   try { getDb().close() } catch {}
-  fs.rmSync(process.env.SHIFT_TRACKER_USER_DATA, { recursive: true, force: true })
+  process.env.SHIFT_TRACKER_USER_DATA = harnessUserData
+  fs.rmSync(harnessUserData, { recursive: true, force: true })
 }
 `
 
@@ -1258,8 +1743,17 @@ async function main() {
   Module._load = function (request, parent, isMain) {
     if (request === 'electron') {
       return {
-        app: { getPath: () => tempDir, quit: () => {} },
-        dialog: { showErrorBox: () => {} }
+        dialog: {
+          showErrorBox: (...values) => {
+            globalThis.__migrationDialog = values
+          }
+        },
+        app: {
+          getPath: () => process.env.SHIFT_TRACKER_USER_DATA,
+          quit: () => {
+            globalThis.__migrationQuitCount += 1
+          }
+        }
       }
     }
     return originalLoad.call(this, request, parent, isMain)

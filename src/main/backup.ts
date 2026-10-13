@@ -1,7 +1,31 @@
 import { app } from 'electron'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { existsSync, mkdirSync, cpSync } from 'fs'
+import Database from 'better-sqlite3'
 import { getDb } from './db'
+
+export function createVerifiedDatabaseBackup(
+  db: Database.Database,
+  backupPath: string,
+  expectedVersion: number
+): void {
+  mkdirSync(dirname(backupPath), { recursive: true })
+  const escapedPath = backupPath.replace(/'/g, "''")
+  db.exec(`VACUUM INTO '${escapedPath}'`)
+
+  const backupDb = new Database(backupPath, { readonly: true, fileMustExist: true })
+  try {
+    const integrity = backupDb.pragma('integrity_check', { simple: true })
+    const version = backupDb.pragma('user_version', { simple: true })
+    if (integrity !== 'ok' || version !== expectedVersion) {
+      throw new Error(
+        `Migration backup verification failed: integrity=${String(integrity)}, user_version=${String(version)}`
+      )
+    }
+  } finally {
+    backupDb.close()
+  }
+}
 
 export function backupDatabase(): void {
   const db = getDb()
