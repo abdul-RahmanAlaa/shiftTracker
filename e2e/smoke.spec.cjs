@@ -462,3 +462,63 @@ testWithApp(
     await expect(page.getByText(note, { exact: true })).toHaveCount(0)
   }
 )
+
+testWithApp('S6 second instance exits and focuses the existing app', async ({ launchApp }) => {
+  const first = await launchApp('with-trip')
+  const page = first.page
+  await expect(page.getByRole('heading', { name: text('addTrip.title') })).toBeVisible()
+
+  const databaseFilesBefore = fs
+    .readdirSync(first.tempDirectory)
+    .filter((name) => name.startsWith('shift-tracker.db'))
+    .sort()
+  expect(databaseFilesBefore).toContain('shift-tracker.db')
+  expect(
+    databaseFilesBefore.every((name) => /^shift-tracker\.db(?:-(?:wal|shm))?$/.test(name))
+  ).toBe(true)
+  expect(databaseFilesBefore.filter((name) => name.endsWith('-wal'))).toHaveLength(1)
+  expect(databaseFilesBefore.filter((name) => name.endsWith('-shm'))).toHaveLength(1)
+
+  const secondStartedAt = Date.now()
+  const second = spawn(electronPath, ['--user-data-dir=' + first.tempDirectory, root], {
+    cwd: root,
+    env: process.env,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true
+  })
+  let secondOutput = ''
+  second.stdout.on('data', (chunk) => {
+    secondOutput += String(chunk)
+  })
+  second.stderr.on('data', (chunk) => {
+    secondOutput += String(chunk)
+  })
+  const secondExit = await new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve(null), 15_000)
+    second.once('exit', (code, signal) => {
+      clearTimeout(timeout)
+      resolve({ code, signal })
+    })
+    second.once('error', (error) => {
+      clearTimeout(timeout)
+      resolve({ error })
+    })
+  })
+  const secondElapsed = Date.now() - secondStartedAt
+  if (secondExit === null) {
+    second.kill()
+    throw new Error('Second Electron process did not exit within 15 seconds')
+  }
+
+  expect(secondExit).toEqual({ code: 0, signal: null })
+  expect(secondElapsed).toBeLessThan(15_000)
+  expect(secondOutput).not.toContain('[db] Database path:')
+  await expect(page.getByRole('heading', { name: text('addTrip.title') })).toBeVisible()
+  expect(await first.application.windows()).toHaveLength(1)
+  expect(
+    fs
+      .readdirSync(first.tempDirectory)
+      .filter((name) => name.startsWith('shift-tracker.db'))
+      .sort()
+  ).toEqual(databaseFilesBefore)
+})

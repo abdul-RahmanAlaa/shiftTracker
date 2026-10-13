@@ -1,4 +1,4 @@
-import { createIpcApi } from '@/lib/ipcErrors'
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/DataTable'
 import { TripDetailsContent } from '@/components/TripDetailsContent'
 import { useFloatingWindows } from '@/components/FloatingWindowsContext'
-const ipcApi = createIpcApi()
 
 type AllTripsRow = Extract<
   Awaited<ReturnType<typeof ipcApi.listAllTrips>>,

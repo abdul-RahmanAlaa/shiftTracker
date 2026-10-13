@@ -1,4 +1,4 @@
-import { createIpcApi } from '@/lib/ipcErrors'
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -25,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-const ipcApi = createIpcApi()
 
 type ShiftListRow = Extract<
   Awaited<ReturnType<typeof ipcApi.listShifts>>,

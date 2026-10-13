@@ -1,4 +1,4 @@
-import { createIpcApi } from '@/lib/ipcErrors'
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
@@ -21,7 +21,6 @@ import {
   DialogTitle,
   DialogTrigger
 } from '@/components/ui/dialog'
-const ipcApi = createIpcApi()
 
 type LedgerRow = Extract<
   Awaited<ReturnType<typeof ipcApi.listLedgerEntries>>,

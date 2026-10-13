@@ -1,4 +1,4 @@
-import { createIpcApi } from '@/lib/ipcErrors'
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
@@ -38,7 +38,6 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { AccountCard, LedgerEntriesTable, type LedgerRow } from './AccountTables'
-const ipcApi = createIpcApi()
 
 type Driver = { id: number; name: string }
 type Contractor = { id: number; name: string }

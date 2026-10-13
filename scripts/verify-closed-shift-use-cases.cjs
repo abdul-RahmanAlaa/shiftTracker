@@ -48,7 +48,10 @@ import { createCrusher } from '../src/main/use-cases/createCrusher'
 import { getClientAccount, getContractorAccount } from '../src/main/use-cases/getAccounts'
 import { getClientStatement, getContractorStatement } from '../src/main/use-cases/getStatement'
 import { wrapHandler } from '../src/main/ipcWrapper'
-import { getUnhandledIpcErrors } from '../src/renderer/src/lib/ipcErrors'
+import {
+  getKnownFormFields,
+  getUnhandledIpcErrors
+} from '../src/renderer/src/lib/ipcErrors'
 
 const outcomes = []
 const harnessUserData = process.env.SHIFT_TRACKER_USER_DATA
@@ -1928,6 +1931,41 @@ try {
       errors[1].field === 'unknown' &&
       errors[1].message === 'validation'
   })
+  runCase('E5 typed IPC form field names match every input shape', 'all input field lists match exactly', () => {
+    const expected = {
+      createDriver: ['name', 'phone1', 'phone2'],
+      updateDriver: ['id', 'name', 'phone1', 'phone2'],
+      createClient: ['name', 'initialPrice', 'location', 'openingBalance', 'openingBalanceDate'],
+      updateClient: ['id', 'name', 'initialPrice', 'location', 'openingBalance', 'openingBalanceDate'],
+      createCrusher: ['name', 'initialPrice'],
+      updateCrusher: ['id', 'name', 'initialPrice'],
+      createMaterialType: ['name'],
+      updateMaterialType: ['id', 'name'],
+      createContractor: ['name', 'phone', 'openingBalance', 'openingBalanceDate'],
+      updateContractor: ['id', 'name', 'phone', 'openingBalance', 'openingBalanceDate'],
+      createVehicle: ['vehicleNo', 'trailerNo', 'contractorId', 'defaultCubic', 'ownerName'],
+      updateVehicle: ['vehicleNo', 'trailerNo', 'contractorId', 'defaultCubic', 'ownerName'],
+      createShift: ['vehicleNo', 'driverId', 'crusherCubicDefault', 'clientCubicDefault', 'startDate', 'reportedDestination', 'notes'],
+      closeShift: ['shiftId', 'endDate', 'reportedTripCount'],
+      reopenShift: ['shiftId', 'reason'],
+      createTrip: ['shiftId', 'tripDate', 'crusherCubic', 'clientCubicReported', 'fineAmount', 'fineReason', 'location', 'crusherId', 'stonePrice', 'crusherReceiptStatus', 'crusherReceiptNo', 'clientId', 'transportPrice', 'clientPrice', 'materialTypeId', 'recipientNameStatus', 'recipientName', 'clientReceiptNo', 'notes'],
+      updateTrip: ['id', 'tripDate', 'crusherCubic', 'clientCubicReported', 'fineAmount', 'fineReason', 'location', 'crusherId', 'stonePrice', 'crusherReceiptStatus', 'crusherReceiptNo', 'clientId', 'transportPrice', 'clientPrice', 'materialTypeId', 'recipientNameStatus', 'recipientName', 'clientReceiptNo', 'notes'],
+      createLedgerEntry: ['entryDate', 'driverId', 'movementType', 'amount', 'shiftId', 'contractorId', 'notes'],
+      updateLedgerEntry: ['id', 'entryDate', 'driverId', 'movementType', 'amount', 'shiftId', 'contractorId', 'notes'],
+      createClientPayment: ['entryDate', 'clientId', 'amount', 'notes'],
+      updateClientPayment: ['id', 'entryDate', 'clientId', 'amount', 'notes'],
+      addAttachment: ['entityType', 'entityId', 'kind', 'imageBase64']
+    }
+    return Object.entries(expected).map(([method, fields]) => ({
+      method,
+      expected: fields,
+      actual: getKnownFormFields(method)
+    }))
+  }, (actual) => {
+    const cases = result(actual)
+    return cases?.length === 22 &&
+      cases.every((item) => JSON.stringify(item.actual) === JSON.stringify(item.expected))
+  })
 
   console.log('SUMMARY ' + (outcomes.length === 0 ? 'PASS' : 'FAIL') + ' | failed cases: ' + JSON.stringify(outcomes))
   if (outcomes.length > 0) process.exitCode = 1
@@ -1982,6 +2020,9 @@ async function main() {
       logLevel: 'silent'
     })
     const filename = path.join(root, 'scripts', '.verify-closed-shift-use-cases.bundle.cjs')
+    globalThis.window = {
+      api: new Proxy({}, { get: () => () => Promise.resolve({ ok: true, data: undefined }) })
+    }
     const bundleModule = new Module(filename, module)
     bundleModule.filename = filename
     bundleModule.paths = Module._nodeModulePaths(root)

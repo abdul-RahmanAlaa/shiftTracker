@@ -1,4 +1,4 @@
-import { createIpcApi } from '@/lib/ipcErrors'
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -35,7 +35,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-const ipcApi = createIpcApi()
 
 const vehicleSchema = z.object({
   vehicleNo: z.number().int().positive(i18n.t('vehiclesSettings.validation.vehicleNoRequired')),

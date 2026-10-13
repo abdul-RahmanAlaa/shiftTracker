@@ -1,4 +1,4 @@
-import { createIpcApi } from '@/lib/ipcErrors'
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -29,7 +29,6 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { hasAtMostTwoDecimals } from '@/lib/money'
-const ipcApi = createIpcApi()
 
 const contractorSchema = z.object({
   name: z.string().min(1, i18n.t('contractorsSettings.validation.nameRequired')),

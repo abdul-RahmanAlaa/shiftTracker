@@ -1,4 +1,4 @@
-import { createIpcApi } from '@/lib/ipcErrors'
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useRef, useState } from 'react'
 import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
-const ipcApi = createIpcApi()
 
 type AttachmentEntityType = 'TRIP' | 'SHIFT'
 type AttachmentRow = Extract<

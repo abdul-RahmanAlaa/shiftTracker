@@ -34,8 +34,9 @@
 `renderer -> preload (window.api) -> ipcMain -> use-cases -> repositories -> SQLite`
 
 - `src/main/index.ts` registers IPC handlers; `src/preload/index.ts` exposes `window.api`, and `src/preload/index.d.ts` types it.
+- Electron requests a single-instance lock for the current `userData` path before startup opens the database. A second launch exits silently; the first window is restored, shown, and focused when available.
 - `src/main/ipcWrapper.ts` converts thrown or rejected IPC handlers into the standard `_form` error result and logs the original error. Preload invocation rejections use the same failure result.
-- `src/renderer/src/lib/ipcErrors.ts` translates unexpected IPC failures and surfaces errors that cannot be shown beside known form fields; field-level validation remains with each form.
+- `src/renderer/src/lib/ipcErrors.ts` exports the shared `ipcApi`, translates unexpected IPC failures, and shows non-blocking notices for errors that cannot be shown beside known form fields. Identical notices are suppressed for three seconds and parallel bursts are coalesced; field-level validation remains with each form.
 - Use cases return `{ ok: true, data }` or `{ ok: false, errors }`, where each error has a `field` and `message`.
 - Runtime validation is in main-process use cases and shared schemas/helpers in `src/main/validation.ts`; renderer forms also use Zod for immediate field feedback.
 - Every user-visible renderer string comes from `src/renderer/src/i18n/locales/ar.json`. Do not hardcode user-visible text in renderer code.
@@ -75,7 +76,7 @@
 | `docs/dev-reset-checklist.md`               | One-time manual development database reset procedure           |
 | `playwright.config.ts`                      | Playwright Electron test configuration                         |
 | `e2e/seed.cjs`                              | Isolated E2E fixture seeding through Electron as Node          |
-| `e2e/smoke.spec.cjs`                        | Five end-to-end smoke flows                                    |
+| `e2e/smoke.spec.cjs`                        | Six end-to-end smoke flows                                     |
 
 ## 4. Data model
 
@@ -174,7 +175,7 @@ The wildcard route redirects to `/`. Shared renderer components include `DataTab
 - `npm run verify:use-cases` bundles and invokes the real use cases under Electron-as-Node, uses an isolated temporary user-data directory, prints a result table and exits non-zero on failed cases.
 - The use-case harness includes M1–M9 migration checks for fresh baseline equivalence, verified backups, migration rollback, version refusals, foreign-key rebuilds, backup failure, and refusal immutability. All fixtures use temporary directories.
 - `npm run db:inspect -- <database-path>` opens a database read-only and reports its version, integrity, table row counts, and first/last Shift and Trip IDs. It never writes to the inspected database.
-- `npm run test:e2e` builds the app and drives the real Electron app through five Playwright smoke flows: all routes and runtime/translation-key health; shift creation and duplicate-vehicle rejection; trip validation and detail labels; shift close/count/attachments; contractor-versus-client statement note.
+- `npm run test:e2e` builds the app and drives the real Electron app through six Playwright smoke flows: all routes and runtime/translation-key health; shift creation and duplicate-vehicle rejection; trip validation and detail labels; shift close/count/attachments; contractor-versus-client statement note; and refusal of a second instance while the first remains responsive.
 - E2E fixtures and each app launch use temporary user-data directories.
 - `npm run review:gate` runs diff check, typecheck, lint, and the use-case harness, then checks added diff lines for selected mechanical rules. `npm run review:gate:e2e` also runs Playwright. The gate does not use AI and writes `last-task.md`; the complete harness result table goes to ignored `scripts/last-harness-output.txt`.
 - Automated checks do not replace user confirmation in Electron. Only checklist items explicitly marked `[x]` were confirmed by the user; unchecked scenarios remain pending.
@@ -253,6 +254,11 @@ Priority order reflects user-visible correctness first, then operational risks a
 67. **Pending manual confirmation:** confirm query plans use Trip(client_id), Shift(contractor_id), Ledger(driver_id), and Ledger(shift_id) indexes.
 68. **Pending manual confirmation:** run the one-time development reset only after manual tests pass, following `docs/dev-reset-checklist.md`, and confirm the archived database with `npm run db:inspect`.
 69. **Pending manual confirmation:** confirm a pre-migration backup that fails verification is deleted while the source database remains unchanged.
+70. **Pending manual confirmation:** confirm a failing delete shows one non-blocking notice.
+71. **Pending manual confirmation:** open AddTrip with the database unavailable and confirm one notice appears, not six.
+72. **Pending manual confirmation:** confirm a failing save whose page already shows the error does not show a second notice.
+73. **Pending manual confirmation:** double-click the app icon and confirm one window opens and the first is focused.
+74. **Pending manual confirmation:** run `npm run dev` while the packaged app or another development instance is open and confirm the second instance exits.
 
 ## 9. Locked decisions
 

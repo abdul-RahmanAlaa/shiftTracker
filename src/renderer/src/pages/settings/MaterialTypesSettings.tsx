@@ -1,4 +1,4 @@
-import { createIpcApi } from '@/lib/ipcErrors'
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -28,7 +28,6 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-const ipcApi = createIpcApi()
 
 const materialTypeSchema = z.object({
   name: z.string().min(1, i18n.t('materialTypesSettings.validation.nameRequired'))

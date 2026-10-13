@@ -1,4 +1,4 @@
-import { createIpcApi } from '@/lib/ipcErrors'
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
@@ -42,7 +42,6 @@ import {
   getClientPaymentColumns,
   type ClientAccount
 } from './AccountTables'
-const ipcApi = createIpcApi()
 
 type Client = { id: number; name: string }
 const emptyValue = '__none__'

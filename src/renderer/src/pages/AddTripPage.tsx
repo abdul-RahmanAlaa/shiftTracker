@@ -1,5 +1,5 @@
-import { createIpcApi } from '@/lib/ipcErrors'
 /* eslint-disable react-refresh/only-export-components */
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, ChevronsUpDown } from 'lucide-react'
@@ -41,7 +41,6 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { hasAtMostTwoDecimals } from '@/lib/money'
-const ipcApi = createIpcApi()
 
 type NamedOption = { id: number; name: string }
 type OpenShift = {

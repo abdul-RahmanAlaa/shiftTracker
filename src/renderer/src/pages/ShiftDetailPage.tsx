@@ -1,4 +1,4 @@
-import { createIpcApi } from '@/lib/ipcErrors'
+import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -15,7 +15,6 @@ import { ShiftBreadcrumb } from '@/components/ShiftBreadcrumb'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TripForm, tripSchema } from './AddTripPage'
 import type { ResourceState, TripValues } from './AddTripPage'
-const ipcApi = createIpcApi()
 
 type TripRow = Extract<
   Awaited<ReturnType<typeof ipcApi.listTripsByShift>>,
