@@ -85,7 +85,7 @@ Opening rules are based on `PRAGMA user_version` and user-table presence:
 - Versions from the baseline through latest-minus-one require a verified database-only backup before stepwise migrations.
 - The latest version opens normally. Versions above latest are refused as newer than the app.
 - Refusals do not modify or delete the database, sidecars, or data directory. The dialog asks the user to archive the data folder and gives its path and found version.
-- Migration backups use `userData/backups/pre-migration-v<from>-to-v<to>-<timestamp>.db`. A backup is opened read-only and must pass `integrity_check` and match the source version before any migration starts.
+- Migration backups use `userData/backups/pre-migration-v<from>-to-v<to>-<timestamp>.db`. A backup is opened read-only and must pass `integrity_check` and match the source version before any migration starts; a backup that fails verification is deleted.
 - Every migration and its `user_version` update share one transaction. A migration failure rolls back to its prior version; the dialog includes the backup path and states the data remains at the last completed version.
 - Migrations that rebuild foreign-keyed tables declare `foreignKeys: 'off'`; the runner disables enforcement outside the transaction, runs `foreign_key_check` inside it, rolls back violations, and restores enforcement in `finally`.
 - Migration backups cover the database only; migrations do not change attachment files.
@@ -247,6 +247,7 @@ Priority order reflects user-visible correctness first, then operational risks a
 65. **Pending manual confirmation:** confirm all seven schema date columns reject impossible dates and nullable dates accept NULL.
 66. **Pending manual confirmation:** confirm query plans use Trip(client_id), Shift(contractor_id), Ledger(driver_id), and Ledger(shift_id) indexes.
 67. **Pending manual confirmation:** run the one-time development reset only after manual tests pass, following `docs/dev-reset-checklist.md`, and confirm the archived database with `npm run db:inspect`.
+68. **Pending manual confirmation:** confirm a pre-migration backup that fails verification is deleted while the source database remains unchanged.
 
 ## 9. Locked decisions
 

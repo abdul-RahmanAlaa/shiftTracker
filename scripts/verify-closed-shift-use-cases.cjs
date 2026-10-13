@@ -31,6 +31,7 @@ import Database from 'better-sqlite3'
 import crypto from 'node:crypto'
 import { initDatabase, getDb, SCHEMA, CURRENT_VERSION } from '../src/main/db'
 import { MigrationError, runMigrations } from '../src/main/migrations'
+import { createVerifiedDatabaseBackup } from '../src/main/backup'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createLedgerEntry, updateLedgerEntry, deleteLedgerEntry } from '../src/main/use-cases/createLedgerEntry'
@@ -213,12 +214,14 @@ function createBaselineDatabase(directory, filename = 'shift-tracker.db') {
   return { databasePath, fixtureDb }
 }
 
-function createFixtureDatabase(directory, version, tableName = 'Fixture') {
+function createFixtureDatabase(directory, version, tableName = 'Fixture', keepOpen = false) {
   const databasePath = path.join(directory, 'shift-tracker.db')
   const fixtureDb = new Database(databasePath)
+  if (keepOpen) fixtureDb.pragma('journal_mode = WAL')
   fixtureDb.exec('CREATE TABLE ' + tableName + ' (id INTEGER PRIMARY KEY, value TEXT NOT NULL)')
   fixtureDb.prepare('INSERT INTO ' + tableName + ' (id, value) VALUES (1, ?)').run('preserved')
   fixtureDb.pragma('user_version = ' + version)
+  if (keepOpen) return { databasePath, fixtureDb }
   fixtureDb.close()
   return databasePath
 }
@@ -238,6 +241,9 @@ function fileSnapshot(directory) {
     .map((entry) => {
       const itemPath = path.join(directory, entry.name)
       if (!entry.isFile()) return { name: entry.name, type: 'directory' }
+      if (entry.name.endsWith('-shm')) {
+        return { name: entry.name, type: 'file', size: fs.statSync(itemPath).size }
+      }
       const bytes = fs.readFileSync(itemPath)
       return {
         name: entry.name,
@@ -249,12 +255,19 @@ function fileSnapshot(directory) {
 }
 
 function refusalIsNonDestructive(directory, version, unversioned) {
-  const databasePath = createFixtureDatabase(
+  const { databasePath, fixtureDb } = createFixtureDatabase(
     directory,
     version,
-    unversioned ? 'UnversionedFixture' : 'VersionedFixture'
+    unversioned ? 'UnversionedFixture' : 'VersionedFixture',
+    true
   )
   const before = fileSnapshot(directory)
+  const sidecarsPresentBefore = ['-wal', '-shm'].every((suffix) =>
+    before.some(
+      (entry) =>
+        entry.name === path.basename(databasePath) + suffix && entry.type === 'file'
+    )
+  )
   process.env.SHIFT_TRACKER_USER_DATA = directory
   globalThis.__migrationDialog = []
   globalThis.__migrationQuitCount = 0
@@ -265,6 +278,13 @@ function refusalIsNonDestructive(directory, version, unversioned) {
     surfacedError = error
   }
   const after = fileSnapshot(directory)
+  const fixtureVersion = fixtureDb.pragma('user_version', { simple: true })
+  const fixtureRows = fixtureDb
+    .prepare('SELECT * FROM ' + (unversioned ? 'UnversionedFixture' : 'VersionedFixture'))
+    .all()
+  const userVersionUnchanged = fixtureVersion === version
+  const rowsUnchanged = fixtureRows.length === 1 && fixtureRows[0].value === 'preserved'
+  fixtureDb.close()
   const file = after.find((entry) => entry.name === path.basename(databasePath))
   const expectedCode = unversioned
     ? 'UNVERSIONED_DATABASE'
@@ -277,17 +297,34 @@ function refusalIsNonDestructive(directory, version, unversioned) {
     globalThis.__migrationDialog[1].includes(directory) &&
     globalThis.__migrationDialog[1].includes(String(version)) &&
     !globalThis.__migrationDialog[1].toLowerCase().includes('delete')
-  const sidecarsUnchanged = ['-wal', '-shm'].every((suffix) => {
-    const name = path.basename(databasePath) + suffix
-    const beforeItem = before.find((entry) => entry.name === name)
-    const afterItem = after.find((entry) => entry.name === name)
-    return JSON.stringify(beforeItem) === JSON.stringify(afterItem)
-  })
+  const walName = path.basename(databasePath) + '-wal'
+  const shmName = path.basename(databasePath) + '-shm'
+  const beforeWal = before.find((entry) => entry.name === walName)
+  const afterWal = after.find((entry) => entry.name === walName)
+  const beforeShm = before.find((entry) => entry.name === shmName)
+  const afterShm = after.find((entry) => entry.name === shmName)
+  const walUnchanged =
+    beforeWal?.type === 'file' &&
+    afterWal?.type === 'file' &&
+    beforeWal.size === afterWal.size &&
+    beforeWal.hash === afterWal.hash
+  const sidecarsUnchanged =
+    beforeWal?.type === 'file' &&
+    afterWal?.type === 'file' &&
+    beforeShm?.type === 'file' &&
+    afterShm?.type === 'file' &&
+    beforeWal.size === afterWal.size &&
+    beforeWal.hash === afterWal.hash &&
+    beforeShm.size === afterShm.size
   return {
     surfaced,
     dialogIncludesPathAndVersion,
     quitCalled: globalThis.__migrationQuitCount === 1,
+    sidecarsPresentBefore,
     fileUnchanged: before.some((entry) => entry.name === file?.name && entry.hash === file?.hash),
+    userVersionUnchanged,
+    rowsUnchanged,
+    walUnchanged,
     sidecarsUnchanged,
     folderUnchanged: JSON.stringify(before) === JSON.stringify(after)
   }
@@ -444,7 +481,11 @@ function runMigrationCases() {
         value?.surfaced &&
         value.dialogIncludesPathAndVersion &&
         value.quitCalled &&
+        value.sidecarsPresentBefore &&
         value.fileUnchanged &&
+        value.userVersionUnchanged &&
+        value.rowsUnchanged &&
+        value.walUnchanged &&
         value.sidecarsUnchanged &&
         value.folderUnchanged
       )
@@ -461,7 +502,11 @@ function runMigrationCases() {
         value?.surfaced &&
         value.dialogIncludesPathAndVersion &&
         value.quitCalled &&
+        value.sidecarsPresentBefore &&
         value.fileUnchanged &&
+        value.userVersionUnchanged &&
+        value.rowsUnchanged &&
+        value.walUnchanged &&
         value.sidecarsUnchanged &&
         value.folderUnchanged
       )
@@ -478,7 +523,11 @@ function runMigrationCases() {
         value?.surfaced &&
         value.dialogIncludesPathAndVersion &&
         value.quitCalled &&
+        value.sidecarsPresentBefore &&
         value.fileUnchanged &&
+        value.userVersionUnchanged &&
+        value.rowsUnchanged &&
+        value.walUnchanged &&
         value.sidecarsUnchanged &&
         value.folderUnchanged
       )
@@ -649,7 +698,7 @@ function runMigrationCases() {
 
   runCase(
     'M9 every refusal preserves database, sidecars, and directory listing',
-    'newer, unversioned, and below-baseline refusal snapshots are each identical before and after',
+    'all refusal snapshots match and WAL sidecars exist before each refusal',
     () => {
       const cases = [
         refusalIsNonDestructive(newMigrationDirectory('M9-newer'), 99, false),
@@ -662,13 +711,83 @@ function runMigrationCases() {
           cases.every(
             (value) =>
               value.surfaced &&
+              value.sidecarsPresentBefore &&
               value.fileUnchanged &&
+              value.userVersionUnchanged &&
+              value.rowsUnchanged &&
+              value.walUnchanged &&
               value.sidecarsUnchanged &&
               value.folderUnchanged
           )
       }
     },
     (actual) => result(actual)?.eachRefusalPreservedAll === true
+  )
+
+  runCase(
+    'M10 failed backup verification removes the backup file',
+    'version mismatch throws, removes backup, and preserves source version and rows',
+    () => {
+      const directory = newMigrationDirectory('M10')
+      const { fixtureDb } = createBaselineDatabase(directory)
+      fixtureDb.prepare('INSERT INTO Client (name) VALUES (?)').run('M10 client')
+      const backupPath = path.join(directory, 'mismatched-version.db')
+      let error
+      try {
+        createVerifiedDatabaseBackup(fixtureDb, backupPath, CURRENT_VERSION + 1)
+      } catch (caught) {
+        error = caught
+      }
+      const version = fixtureDb.pragma('user_version', { simple: true })
+      const clients = fixtureDb.prepare('SELECT name FROM Client').all()
+      fixtureDb.close()
+      return {
+        verificationThrew:
+          error instanceof Error &&
+          error.message.includes('Migration backup verification failed'),
+        backupAbsent: !fs.existsSync(backupPath),
+        versionUnchanged: version === CURRENT_VERSION,
+        rowsUnchanged: clients.length === 1 && clients[0].name === 'M10 client'
+      }
+    },
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.verificationThrew &&
+        value.backupAbsent &&
+        value.versionUnchanged &&
+        value.rowsUnchanged
+      )
+    }
+  )
+
+  runCase(
+    'M11 successful verified backup is retained',
+    'backup exists with integrity ok and matching user_version',
+    () => {
+      const directory = newMigrationDirectory('M11')
+      const { fixtureDb } = createBaselineDatabase(directory)
+      const backupPath = path.join(directory, 'verified-backup.db')
+      createVerifiedDatabaseBackup(fixtureDb, backupPath, CURRENT_VERSION)
+      fixtureDb.close()
+      const backupDb = new Database(backupPath, { readonly: true, fileMustExist: true })
+      const integrity = backupDb.pragma('integrity_check', { simple: true })
+      const version = backupDb.pragma('user_version', { simple: true })
+      backupDb.close()
+      return {
+        backupExists: fs.existsSync(backupPath),
+        integrity,
+        version
+      }
+    },
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.backupExists &&
+        value.integrity === 'ok' &&
+        value.version === CURRENT_VERSION
+      )
+    }
   )
 }
 

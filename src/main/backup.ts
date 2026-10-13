@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { dirname, join } from 'path'
-import { existsSync, mkdirSync, cpSync } from 'fs'
+import { existsSync, mkdirSync, cpSync, rmSync } from 'fs'
 import Database from 'better-sqlite3'
 import { getDb } from './db'
 
@@ -11,10 +11,14 @@ export function createVerifiedDatabaseBackup(
 ): void {
   mkdirSync(dirname(backupPath), { recursive: true })
   const escapedPath = backupPath.replace(/'/g, "''")
-  db.exec(`VACUUM INTO '${escapedPath}'`)
-
-  const backupDb = new Database(backupPath, { readonly: true, fileMustExist: true })
+  let backupCreated = false
+  let backupDb: Database.Database | undefined
+  let failure: unknown
+  let failed = false
   try {
+    db.exec(`VACUUM INTO '${escapedPath}'`)
+    backupCreated = true
+    backupDb = new Database(backupPath, { readonly: true, fileMustExist: true })
     const integrity = backupDb.pragma('integrity_check', { simple: true })
     const version = backupDb.pragma('user_version', { simple: true })
     if (integrity !== 'ok' || version !== expectedVersion) {
@@ -22,8 +26,30 @@ export function createVerifiedDatabaseBackup(
         `Migration backup verification failed: integrity=${String(integrity)}, user_version=${String(version)}`
       )
     }
+  } catch (error) {
+    failure = error
+    failed = true
   } finally {
-    backupDb.close()
+    if (backupDb?.open) {
+      try {
+        backupDb.close()
+      } catch (error) {
+        if (!failed) {
+          failure = error
+          failed = true
+        }
+      }
+    }
+  }
+  if (failed) {
+    if (backupCreated) {
+      try {
+        rmSync(backupPath, { force: true })
+      } catch {
+        // Preserve the original backup failure.
+      }
+    }
+    throw failure
   }
 }
 
