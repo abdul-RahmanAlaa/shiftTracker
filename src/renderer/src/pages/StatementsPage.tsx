@@ -22,6 +22,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { formatMoney, formatQuantity } from '@/lib/numberFormat'
 
 type EntityType = 'client' | 'contractor'
 type ClientOption = Extract<
@@ -37,12 +38,6 @@ type Statement = Extract<
   { ok: true }
 >['data']
 type StatementRow = Statement['rows'][number]
-
-const numberFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
-
-function formatNumber(value: number | null | undefined, emptyCell: string): string {
-  return value === null || value === undefined ? emptyCell : numberFormatter.format(value)
-}
 
 export function StatementsPage(): React.JSX.Element {
   const { t } = useTranslation()
@@ -155,29 +150,35 @@ export function StatementsPage(): React.JSX.Element {
     {
       accessorKey: 'quantity',
       header: t('statementsPage.columns.quantity'),
-      cell: ({ row }) => formatNumber(row.original.quantity, t('common.emptyCell'))
+      cell: ({ row }) =>
+        row.original.quantity === null
+          ? t('common.emptyCell')
+          : formatQuantity(row.original.quantity)
     },
     {
       accessorKey: 'price',
       header: t('statementsPage.columns.price'),
-      cell: ({ row }) => formatNumber(row.original.price, t('common.emptyCell'))
+      cell: ({ row }) =>
+        row.original.price === null ? t('common.emptyCell') : formatMoney(row.original.price)
     },
     {
       accessorKey: 'value',
       header: t('statementsPage.columns.value'),
-      cell: ({ row }) => formatNumber(row.original.value, t('common.emptyCell'))
+      cell: ({ row }) =>
+        row.original.value === null ? t('common.emptyCell') : formatMoney(row.original.value)
     },
     {
       accessorKey: 'payment',
       header: t('statementsPage.columns.payment'),
-      cell: ({ row }) => formatNumber(row.original.payment, t('common.emptyCell'))
+      cell: ({ row }) =>
+        row.original.payment === null ? t('common.emptyCell') : formatMoney(row.original.payment)
     },
     {
       accessorKey: 'runningBalance',
       header: t('statementsPage.columns.runningBalance'),
       cell: ({ row }) => (
         <span className={cn('font-medium', row.original.runningBalance < 0 && 'text-destructive')}>
-          {formatNumber(row.original.runningBalance, t('common.emptyCell'))}
+          {formatMoney(row.original.runningBalance)}
         </span>
       )
     },
@@ -307,8 +308,8 @@ export function StatementsPage(): React.JSX.Element {
           {t('statementsPage.statementError')}
         </p>
       ) : (
-        <Card className="min-h-0">
-          <CardContent className="grid gap-4 pt-6">
+        <Card className="flex min-h-0 flex-1 flex-col">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-4 pt-6">
             {statementLoading && (
               <p role="status" className="text-sm text-muted-foreground">
                 {t('statementsPage.loadingStatement')}
@@ -326,45 +327,31 @@ export function StatementsPage(): React.JSX.Element {
                   )}
               </>
             )}
-            <DataTable
-              columns={columns}
-              data={rows}
-              loading={statementLoading}
-              emptyMessage={t('statementsPage.noRows')}
-            />
             {statement && !statementLoading && (
               <dl className="grid gap-3 rounded-md border p-4 sm:grid-cols-2 xl:grid-cols-5">
                 <div>
                   <dt className="text-sm text-muted-foreground">
                     {t('statementsPage.totals.quantity')}
                   </dt>
-                  <dd className="font-semibold">
-                    {formatNumber(totalQuantity, t('common.emptyCell'))}
-                  </dd>
+                  <dd className="font-semibold">{formatQuantity(totalQuantity)}</dd>
                 </div>
                 <div>
                   <dt className="text-sm text-muted-foreground">
                     {t('statementsPage.totals.value')}
                   </dt>
-                  <dd className="font-semibold">
-                    {formatNumber(totalValue, t('common.emptyCell'))}
-                  </dd>
+                  <dd className="font-semibold">{formatMoney(totalValue)}</dd>
                 </div>
                 <div>
                   <dt className="text-sm text-muted-foreground">
                     {t('statementsPage.totals.payments')}
                   </dt>
-                  <dd className="font-semibold">
-                    {formatNumber(totalPayments, t('common.emptyCell'))}
-                  </dd>
+                  <dd className="font-semibold">{formatMoney(totalPayments)}</dd>
                 </div>
                 <div>
                   <dt className="text-sm text-muted-foreground">
                     {t('statementsPage.totals.fines')}
                   </dt>
-                  <dd className="font-semibold">
-                    {formatNumber(totalFines, t('common.emptyCell'))}
-                  </dd>
+                  <dd className="font-semibold">{formatMoney(totalFines)}</dd>
                 </div>
                 <div>
                   <dt className="text-sm text-muted-foreground">
@@ -376,11 +363,17 @@ export function StatementsPage(): React.JSX.Element {
                       statement.finalBalance < 0 && 'text-destructive'
                     )}
                   >
-                    {formatNumber(statement.finalBalance, t('common.emptyCell'))}
+                    {formatMoney(statement.finalBalance)}
                   </dd>
                 </div>
               </dl>
             )}
+            <DataTable
+              columns={columns}
+              data={rows}
+              loading={statementLoading}
+              emptyMessage={t('statementsPage.noRows')}
+            />
           </CardContent>
         </Card>
       )}

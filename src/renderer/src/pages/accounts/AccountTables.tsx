@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { ColumnDef } from '@tanstack/react-table'
 import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/DataTable'
+import { formatMoney, formatQuantity } from '@/lib/numberFormat'
 
 export type LedgerRow = Extract<
   Awaited<ReturnType<typeof window.api.getDriverHistory>>,
@@ -32,7 +33,11 @@ export function getLedgerColumns({
     { accessorKey: 'id', header: t('common.columns.id') },
     { accessorKey: 'entryDate', header: t('common.columns.date') },
     { accessorKey: 'movementType', header: t('common.columns.movementType') },
-    { accessorKey: 'amount', header: t('common.columns.amount') },
+    {
+      accessorKey: 'amount',
+      header: t('common.columns.amount'),
+      cell: ({ getValue }) => formatMoney(getValue<number>())
+    },
     {
       id: 'shiftId',
       accessorFn: (entry) => entry.shiftId ?? t('common.emptyCell'),
@@ -99,7 +104,11 @@ export function getClientPaymentColumns({
   const columns: ColumnDef<ClientPaymentRow, unknown>[] = [
     { accessorKey: 'id', header: t('common.columns.id') },
     { accessorKey: 'entryDate', header: t('common.columns.date') },
-    { accessorKey: 'amount', header: t('common.columns.amount') },
+    {
+      accessorKey: 'amount',
+      header: t('common.columns.amount'),
+      cell: ({ getValue }) => formatMoney(getValue<number>())
+    },
     {
       id: 'notes',
       accessorFn: (payment) => payment.notes ?? t('common.emptyCell'),
@@ -143,7 +152,7 @@ export function balanceClassName(balance: number): string {
 export function AccountSummary({
   items
 }: {
-  items: { label: string; value: number; highlight?: boolean }[]
+  items: { label: string; value: number; format: 'money' | 'quantity'; highlight?: boolean }[]
 }): React.JSX.Element {
   return (
     <div className="grid gap-4 sm:grid-cols-3">
@@ -151,7 +160,7 @@ export function AccountSummary({
         <div key={item.label}>
           <p className="text-sm text-muted-foreground">{item.label}</p>
           <p className={item.highlight ? balanceClassName(item.value) : 'text-lg font-semibold'}>
-            {item.value}
+            {item.format === 'money' ? formatMoney(item.value) : formatQuantity(item.value)}
           </p>
         </div>
       ))}
@@ -177,6 +186,7 @@ export function LedgerEntriesTable({
       getRowId={(entry) => String(entry.id)}
       enableRowSelection
       sumColumnId="amount"
+      formatSum={formatMoney}
     />
   )
 }
@@ -189,11 +199,11 @@ export function AccountCard({
   children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <Card>
+    <Card className="flex h-full min-h-0 flex-col">
       <CardHeader>
         <CardTitle>{title}</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4">{children}</CardContent>
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-4">{children}</CardContent>
     </Card>
   )
 }

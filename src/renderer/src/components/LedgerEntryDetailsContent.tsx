@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { labelForMovementType } from '@/lib/enumLabels'
+import { formatMoney } from '@/lib/numberFormat'
 
 type LedgerEntryDetailsRow = Extract<
   Awaited<ReturnType<typeof window.api.listLedgerEntries>>,
@@ -23,7 +24,7 @@ export function LedgerEntryDetailsContent({
     [t('ledgerEntryDetails.movementNumber'), entry.id],
     [t('ledgerEntryDetails.date'), entry.entryDate],
     [t('ledgerEntryDetails.movementType'), movementType],
-    [t('ledgerEntryDetails.amount'), entry.amount],
+    [t('ledgerEntryDetails.amount'), formatMoney(entry.amount)],
     [t('ledgerEntryDetails.contractor'), contractorName ?? t('common.emDash')],
     [t('ledgerEntryDetails.driver'), driverName ?? t('common.emDash')],
     [t('ledgerEntryDetails.shift'), entry.shiftId ?? t('common.emDash')],

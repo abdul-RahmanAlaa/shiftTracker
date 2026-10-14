@@ -1,11 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
-import { useForm, useWatch } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -41,6 +41,9 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { hasAtMostTwoDecimals } from '@/lib/money'
+import { createLatestGuard } from '@/lib/latestGuard'
+import { TripEntryGrid } from '@/components/TripEntryGrid'
+import type { TripGridPayload } from '@/lib/tripGrid'
 
 type NamedOption = { id: number; name: string }
 type OpenShift = {
@@ -120,6 +123,16 @@ export const tripSchema = z
 
 export type TripValues = z.infer<typeof tripSchema>
 
+function validateTripGridPayload(payload: TripGridPayload): { field: string; message: string }[] {
+  const parsed = tripSchema.safeParse(payload)
+  return parsed.success
+    ? []
+    : parsed.error.issues.map((issue) => ({
+        field: String(issue.path[0] ?? '_form'),
+        message: issue.message
+      }))
+}
+
 export function NumberField({
   control,
   name,
@@ -172,11 +185,13 @@ export function AddTripPage(): React.JSX.Element {
     materialTypes: [],
     locations: []
   })
-  const [selectedDriverId, setSelectedDriverId] = useState<number>()
-  const [openShift, setOpenShift] = useState<OpenShift | null>()
+  const [selectedDriverId, setSelectedDriverId] = useState<number | undefined>(undefined)
+  const [openShift, setOpenShift] = useState<OpenShift | null | undefined>(undefined)
+  const [shiftTripCount, setShiftTripCount] = useState(0)
   const [checkingShift, setCheckingShift] = useState(false)
   const [resourceLoading, setResourceLoading] = useState(true)
-  const [tripLog, setTripLog] = useState<string[]>([])
+  const selectedDriverRef = useRef<number | undefined>(undefined)
+  const driverGuard = useRef(createLatestGuard())
 
   const createShiftForm = useForm<CreateShiftValues>({
     resolver: zodResolver(createShiftSchema),
@@ -190,33 +205,6 @@ export function AddTripPage(): React.JSX.Element {
       notes: ''
     }
   })
-
-  const tripForm = useForm<TripValues>({
-    resolver: zodResolver(tripSchema),
-    defaultValues: {
-      tripDate: '',
-      crusherCubic: 0,
-      clientCubicReported: 0,
-      fineAmount: 0,
-      fineReason: '',
-      location: '',
-      crusherId: undefined,
-      materialTypeId: undefined,
-      stonePrice: undefined,
-      crusherReceiptStatus: 'UNKNOWN',
-      crusherReceiptNo: undefined,
-      clientId: undefined,
-      transportPrice: undefined,
-      clientPrice: undefined,
-      recipientNameStatus: 'UNCLEAR',
-      recipientName: '',
-      clientReceiptNo: '',
-      notes: ''
-    }
-  })
-
-  const crusherReceiptStatus = useWatch({ control: tripForm.control, name: 'crusherReceiptStatus' })
-  const recipientNameStatus = useWatch({ control: tripForm.control, name: 'recipientNameStatus' })
 
   useEffect(() => {
     void Promise.all([
@@ -239,26 +227,41 @@ export function AddTripPage(): React.JSX.Element {
     })
   }, [])
 
-  async function selectDriver(driverId: number): Promise<void> {
-    setSelectedDriverId(driverId)
-    createShiftForm.setValue('driverId', driverId)
+  useEffect(() => () => driverGuard.current.cancel(), [])
+
+  async function loadDriverShift(driverId: number): Promise<void> {
+    const token = driverGuard.current.next()
     setCheckingShift(true)
     const result = await ipcApi.getDriverOpenShift({ driverId })
+    if (!driverGuard.current.isLatest(token)) return
     if (result.ok && result.data) {
       setOpenShift(result.data)
-      syncTripDefaults(result.data)
+      const trips = await ipcApi.listTripsByShift({ shiftId: result.data.id })
+      if (!driverGuard.current.isLatest(token)) return
+      setShiftTripCount(trips.ok ? trips.data.length : 0)
     } else {
       setOpenShift(null)
+      setShiftTripCount(0)
     }
     setCheckingShift(false)
   }
 
-  function syncTripDefaults(shift: OpenShift): void {
-    tripForm.reset({
-      ...tripForm.getValues(),
-      crusherCubic: shift.crusherCubicDefault,
-      clientCubicReported: shift.clientCubicDefault
-    })
+  async function selectDriver(value: string): Promise<void> {
+    if (!value) {
+      driverGuard.current.cancel()
+      selectedDriverRef.current = undefined
+      setSelectedDriverId(undefined)
+      setOpenShift(undefined)
+      setShiftTripCount(0)
+      setCheckingShift(false)
+      return
+    }
+    const driverId = Number(value)
+    selectedDriverRef.current = driverId
+    setSelectedDriverId(driverId)
+    createShiftForm.setValue('driverId', driverId)
+    setOpenShift(null)
+    await loadDriverShift(driverId)
   }
 
   async function handleCreateShift(values: CreateShiftValues): Promise<boolean> {
@@ -273,59 +276,25 @@ export function AddTripPage(): React.JSX.Element {
       })
       return false
     }
-    const shiftResult = await ipcApi.getDriverOpenShift({ driverId: values.driverId })
-    if (shiftResult.ok && shiftResult.data) {
-      setOpenShift(shiftResult.data)
-      syncTripDefaults(shiftResult.data)
-      return true
-    }
-    return false
-  }
-
-  async function handleCreateTrip(values: TripValues): Promise<void> {
-    if (!openShift) return
-    const result = await ipcApi.createTrip({ shiftId: openShift.id, ...values })
-    const message = result.ok
-      ? t('addTrip.logs.created', { id: result.data?.id })
-      : t('addTrip.logs.failed', { errors: result.errors?.map((x) => x.message).join(', ') })
-    setTripLog((previous) => [message, ...previous])
-    if (result.ok) {
-      tripForm.reset({
-        ...tripForm.getValues(),
-        tripDate: '',
-        fineAmount: 0,
-        fineReason: '',
-        crusherReceiptNo: undefined,
-        recipientName: '',
-        clientReceiptNo: '',
-        notes: ''
-      })
-    } else {
-      result.errors.forEach((error) => {
-        if (error.field in values)
-          tripForm.setError(error.field as keyof TripValues, { message: error.message })
-      })
-    }
+    const currentDriverId = selectedDriverRef.current
+    if (currentDriverId !== undefined) await loadDriverShift(currentDriverId)
+    return true
   }
 
   return (
-    <div className="flex flex-col gap-6" dir="rtl">
-      <div>
-        <h1 className="text-2xl font-semibold">{t('addTrip.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('addTrip.subtitle')}</p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('addTrip.steps.selectDriver')}</CardTitle>
-        </CardHeader>
-        <CardContent>
+    <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden" dir="rtl">
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-56 flex-1 items-center gap-3">
+          <div>
+            <h1 className="text-xl font-semibold">{t('addTrip.title')}</h1>
+            <p className="text-xs text-muted-foreground">{t('addTrip.subtitle')}</p>
+          </div>
           <Select
             value={selectedDriverId ? String(selectedDriverId) : ''}
-            onValueChange={(value) => void selectDriver(Number(value))}
+            onValueChange={(value) => void selectDriver(value)}
             disabled={resourceLoading}
           >
-            <SelectTrigger>
+            <SelectTrigger className="w-48">
               <SelectValue
                 placeholder={resourceLoading ? t('common.loading') : t('addTrip.selectDriver')}
               />
@@ -338,90 +307,60 @@ export function AddTripPage(): React.JSX.Element {
               ))}
             </SelectContent>
           </Select>
-        </CardContent>
-      </Card>
+          {selectedDriverId !== undefined && (
+            <Button type="button" size="sm" variant="ghost" onClick={() => void selectDriver('')}>
+              {t('tripGrid.clearDriver')}
+            </Button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {openShift && (
+            <>
+              <Badge variant="secondary">{openShift.id}</Badge>
+              <Badge variant="outline">{openShift.vehicleNo}</Badge>
+              <Badge variant="outline">{openShift.startDate}</Badge>
+              <Badge variant="outline">
+                {t('tripGrid.shiftTripCount', { count: shiftTripCount })}
+              </Badge>
+            </>
+          )}
+          <Badge variant={selectedDriverId ? 'secondary' : 'outline'}>
+            {t('tripGrid.stepDriver')}
+          </Badge>
+          <Badge variant={openShift ? 'secondary' : 'outline'}>{t('tripGrid.stepTrips')}</Badge>
+        </div>
+      </header>
 
-      {selectedDriverId && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('addTrip.steps.shiftStatus')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {checkingShift ? (
-              <p className="text-sm text-muted-foreground">{t('common.loading')}</p>
-            ) : openShift ? (
-              <div className="flex flex-col gap-4">
-                <div className="grid gap-3 sm:grid-cols-5">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t('shifts.shiftInfo.number')}</p>
-                    <Badge variant="secondary">{openShift.id}</Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t('vehiclesSettings.fields.vehicleNo')}
-                    </p>
-                    <p>{openShift.vehicleNo}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t('shifts.shiftInfo.startDate')}
-                    </p>
-                    <p>{openShift.startDate}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t('createShift.fields.crusherCubic')}
-                    </p>
-                    <p>{openShift.crusherCubicDefault}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      {t('createShift.fields.clientCubic')}
-                    </p>
-                    <p>{openShift.clientCubicDefault}</p>
-                  </div>
-                </div>
-                <Badge>{t('shiftStatus.open')}</Badge>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <p className="text-sm text-amber-400">{t('addTrip.noOpenShift')}</p>
-                <CreateShiftForm
-                  form={createShiftForm}
-                  drivers={resources.drivers}
-                  vehicles={resources.vehicles}
-                  onSubmit={handleCreateShift}
-                />
-              </div>
-            )}
+      {checkingShift && (
+        <p className="shrink-0 text-sm text-muted-foreground">{t('common.loading')}</p>
+      )}
+
+      {selectedDriverId !== undefined && !checkingShift && !openShift && (
+        <Card className="shrink-0">
+          <CardContent className="flex flex-wrap items-center gap-4 py-4">
+            <p className="text-sm text-amber-400">{t('addTrip.noOpenShift')}</p>
+            <CreateShiftForm
+              form={createShiftForm}
+              drivers={resources.drivers}
+              vehicles={resources.vehicles}
+              onSubmit={handleCreateShift}
+            />
           </CardContent>
         </Card>
       )}
 
       {openShift && (
-        <TripForm
-          form={tripForm}
+        <TripEntryGrid
+          shift={openShift}
           resources={resources}
-          locations={resources.locations}
-          crusherReceiptStatus={crusherReceiptStatus}
-          recipientNameStatus={recipientNameStatus}
-          onSubmit={handleCreateTrip}
+          validateTripPayload={validateTripGridPayload}
+          onRefresh={() => {
+            const currentDriverId = selectedDriverRef.current
+            return currentDriverId === undefined
+              ? Promise.resolve()
+              : loadDriverShift(currentDriverId)
+          }}
         />
-      )}
-
-      {tripLog.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('addTrip.tripLogTitle')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-2 text-sm">
-              {tripLog.map((line, index) => (
-                <div key={`${line}-${index}`}>{line}</div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       )}
     </div>
   )

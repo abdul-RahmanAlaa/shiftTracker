@@ -23,7 +23,8 @@ export function getContractorAccountInputs(
              t.client_cubic_reported as clientCubicReported,
              t.transport_price as transportPriceMinor,
              t.crusher_cubic as crusherCubic,
-             t.stone_price as stonePriceMinor
+             t.stone_price as stonePriceMinor,
+             t.notes
       FROM Trip t
       JOIN Shift s ON s.id = t.shift_id
       LEFT JOIN MaterialType mt ON mt.id = t.material_type_id
@@ -165,7 +166,8 @@ export function getClientAccountInputs(clientId: number): ClientAccountInputs | 
              t.client_cubic_reported as clientCubicReported,
              t.client_price as clientPriceMinor,
              t.fine_amount as fineAmountMinor,
-             t.fine_reason as fineReason
+             t.fine_reason as fineReason,
+             t.notes
       FROM Trip t
       LEFT JOIN MaterialType mt ON mt.id = t.material_type_id
       WHERE t.client_id = ?

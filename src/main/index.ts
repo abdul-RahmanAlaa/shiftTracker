@@ -52,6 +52,7 @@ import {
   deleteMaterialType
 } from './use-cases/createMaterialType'
 import { getClientStatement, getContractorStatement } from './use-cases/getStatement'
+import { getSuggestedTripPrices } from './use-cases/suggestTripPrices'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -156,6 +157,7 @@ app.whenReady().then(() => {
   registerIpcHandler('vehicle:update', (_event, input) => updateVehicle(input))
   registerIpcHandler('vehicle:delete', (_event, input) => deleteVehicle(input))
   registerIpcHandler('trip:create', (_event, input) => createTrip(input))
+  registerIpcHandler('trip:suggestPrices', (_event, input) => getSuggestedTripPrices(input))
   registerIpcHandler('trip:listByShift', (_event, input) => listTripsByShift(input.shiftId))
   registerIpcHandler('trip:listLocations', () => listTripLocations())
   registerIpcHandler('trip:listAll', () => listAllTrips())

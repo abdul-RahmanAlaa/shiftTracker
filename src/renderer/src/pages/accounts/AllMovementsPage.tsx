@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import { useFloatingWindows } from '@/components/FloatingWindowsContext'
 import { LedgerEntryDetailsContent } from '@/components/LedgerEntryDetailsContent'
+import { formatMoney } from '@/lib/numberFormat'
 import {
   LedgerEntryForm,
   ledgerEntrySchema,
@@ -166,7 +167,11 @@ export function AllMovementsPage(): React.JSX.Element {
       header: t('ledgerEntryForm.fields.driver')
     },
     { accessorKey: 'movementType', header: t('ledgerEntryForm.fields.movementType') },
-    { accessorKey: 'amount', header: t('common.columns.amount') },
+    {
+      accessorKey: 'amount',
+      header: t('common.columns.amount'),
+      cell: ({ getValue }) => formatMoney(getValue<number>())
+    },
     {
       id: 'shiftId',
       accessorFn: (entry) => entry.shiftId ?? t('common.emptyCell'),
@@ -288,11 +293,11 @@ export function AllMovementsPage(): React.JSX.Element {
         </Dialog>
       </div>
 
-      <Card className="min-h-0 flex-1">
+      <Card className="flex min-h-0 flex-1 flex-col">
         <CardHeader>
           <CardTitle>{t('allMovements.entriesTitle')}</CardTitle>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-col">
+        <CardContent className="flex min-h-0 flex-1 flex-col">
           <DataTable
             columns={columns}
             data={entries}
@@ -300,6 +305,7 @@ export function AllMovementsPage(): React.JSX.Element {
             getRowId={(entry) => String(entry.id)}
             enableRowSelection
             sumColumnId="amount"
+            formatSum={formatMoney}
           />
         </CardContent>
       </Card>

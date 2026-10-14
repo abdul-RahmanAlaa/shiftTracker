@@ -27,7 +27,7 @@ export function SettingsPage(): React.JSX.Element {
   const [activeSection, setActiveSection] = useState<SettingsSection>('vehicles')
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col gap-6">
       <h1 className="text-2xl font-semibold">{t('settingsPage.title')}</h1>
       <div className="settings-layout">
         <Card className="settings-menu">
@@ -51,7 +51,7 @@ export function SettingsPage(): React.JSX.Element {
           </CardContent>
         </Card>
 
-        <div className="min-w-0">
+        <div className="flex min-h-0 min-w-0 flex-col">
           {activeSection === 'vehicles' && <VehiclesSettings />}
           {activeSection === 'drivers' && <DriversSettings />}
           {activeSection === 'contractors' && <ContractorsSettings />}

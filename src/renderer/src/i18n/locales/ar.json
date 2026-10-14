@@ -1,7 +1,8 @@
 {
   "ipcErrors": {
     "unexpected": "حدث خطأ غير متوقع. حاول مرة أخرى.",
-    "deleteFailed": "تعذر إتمام الحذف. حاول مرة أخرى."
+    "deleteFailed": "تعذر إتمام الحذف. حاول مرة أخرى.",
+    "tripUpdated": "تم تحديث بيانات النقلة بنجاح."
   },
   "common": {
     "close": "إغلاق",
@@ -482,5 +483,36 @@
     "name": "Shift Tracker",
     "subtitle": "إدارة النقل والورديات",
     "navigationLabel": "التنقل الرئيسي"
+  },
+  "tripGrid": {
+    "clearDriver": "مسح الاختيار",
+    "stepDriver": "١. السائق والوردية",
+    "stepTrips": "٢. النقلات",
+    "shiftTripCount": "نقلات الوردية: {{count}}",
+    "addRow": "إضافة صف",
+    "duplicateRow": "تكرار الصف",
+    "deleteRow": "حذف الصف",
+    "showExtra": "إظهار أعمدة إضافية",
+    "hideExtra": "إخفاء الأعمدة الإضافية",
+    "saveAll": "حفظ الكل",
+    "saving": "جاري الحفظ...",
+    "status": "الحالة",
+    "receiptTooltip": "اتركه فارغًا للحالة غير المعروفة، أدخل رقمًا موجبًا لتأكيد الإيصال، أو اكتب - لتأكيد عدم وجوده.",
+    "savedNotice": "تم حفظ {{count}} نقلة",
+    "failedNotice": "تعذر حفظ {{count}} نقلة",
+    "rowErrors": "أخطاء الصف: {{errors}}",
+    "rowStatus": {
+      "empty": "فارغ",
+      "ready": "جاهز",
+      "error": "خطأ",
+      "saved": "تم الحفظ"
+    },
+    "validation": {
+      "required": "هذا الحقل مطلوب",
+      "invalid": "قيمة غير صحيحة",
+      "decimals": "يسمح بمنزلتين عشريتين كحد أقصى",
+      "name": "اختر اسمًا مطابقًا من القائمة",
+      "duplicateReceipt": "رقم إيصال الكسارة مكرر في صف آخر"
+    }
   }
 }

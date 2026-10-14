@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { hasAtMostTwoDecimals } from '@/lib/money'
+import { formatMoney } from '@/lib/numberFormat'
 
 const clientSchema = z.object({
   name: z.string().min(1, i18n.t('clientsSettings.validation.nameRequired')),
@@ -169,7 +170,10 @@ export function ClientsSettings(): React.JSX.Element {
     {
       accessorKey: 'initialPrice',
       header: t('common.defaultPrice'),
-      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
+      cell: ({ getValue }) => {
+        const value = getValue<number | null>()
+        return value === null ? t('common.emptyCell') : formatMoney(value)
+      }
     },
     {
       accessorKey: 'location',
@@ -179,7 +183,7 @@ export function ClientsSettings(): React.JSX.Element {
     {
       accessorKey: 'openingBalance',
       header: t('common.openingBalance'),
-      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
+      cell: ({ getValue }) => formatMoney(getValue<number>())
     },
     {
       accessorKey: 'openingBalanceDate',
@@ -215,11 +219,11 @@ export function ClientsSettings(): React.JSX.Element {
   ]
 
   return (
-    <Card>
+    <Card className="flex h-full min-h-0 flex-col">
       <CardHeader>
         <CardTitle>{t('clientsSettings.title')}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex min-h-0 flex-1 flex-col">
         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
             <Button
@@ -336,7 +340,7 @@ export function ClientsSettings(): React.JSX.Element {
             </Form>
           </DialogContent>
         </Dialog>
-        <div className="mt-6">
+        <div className="mt-6 flex min-h-0 flex-1 flex-col">
           <DataTable
             columns={columns}
             data={clients}

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { DataTable } from '@/components/DataTable'
 import { TripDetailsContent } from '@/components/TripDetailsContent'
 import { useFloatingWindows } from '@/components/FloatingWindowsContext'
+import { formatQuantity } from '@/lib/numberFormat'
 
 type AllTripsRow = Extract<
   Awaited<ReturnType<typeof ipcApi.listAllTrips>>,
@@ -25,7 +26,11 @@ export function AllTripsPage(): React.JSX.Element {
     { accessorKey: 'vehicleNo', header: t('vehiclesSettings.fields.vehicleNo') },
     { accessorKey: 'crusherName', header: t('tripForm.fields.crusher') },
     { accessorKey: 'clientName', header: t('tripForm.fields.client') },
-    { accessorKey: 'clientCubicReported', header: t('tripDetails.fields.clientCubicReported') },
+    {
+      accessorKey: 'clientCubicReported',
+      header: t('tripDetails.fields.clientCubicReported'),
+      cell: ({ getValue }) => formatQuantity(getValue<number>())
+    },
     {
       id: 'actions',
       header: t('common.columns.actions'),
@@ -58,7 +63,7 @@ export function AllTripsPage(): React.JSX.Element {
   }, [])
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col gap-6">
       <h1 className="text-2xl font-semibold">{t('allTrips.title')}</h1>
       <DataTable
         columns={columns}
@@ -67,6 +72,7 @@ export function AllTripsPage(): React.JSX.Element {
         getRowId={(row) => row.id}
         enableRowSelection
         sumColumnId="clientCubicReported"
+        formatSum={formatQuantity}
         initialSorting={[{ id: 'tripDate', desc: false }]}
       />
     </div>

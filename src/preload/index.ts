@@ -104,6 +104,8 @@ const api = {
     clientReceiptNo?: string
     notes?: string
   }) => invoke('trip:create', input),
+  getSuggestedTripPrices: (input: { clientId: number; crusherId: number }) =>
+    invoke('trip:suggestPrices', input),
   listTripsByShift: (input: { shiftId: string }) => invoke('trip:listByShift', input),
   listTripLocations: () => invoke('trip:listLocations'),
   listAllTrips: () => invoke('trip:listAll'),

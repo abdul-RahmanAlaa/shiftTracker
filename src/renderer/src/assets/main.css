@@ -50,7 +50,7 @@
 
 body {
   min-width: 100%;
-  overflow: auto;
+  overflow: hidden;
   background-image: url('./wavy-lines.svg');
   background-size: cover;
   user-select: none;
@@ -73,17 +73,24 @@ code {
 }
 
 #root {
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
   width: 100%;
 }
 
 .app-shell {
-  display: block;
-  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
   width: 100%;
+  overflow: hidden;
 }
 
 .app-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
   gap: 32px;
@@ -106,12 +113,12 @@ code {
 }
 
 .app-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  align-content: start;
-  gap: 24px;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   flex: 1;
+  min-height: 0;
+  overflow: hidden;
   padding: 32px;
 }
 
@@ -119,7 +126,13 @@ code {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
   gap: 24px;
-  align-items: start;
+  align-items: stretch;
+  min-height: 0;
+  flex: 1;
+}
+
+.settings-layout > * {
+  min-height: 0;
 }
 
 .settings-menu {
@@ -129,6 +142,9 @@ code {
 
 .app-page {
   min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
 }
 
 @media (max-width: 900px) {
@@ -144,11 +160,12 @@ code {
   }
 
   .app-main {
-    grid-template-columns: 1fr;
+    overflow-y: auto;
   }
 
   .settings-layout {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .settings-menu {

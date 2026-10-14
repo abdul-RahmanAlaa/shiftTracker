@@ -22,8 +22,12 @@ const routes = [
 
 const rawTranslationIdentifier = /\b[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+\b/g
 
-function text(key) {
-  return key.split('.').reduce((value, part) => value?.[part], ar)
+function text(key, interpolation = {}) {
+  const translated = key.split('.').reduce((value, part) => value?.[part], ar)
+  return Object.entries(interpolation).reduce(
+    (value, [name, replacement]) => value.replaceAll(`{{${name}}}`, String(replacement)),
+    translated
+  )
 }
 
 function escapeRegExp(value) {
@@ -97,12 +101,11 @@ async function fillNumber(page, labelKey, value) {
   await formItem(page, labelKey).getByRole('spinbutton').fill(String(value))
 }
 
-async function fillText(page, labelKey, value) {
-  await page
-    .getByRole('textbox', {
-      name: new RegExp(`^${escapeRegExp(text(labelKey))}(?:\\s+\\*)?$`)
-    })
-    .fill(value)
+function gridCell(page, labelKey, rowIndex = 0) {
+  return page
+    .getByRole('row')
+    .nth(rowIndex + 1)
+    .getByLabel(text(labelKey), { exact: true })
 }
 
 async function selectToday(page, labelKey, placeholderKey) {
@@ -334,41 +337,33 @@ testWithApp(
 )
 
 testWithApp(
-  'S3 rejects zero price then saves a trip with correct detail labels',
+  'S3 trip grid rejects zero price, then saves a typed row with correct detail labels',
   async ({ launchApp }) => {
     const app = await launchApp('open-shift')
     const page = app.page
     await navigate(page, '/', 'addTrip.title')
     await pickDriverOnAddTrip(page, app.seedData.driver.name)
-    await expect(page.getByText(text('addTrip.steps.tripDetails'), { exact: true })).toBeVisible()
-    await expect(formItem(page, 'tripForm.fields.fineAmount')).toBeVisible()
-    await selectToday(page, 'tripForm.fields.tripDate', 'tripForm.placeholders.tripDate')
-    await fillNumber(page, 'tripForm.fields.stonePrice', 0)
-    await selectOption(page, 'tripForm.fields.crusher', app.seedData.crusher.name)
-    await selectOption(page, 'tripForm.fields.client', app.seedData.client.name)
-    await selectOption(page, 'tripForm.fields.materialType', app.seedData.materialType.name)
-    await fillNumber(page, 'tripForm.fields.transportPrice', 8)
-    await fillNumber(page, 'tripForm.fields.clientPrice', 15)
-    await page.getByRole('button', { name: text('tripForm.submit'), exact: true }).click()
-    const priceField = formItem(page, 'tripForm.fields.stonePrice')
-    await expect(priceField.getByText(text('tripForm.validation.stonePriceRequired'))).toBeVisible()
-    await fillNumber(page, 'tripForm.fields.stonePrice', 12)
-    await selectOption(
-      page,
-      'tripForm.fields.crusherReceiptStatus',
-      text('tripForm.receiptStatuses.value')
+    await expect(gridCell(page, 'tripForm.fields.tripDate')).toHaveValue(today())
+    await gridCell(page, 'tripForm.fields.client').fill(app.seedData.client.name)
+    await gridCell(page, 'tripForm.fields.client').press('Tab')
+    await gridCell(page, 'tripForm.fields.crusher').fill(app.seedData.crusher.name)
+    await gridCell(page, 'tripForm.fields.crusher').press('Tab')
+    await gridCell(page, 'tripForm.fields.materialType').fill(app.seedData.materialType.name)
+    await gridCell(page, 'tripForm.fields.materialType').press('Tab')
+    await gridCell(page, 'tripForm.fields.stonePrice').fill('0')
+    await gridCell(page, 'tripForm.fields.stonePrice').press('Tab')
+    await expect(gridCell(page, 'tripForm.fields.stonePrice')).toHaveAttribute(
+      'aria-invalid',
+      'true'
     )
-    await fillNumber(page, 'tripForm.fields.crusherReceiptNumber', 7002)
-    await selectOption(
-      page,
-      'tripForm.fields.recipientNameStatus',
-      text('tripForm.receiptStatuses.value')
-    )
-    await fillText(page, 'tripForm.fields.recipientName', `E2E Receiver ${process.pid}`)
-    await page.getByRole('button', { name: text('tripForm.submit'), exact: true }).click()
-    await expect(
-      page.getByText(new RegExp(text('addTrip.logs.created').split('{{')[0]))
-    ).toBeVisible()
+    await gridCell(page, 'tripForm.fields.stonePrice').fill('12')
+    await gridCell(page, 'tripForm.fields.transportPrice').fill('8')
+    await gridCell(page, 'tripForm.fields.clientPrice').fill('15')
+    await page.getByRole('button', { name: text('tripGrid.showExtra'), exact: true }).click()
+    await gridCell(page, 'tripForm.fields.crusherReceiptNumber').fill('7002')
+    await gridCell(page, 'tripForm.fields.recipientName').fill(`E2E Receiver ${process.pid}`)
+    await page.getByRole('button', { name: text('tripGrid.saveAll'), exact: true }).click()
+    await expect(page.getByRole('status')).toContainText(text('tripGrid.savedNotice', { count: 1 }))
 
     await navigate(page, '/shifts', 'shifts.title')
     await page.getByRole('row').filter({ hasText: app.seedData.shift.id }).click()
@@ -389,6 +384,56 @@ testWithApp(
     await expect(
       page.getByText(text('tripForm.recipientNameStatuses.provided'), { exact: true })
     ).toBeVisible()
+  }
+)
+
+testWithApp(
+  'S7 trip grid saves valid rows and retains a server-rejected duplicate receipt',
+  async ({ launchApp }) => {
+    const app = await launchApp('with-trip')
+    const page = app.page
+    await navigate(page, '/', 'addTrip.title')
+    await pickDriverOnAddTrip(page, app.seedData.driver.name)
+    await page.getByRole('button', { name: text('tripGrid.showExtra'), exact: true }).click()
+    await gridCell(page, 'tripForm.fields.client').fill(app.seedData.client.name)
+    await gridCell(page, 'tripForm.fields.client').press('Tab')
+    await gridCell(page, 'tripForm.fields.crusher').fill(app.seedData.crusher.name)
+    await gridCell(page, 'tripForm.fields.crusher').press('Tab')
+    await gridCell(page, 'tripForm.fields.materialType').fill(app.seedData.materialType.name)
+    await gridCell(page, 'tripForm.fields.materialType').press('Tab')
+    await gridCell(page, 'tripForm.fields.stonePrice').fill('12')
+    await gridCell(page, 'tripForm.fields.transportPrice').fill('8')
+    await gridCell(page, 'tripForm.fields.clientPrice').fill('15')
+    await gridCell(page, 'tripForm.fields.crusherReceiptNumber').fill('7002')
+    await gridCell(page, 'tripForm.fields.recipientName').fill('First receiver')
+
+    await page.getByRole('button', { name: text('tripGrid.addRow'), exact: true }).click()
+    await gridCell(page, 'tripForm.fields.client', 1).fill(app.seedData.client.name)
+    await gridCell(page, 'tripForm.fields.client', 1).press('Tab')
+    await gridCell(page, 'tripForm.fields.crusher', 1).fill(app.seedData.crusher.name)
+    await gridCell(page, 'tripForm.fields.crusher', 1).press('Tab')
+    await gridCell(page, 'tripForm.fields.materialType', 1).fill(app.seedData.materialType.name)
+    await gridCell(page, 'tripForm.fields.materialType', 1).press('Tab')
+    await gridCell(page, 'tripForm.fields.stonePrice', 1).fill('12')
+    await gridCell(page, 'tripForm.fields.transportPrice', 1).fill('8')
+    await gridCell(page, 'tripForm.fields.clientPrice', 1).fill('15')
+    await gridCell(page, 'tripForm.fields.crusherReceiptNumber', 1).fill('7001')
+    await gridCell(page, 'tripForm.fields.recipientName', 1).fill('Second receiver')
+
+    await page.getByRole('button', { name: text('tripGrid.saveAll'), exact: true }).click()
+    await expect(page.getByRole('status')).toContainText(text('tripGrid.savedNotice', { count: 1 }))
+    await expect(page.getByRole('status')).toContainText(
+      text('tripGrid.failedNotice', { count: 1 })
+    )
+    await expect(gridCell(page, 'tripForm.fields.crusherReceiptNumber')).toHaveValue('7001')
+    await expect(gridCell(page, 'tripForm.fields.crusherReceiptNumber')).toHaveAttribute(
+      'aria-invalid',
+      'true'
+    )
+
+    await navigate(page, '/shifts', 'shifts.title')
+    await page.getByRole('row').filter({ hasText: app.seedData.shift.id }).click()
+    await expect(page.getByRole('row')).toHaveCount(3)
   }
 )
 

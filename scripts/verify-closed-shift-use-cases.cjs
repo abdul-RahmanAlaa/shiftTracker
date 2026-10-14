@@ -53,6 +53,8 @@ import {
   getUnhandledIpcErrors
 } from '../src/renderer/src/lib/ipcErrors'
 import { createLatestGuard } from '../src/renderer/src/lib/latestGuard'
+import * as tripGrid from '../src/renderer/src/lib/tripGrid'
+import { getSuggestedTripPrices } from '../src/main/use-cases/suggestTripPrices'
 
 const outcomes = []
 const harnessUserData = process.env.SHIFT_TRACKER_USER_DATA
@@ -224,6 +226,266 @@ function updateLedger(id, overrides = {}) {
     contractorId,
     notes: 'updated',
     ...overrides
+  })
+}
+
+function insertSuggestionTrip(id, clientId, crusherId, tripDate, prices) {
+  db.prepare("INSERT INTO Trip (id, shift_id, trip_date, crusher_cubic, client_cubic_reported, crusher_id, stone_price, crusher_receipt_status, client_id, transport_price, client_price, recipient_name_status, material_type_id) VALUES (?, ?, ?, 1, 1, ?, ?, 'UNKNOWN', ?, ?, ?, 'UNCLEAR', ?)").run(
+    id, openShiftId, tripDate, crusherId, prices[0], clientId, prices[1], prices[2], materialTypeId
+  )
+}
+
+function newSuggestionPair(name, clientInitialPrice, crusherInitialPrice) {
+  const clientResult = createClient({ name: name + ' Client', initialPrice: clientInitialPrice })
+  const crusherResult = createCrusher({ name: name + ' Crusher', initialPrice: crusherInitialPrice })
+  if (!clientResult.ok || !crusherResult.ok) {
+    throw new Error('Suggestion fixture setup failed: ' + name)
+  }
+  return { clientId: clientResult.data.id, crusherId: crusherResult.data.id }
+}
+
+function runSuggestedPriceCases() {
+  runCase('P1 latest date and highest trip number on date', 'LAST_TRIP with prices from latest tied trip', () => {
+    const pair = newSuggestionPair('P1', undefined, undefined)
+    insertSuggestionTrip('TRP-910001', pair.clientId, pair.crusherId, '2026-10-01', [100, 200, 300])
+    insertSuggestionTrip('TRP-910002', pair.clientId, pair.crusherId, '2026-10-14', [400, 500, 600])
+    insertSuggestionTrip('TRP-910003', pair.clientId, pair.crusherId, '2026-10-14', [700, 800, 900])
+    return getSuggestedTripPrices(pair)
+  }, (actual) => {
+    const value = result(actual)
+    return value?.ok === true && value.data.source === 'LAST_TRIP' &&
+      value.data.stonePrice === 7 && value.data.transportPrice === 8 && value.data.clientPrice === 9
+  })
+  runCase('P2 later date wins despite lower trip number', 'LAST_TRIP from later dated trip', () => {
+    const pair = newSuggestionPair('P2', undefined, undefined)
+    insertSuggestionTrip('TRP-920099', pair.clientId, pair.crusherId, '2026-10-13', [9000, 9100, 9200])
+    insertSuggestionTrip('TRP-920001', pair.clientId, pair.crusherId, '2026-10-14', [1200, 1300, 1400])
+    return getSuggestedTripPrices(pair)
+  }, (actual) => {
+    const value = result(actual)
+    return value?.ok === true && value.data.source === 'LAST_TRIP' &&
+      value.data.stonePrice === 12 && value.data.transportPrice === 13 && value.data.clientPrice === 14
+  })
+  runCase('P3 pair defaults', 'DEFAULTS with crusher and client prices, null transport', () => {
+    const pair = newSuggestionPair('P3', 3.25, 5.25)
+    return getSuggestedTripPrices(pair)
+  }, (actual) => {
+    const value = result(actual)
+    return value?.ok === true && JSON.stringify(value.data) === JSON.stringify({
+      source: 'DEFAULTS', stonePrice: 5.25, transportPrice: null, clientPrice: 3.25
+    })
+  })
+  runCase('P4 no trips or defaults', 'NONE with three null prices', () => {
+    const pair = newSuggestionPair('P4', undefined, undefined)
+    return getSuggestedTripPrices(pair)
+  }, (actual) => {
+    const value = result(actual)
+    return value?.ok === true && JSON.stringify(value.data) === JSON.stringify({
+      source: 'NONE', stonePrice: null, transportPrice: null, clientPrice: null
+    })
+  })
+  runCase('P5 other crusher trips ignored', 'NONE for requested client and crusher pair', () => {
+    const pair = newSuggestionPair('P5', undefined, undefined)
+    const otherCrusher = createCrusher({ name: 'P5 Other Crusher' })
+    if (!otherCrusher.ok) throw new Error('P5 other crusher setup failed')
+    insertSuggestionTrip('TRP-950001', pair.clientId, otherCrusher.data.id, '2026-10-14', [4, 5, 6])
+    return getSuggestedTripPrices(pair)
+  }, (actual) => {
+    const value = result(actual)
+    return value?.ok === true && value.data.source === 'NONE' &&
+      value.data.stonePrice === null && value.data.transportPrice === null && value.data.clientPrice === null
+  })
+  runCase('P6 invalid ids return exact field errors without throwing', 'invalid values rejected on clientId or crusherId', () => {
+    const cases = [
+      [{ clientId: 0, crusherId }, 'clientId'],
+      [{ clientId: -1, crusherId }, 'clientId'],
+      [{ clientId: 1.5, crusherId }, 'clientId'],
+      [{ clientId: '1', crusherId }, 'clientId'],
+      [{ clientId: Number.NaN, crusherId }, 'clientId'],
+      [{ clientId, crusherId: 0 }, 'crusherId'],
+      [{ clientId, crusherId: -1 }, 'crusherId'],
+      [{ clientId, crusherId: 1.5 }, 'crusherId'],
+      [{ clientId, crusherId: '1' }, 'crusherId'],
+      [{ clientId, crusherId: Number.NaN }, 'crusherId'],
+      [undefined, 'clientId']
+    ]
+    return cases.map(([input, field]) => {
+      try {
+        const response = getSuggestedTripPrices(input)
+        return response.ok === false && response.errors.length === 1 && response.errors[0].field === field
+      } catch {
+        return false
+      }
+    })
+  }, (actual) => result(actual)?.every((valid) => valid === true) === true)
+  runCase('P7 nonexistent ids return exact field errors', 'clientId and crusherId errors', () => ({
+    client: getSuggestedTripPrices({ clientId: 999999999, crusherId }),
+    crusher: getSuggestedTripPrices({ clientId, crusherId: 999999999 })
+  }), (actual) => {
+    const value = result(actual)
+    return value?.client?.ok === false && value.client.errors.length === 1 &&
+      value.client.errors[0].field === 'clientId' &&
+      value?.crusher?.ok === false && value.crusher.errors.length === 1 &&
+      value.crusher.errors[0].field === 'crusherId'
+  })
+  runCase('P8 prices round-trip exactly', '5.25 pounds remains exactly 5.25', () => {
+    const pair = newSuggestionPair('P8', undefined, undefined)
+    insertSuggestionTrip('TRP-980001', pair.clientId, pair.crusherId, '2026-10-14', [525, 725, 1025])
+    return getSuggestedTripPrices(pair)
+  }, (actual) => {
+    const value = result(actual)
+    return value?.ok === true && value.data.stonePrice === 5.25 &&
+      value.data.transportPrice === 7.25 && value.data.clientPrice === 10.25
+  })
+}
+
+function runTripGridCases() {
+  runCase('G1 digits and separators normalize', 'Arabic digits and separators become Latin decimal text', () => ({
+    normalized: tripGrid.normalizeDigits('١٬٢٥٠٫٥٠'),
+    Persian: tripGrid.normalizeDigits('۱۲۳')
+  }), (actual) => {
+    const value = result(actual)
+    return value?.normalized === '1,250.50' && value.Persian === '123'
+  })
+  runCase('G2 numbers and money decimals parse', 'grouped money accepted, locale mix and third decimal rejected', () => ({
+    grouped: tripGrid.parseNumberCell('1,250.50', { money: true }),
+    mixed: tripGrid.parseNumberCell('1.250,5', { money: true }),
+    tooPrecise: tripGrid.parseNumberCell('5.255', { money: true })
+  }), (actual) => {
+    const value = result(actual)
+    return value?.grouped?.ok === true && value.grouped.value === 1250.5 &&
+      value.mixed?.ok === false && value.tooPrecise?.ok === false
+  })
+  runCase('G3 real dates parse', 'ISO and D/M/YYYY accepted, impossible date rejected', () => ({
+    iso: tripGrid.parseDateCell('2026-10-14'),
+    slash: tripGrid.parseDateCell('14/10/2026'),
+    impossible: tripGrid.parseDateCell('2026-13-45')
+  }), (actual) => {
+    const value = result(actual)
+    return value?.iso?.ok === true && value.iso.value === '2026-10-14' &&
+      value.slash?.ok === true && value.slash.value === '2026-10-14' &&
+      value.impossible?.ok === false
+  })
+  runCase('G4 crusher receipt smart cell', 'empty UNKNOWN, number PROVIDED, dash missing, malformed values rejected', () => ({
+    empty: tripGrid.parseReceiptCell(''),
+    number: tripGrid.parseReceiptCell('123'),
+    missing: tripGrid.parseReceiptCell('-'),
+    text: tripGrid.parseReceiptCell('abc'),
+    decimal: tripGrid.parseReceiptCell('12.5'),
+    zero: tripGrid.parseReceiptCell('0')
+  }), (actual) => {
+    const value = result(actual)
+    return value?.empty?.ok === true && value.empty.value.crusherReceiptStatus === 'UNKNOWN' &&
+      value.number?.ok === true && value.number.value.crusherReceiptStatus === 'PROVIDED' &&
+      value.number.value.crusherReceiptNo === 123 &&
+      value.missing?.ok === true && value.missing.value.crusherReceiptStatus === 'CONFIRMED_MISSING' &&
+      value.text?.ok === false && value.decimal?.ok === false && value.zero?.ok === false
+  })
+  runCase('G5 recipient smart cell', 'empty maps to UNCLEAR and text maps to PROVIDED', () => ({
+    empty: tripGrid.parseRecipientCell(''),
+    provided: tripGrid.parseRecipientCell('  Samir  ')
+  }), (actual) => {
+    const value = result(actual)
+    return value?.empty?.recipientNameStatus === 'UNCLEAR' &&
+      value.provided?.recipientNameStatus === 'PROVIDED' &&
+      value.provided.recipientName === 'Samir'
+  })
+  runCase('G6 Excel and CSV paste parsing', 'quoted tabs, 2x3 block, header skip, and trailing newline', () => ({
+    block: tripGrid.parsePaste('a\\tb\\tc\\nd\\te\\tf\\n'),
+    quoted: tripGrid.parsePaste('"a\\tb"\\tc\\n'),
+    header: tripGrid.parsePaste('Date\\tClient\\n2026-10-14\\tAcme', ['Date'])
+  }), (actual) => {
+    const value = result(actual)
+    return JSON.stringify(value?.block) === JSON.stringify([['a', 'b', 'c'], ['d', 'e', 'f']]) &&
+      JSON.stringify(value?.quoted) === JSON.stringify([['a\\tb', 'c']]) &&
+      JSON.stringify(value?.header) === JSON.stringify([['2026-10-14', 'Acme']])
+  })
+  runCase('G7 names resolve by case and collapsed spaces', 'normalized exact name resolves while unknown text does not', () => ({
+    match: tripGrid.resolveName('  aCME   Materials ', [{ id: 9, name: 'Acme Materials' }]),
+    unknown: tripGrid.resolveName('Acme Other', [{ id: 9, name: 'Acme Materials' }])
+  }), (actual) => {
+    const value = result(actual)
+    return value?.match?.id === 9 && value.unknown === null
+  })
+  runCase('G8 smart cells build exact createTrip payload', 'all user fields and statuses map to the createTrip contract', () => tripGrid.buildTripPayload({
+    tripDate: '14/10/2026',
+    client: 'Client',
+    crusher: 'Crusher',
+    materialType: 'Stone',
+    clientId: 11,
+    crusherId: 12,
+    materialTypeId: 13,
+    clientCubic: '2',
+    crusherCubic: '3',
+    stonePrice: '5.25',
+    transportPrice: '6.50',
+    clientPrice: '8',
+    crusherReceipt: '123',
+    notes: 'note',
+    clientReceiptNo: 'C-1',
+    recipient: 'Receiver',
+    location: 'North',
+    fineAmount: '1.25',
+    fineReason: 'reason'
+  }, 'SHIFT-1'), (actual) => {
+    const value = result(actual)
+    const expected = {
+      shiftId: 'SHIFT-1',
+      tripDate: '2026-10-14',
+      clientId: 11,
+      crusherId: 12,
+      materialTypeId: 13,
+      clientCubicReported: 2,
+      crusherCubic: 3,
+      stonePrice: 5.25,
+      transportPrice: 6.5,
+      clientPrice: 8,
+      crusherReceiptStatus: 'PROVIDED',
+      crusherReceiptNo: 123,
+      recipientNameStatus: 'PROVIDED',
+      recipientName: 'Receiver',
+      notes: 'note',
+      clientReceiptNo: 'C-1',
+      location: 'North',
+      fineAmount: 1.25,
+      fineReason: 'reason'
+    }
+    return value?.payload !== undefined &&
+      Object.keys(value.payload).length === Object.keys(expected).length &&
+      Object.keys(expected).every((key) => value.payload[key] === expected[key]) &&
+      Object.keys(value.errors).length === 0
+  })
+  runCase('G9 server errors map to grid cells', 'smart receipt and recipient fields map correctly; _form remains row message', () => tripGrid.mapServerErrors([
+    { field: 'tripDate', message: 'date' },
+    { field: 'clientId', message: 'client' },
+    { field: 'crusherId', message: 'crusher' },
+    { field: 'materialTypeId', message: 'material' },
+    { field: 'clientCubicReported', message: 'client cubic' },
+    { field: 'crusherCubic', message: 'crusher cubic' },
+    { field: 'stonePrice', message: 'stone price' },
+    { field: 'transportPrice', message: 'transport price' },
+    { field: 'clientPrice', message: 'client price' },
+    { field: 'crusherReceiptNo', message: 'receipt no' },
+    { field: 'crusherReceiptStatus', message: 'receipt status' },
+    { field: 'recipientName', message: 'recipient' },
+    { field: 'recipientNameStatus', message: 'recipient status' },
+    { field: 'clientReceiptNo', message: 'client receipt' },
+    { field: 'notes', message: 'notes' },
+    { field: 'location', message: 'location' },
+    { field: 'fineAmount', message: 'fine' },
+    { field: 'fineReason', message: 'reason' },
+    { field: '_form', message: 'form' }
+  ]), (actual) => {
+    const value = result(actual)
+    return value?.cells?.tripDate === 'date' && value.cells.client === 'client' &&
+      value.cells.crusher === 'crusher' && value.cells.materialType === 'material' &&
+      value.cells.clientCubic === 'client cubic' && value.cells.crusherCubic === 'crusher cubic' &&
+      value.cells.stonePrice === 'stone price' && value.cells.transportPrice === 'transport price' &&
+      value.cells.clientPrice === 'client price' && value.cells.crusherReceipt === 'receipt status' &&
+      value.cells.recipient === 'recipient status' && value.cells.clientReceiptNo === 'client receipt' &&
+      value.cells.notes === 'notes' && value.cells.location === 'location' &&
+      value.cells.fineAmount === 'fine' && value.cells.fineReason === 'reason' &&
+      value.rowMessage === 'form'
   })
 }
 
@@ -865,6 +1127,9 @@ try {
   })
   if (!openResult.ok) throw new Error('Open-shift setup failed: ' + JSON.stringify(openResult))
   openShiftId = openResult.data.id
+
+  runSuggestedPriceCases()
+  runTripGridCases()
 
   closedShiftId = 'VERIFY-CLOSED'
   db.prepare("INSERT INTO Shift (id, vehicle_no, driver_id, contractor_id, crusher_cubic_default, client_cubic_default, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'CLOSED')").run(closedShiftId, 97001, driverId, contractorId, 1, 1, '2026-01-01', '2026-01-02')
@@ -1931,6 +2196,95 @@ try {
       errors[0].message === 'translated:ipcErrors.unexpected' &&
       errors[1].field === 'unknown' &&
       errors[1].message === 'validation'
+  })
+  runCase('S1 client trip charge carries notes and fine keeps its reason', 'charge note is exact and fine note remains the fine reason', () => {
+    const shift = createOwnShift()
+    const trip = createTrip({
+      ...tripInput(shift.id),
+      tripDate: '2026-02-11',
+      fineAmount: 0.5,
+      fineReason: 'S1 fine reason',
+      notes: 'S1 trip note'
+    })
+    if (!trip.ok) return { trip }
+    const statement = getClientStatement({ clientId })
+    if (!statement.ok) return { statement }
+    return {
+      charge: statement.data.rows.find(
+        (row) => row.kind === 'CHARGE' && row.date === '2026-02-11'
+      ),
+      fine: statement.data.rows.find(
+        (row) => row.kind === 'FINE' && row.date === '2026-02-11'
+      )
+    }
+  }, (actual) => {
+    const value = result(actual)
+    return value?.charge?.notes === 'S1 trip note' && value.fine?.notes === 'S1 fine reason'
+  })
+  runCase('S2 blank trip notes become null in client statement', 'empty-string notes normalize to null', () => {
+    const shift = createOwnShift()
+    const trip = createTrip({ ...tripInput(shift.id), tripDate: '2026-02-12', notes: '' })
+    if (!trip.ok) return { trip }
+    const statement = getClientStatement({ clientId })
+    if (!statement.ok) return { statement }
+    return statement.data.rows.find(
+      (row) => row.kind === 'CHARGE' && row.date === '2026-02-12'
+    )
+  }, (actual) => result(actual)?.notes === null)
+  runCase('S3 contractor trip note appears only on transport', 'transport note is exact and material note is null', () => {
+    const shift = createOwnShift()
+    const trip = createTrip({
+      ...tripInput(shift.id),
+      tripDate: '2026-02-13',
+      notes: 'S3 contractor trip note'
+    })
+    if (!trip.ok) return { trip }
+    const statement = getContractorStatement({ contractorId })
+    if (!statement.ok) return { statement }
+    return {
+      transport: statement.data.rows.find(
+        (row) =>
+          row.kind === 'CHARGE' &&
+          row.component === 'TRANSPORT' &&
+          row.date === '2026-02-13'
+      ),
+      material: statement.data.rows.find(
+        (row) =>
+          row.kind === 'CHARGE' &&
+          row.component === 'MATERIAL' &&
+          row.date === '2026-02-13'
+      )
+    }
+  }, (actual) => {
+    const value = result(actual)
+    return (
+      value?.transport?.notes === 'S3 contractor trip note' &&
+      value.material?.notes === null
+    )
+  })
+  runCase('S4 account and statement balances match after noted trip', 'client and contractor balances equal statement final balances', () => {
+    const shift = createOwnShift()
+    const trip = createTrip({
+      ...tripInput(shift.id),
+      tripDate: '2026-02-14',
+      notes: 'S4 balance trip note'
+    })
+    if (!trip.ok) return { trip }
+    const clientAccount = getClientAccount({ clientId })
+    const clientStatement = getClientStatement({ clientId })
+    const contractorAccount = getContractorAccount({ contractorId })
+    const contractorStatement = getContractorStatement({ contractorId })
+    return { clientAccount, clientStatement, contractorAccount, contractorStatement }
+  }, (actual) => {
+    const value = result(actual)
+    return (
+      value?.clientAccount?.ok === true &&
+      value?.clientStatement?.ok === true &&
+      value?.contractorAccount?.ok === true &&
+      value?.contractorStatement?.ok === true &&
+      value.clientAccount.data.balance === value.clientStatement.data.finalBalance &&
+      value.contractorAccount.data.balance === value.contractorStatement.data.finalBalance
+    )
   })
   runCase('E5 typed IPC form field names match every input shape', 'all input field lists match exactly', () => {
     const expected = {

@@ -94,6 +94,48 @@ export interface TripWithContextRow {
   materialTypeName: string | null
 }
 
+export interface SuggestedTripPriceInputs {
+  clientExists: number
+  crusherExists: number
+  clientInitialPriceMinor: number | null
+  crusherInitialPriceMinor: number | null
+  tripId: string | null
+  tripStonePriceMinor: number | null
+  tripTransportPriceMinor: number | null
+  tripClientPriceMinor: number | null
+}
+
+export function getSuggestedTripPriceInputs(
+  clientId: number,
+  crusherId: number
+): SuggestedTripPriceInputs {
+  const db = getDb()
+  return db
+    .prepare(
+      `
+      WITH latest AS (
+        SELECT id, stone_price, transport_price, client_price
+        FROM Trip
+        WHERE client_id = @clientId AND crusher_id = @crusherId
+        ORDER BY trip_date DESC, CAST(SUBSTR(id, 5) AS INTEGER) DESC
+        LIMIT 1
+      )
+      SELECT
+        EXISTS(SELECT 1 FROM Client WHERE id = @clientId) as clientExists,
+        EXISTS(SELECT 1 FROM Crusher WHERE id = @crusherId) as crusherExists,
+        (SELECT initial_price FROM Client WHERE id = @clientId) as clientInitialPriceMinor,
+        (SELECT initial_price FROM Crusher WHERE id = @crusherId) as crusherInitialPriceMinor,
+        latest.id as tripId,
+        latest.stone_price as tripStonePriceMinor,
+        latest.transport_price as tripTransportPriceMinor,
+        latest.client_price as tripClientPriceMinor
+      FROM (SELECT 1) AS seed
+      LEFT JOIN latest ON 1 = 1
+    `
+    )
+    .get({ clientId, crusherId }) as SuggestedTripPriceInputs
+}
+
 export function getNextTripId(): string {
   const db = getDb()
   const next = db.transaction(() => {

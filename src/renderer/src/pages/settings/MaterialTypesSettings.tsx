@@ -140,11 +140,11 @@ export function MaterialTypesSettings(): React.JSX.Element {
   ]
 
   return (
-    <Card>
+    <Card className="flex h-full min-h-0 flex-col">
       <CardHeader>
         <CardTitle>{t('materialTypesSettings.title')}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex min-h-0 flex-1 flex-col">
         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
             <Button
@@ -205,7 +205,7 @@ export function MaterialTypesSettings(): React.JSX.Element {
             </Form>
           </DialogContent>
         </Dialog>
-        <div className="mt-6">
+        <div className="mt-6 flex min-h-0 flex-1 flex-col">
           <DataTable
             columns={columns}
             data={materialTypes}

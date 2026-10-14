@@ -141,7 +141,7 @@ export function getClientStatement(input: { clientId: number }): UseCaseResult<S
       price: fromMinorUnits(trip.clientPriceMinor),
       valueMinor: amounts.chargeMinor,
       paymentMinor: null,
-      notes: null,
+      notes: trip.notes?.trim() || null,
       sortGroup: 1,
       sortId: trip.id,
       sortComponent: 0
@@ -203,7 +203,7 @@ export function getContractorStatement(input: { contractorId: number }): UseCase
         price: fromMinorUnits(trip.transportPriceMinor),
         valueMinor: amounts.transportMinor,
         paymentMinor: null,
-        notes: null,
+        notes: trip.notes?.trim() || null,
         sortGroup: 1,
         sortId: trip.id,
         sortComponent: 0

@@ -1,6 +1,7 @@
 import { ipcApi } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { formatQuantity } from '@/lib/numberFormat'
 import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
@@ -170,7 +171,10 @@ export function VehiclesSettings(): React.JSX.Element {
     {
       accessorKey: 'defaultCubic',
       header: t('vehiclesSettings.fields.defaultCubic'),
-      cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
+      cell: ({ getValue }) => {
+        const value = getValue<number | null>()
+        return value === null ? t('common.emptyCell') : formatQuantity(value)
+      }
     },
     {
       accessorKey: 'ownerName',
@@ -206,11 +210,11 @@ export function VehiclesSettings(): React.JSX.Element {
   ]
 
   return (
-    <Card>
+    <Card className="flex h-full min-h-0 flex-col">
       <CardHeader>
         <CardTitle>{t('vehiclesSettings.title')}</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex min-h-0 flex-1 flex-col">
         <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger asChild>
             <Button
@@ -375,6 +379,7 @@ export function VehiclesSettings(): React.JSX.Element {
             getRowId={(vehicle) => String(vehicle.vehicleNo)}
             enableRowSelection
             sumColumnId="defaultCubic"
+            formatSum={formatQuantity}
           />
         </div>
       </CardContent>

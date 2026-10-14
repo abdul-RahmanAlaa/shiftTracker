@@ -22,7 +22,7 @@ export function AccountsPage(): React.JSX.Element {
   const [activeSection, setActiveSection] = useState<AccountsSection>('contractor')
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex h-full min-h-0 flex-col gap-6">
       <h1 className="text-2xl font-semibold">{t('accountsPage.title')}</h1>
       <div className="settings-layout">
         <Card className="settings-menu">
@@ -45,7 +45,7 @@ export function AccountsPage(): React.JSX.Element {
             ))}
           </CardContent>
         </Card>
-        <div className="min-w-0">
+        <div className="flex min-h-0 min-w-0 flex-col">
           {activeSection === 'contractor' && <ContractorAccountPage />}
           {activeSection === 'driver' && <DriverHistoryPage />}
           {activeSection === 'client' && <ClientAccountPage />}

@@ -223,16 +223,30 @@ export function ContractorAccountPage(): React.JSX.Element {
           <p className="text-sm text-muted-foreground">{t('contractorAccount.balanceSignNote')}</p>
           <AccountSummary
             items={[
-              { label: t('contractorAccount.summary.transportDue'), value: account.transportTotal },
-              { label: t('contractorAccount.summary.materialDue'), value: account.materialTotal },
+              {
+                label: t('contractorAccount.summary.transportDue'),
+                value: account.transportTotal,
+                format: 'money'
+              },
+              {
+                label: t('contractorAccount.summary.materialDue'),
+                value: account.materialTotal,
+                format: 'money'
+              },
               {
                 label: t('contractorAccount.summary.openingBalance'),
-                value: account.openingBalance
+                value: account.openingBalance,
+                format: 'money'
               },
-              { label: t('contractorAccount.summary.ledgerTotal'), value: account.ledgerTotal },
+              {
+                label: t('contractorAccount.summary.ledgerTotal'),
+                value: account.ledgerTotal,
+                format: 'money'
+              },
               {
                 label: t('contractorAccount.summary.balance'),
                 value: account.balance,
+                format: 'money',
                 highlight: true
               }
             ]}

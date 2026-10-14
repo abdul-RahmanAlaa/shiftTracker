@@ -1,4 +1,4 @@
-import { ipcApi } from '@/lib/ipcErrors'
+import { ipcApi, showSuccessNotice } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import { AttachmentManager } from '@/components/AttachmentManager'
 import { ShiftBreadcrumb } from '@/components/ShiftBreadcrumb'
+import { formatMoney, formatQuantity } from '@/lib/numberFormat'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TripForm, tripSchema } from './AddTripPage'
 import type { ResourceState, TripValues } from './AddTripPage'
@@ -236,6 +237,7 @@ export function ShiftDetailPage(): React.JSX.Element {
     if (!editingTripId) return
     const result = await ipcApi.updateTrip({ id: editingTripId, ...values })
     if (result.ok) {
+      showSuccessNotice(t('ipcErrors.tripUpdated'))
       setEditingTripId(null)
       await loadShiftTrips()
     } else {
@@ -263,15 +265,33 @@ export function ShiftDetailPage(): React.JSX.Element {
       accessorFn: (trip) => trip.location ?? t('common.emDash'),
       header: t('tripForm.fields.location')
     },
-    { accessorKey: 'crusherCubic', header: t('tripForm.fields.crusherCubic') },
-    { accessorKey: 'clientCubicReported', header: t('tripForm.fields.clientCubic') },
+    {
+      accessorKey: 'crusherCubic',
+      header: t('tripForm.fields.crusherCubic'),
+      cell: ({ getValue }) => formatQuantity(getValue<number>())
+    },
+    {
+      accessorKey: 'clientCubicReported',
+      header: t('tripForm.fields.clientCubic'),
+      cell: ({ getValue }) => formatQuantity(getValue<number>())
+    },
     {
       id: 'stonePrice',
       accessorFn: (trip) => trip.stonePrice ?? t('common.emDash'),
-      header: t('tripForm.fields.stonePrice')
+      header: t('tripForm.fields.stonePrice'),
+      cell: ({ row }) =>
+        row.original.stonePrice === null ? t('common.emDash') : formatMoney(row.original.stonePrice)
     },
-    { accessorKey: 'transportPrice', header: t('tripForm.fields.transportPrice') },
-    { accessorKey: 'clientPrice', header: t('tripForm.fields.clientPrice') },
+    {
+      accessorKey: 'transportPrice',
+      header: t('tripForm.fields.transportPrice'),
+      cell: ({ getValue }) => formatMoney(getValue<number>())
+    },
+    {
+      accessorKey: 'clientPrice',
+      header: t('tripForm.fields.clientPrice'),
+      cell: ({ getValue }) => formatMoney(getValue<number>())
+    },
     {
       id: 'receiptPhoto',
       header: t('tripDetails.attachmentsTitle'),
@@ -362,22 +382,22 @@ export function ShiftDetailPage(): React.JSX.Element {
                   <p className="text-sm text-muted-foreground">
                     {t('createShift.fields.crusherCubic')}
                   </p>
-                  <p>{shift.crusherCubicDefault}</p>
+                  <p>{formatQuantity(shift.crusherCubicDefault)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">
                     {t('createShift.fields.clientCubic')}
                   </p>
-                  <p>{shift.clientCubicDefault}</p>
+                  <p>{formatQuantity(shift.clientCubicDefault)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">{t('shifts.columns.tripCount')}</p>
-                  <p>{shift.actualTripCount}</p>
+                  <p>{formatQuantity(shift.actualTripCount)}</p>
                 </div>
               </CardContent>
             </Card>
           )}
-          <Card className="min-h-0 flex-1">
+          <Card className="flex min-h-0 flex-1 flex-col">
             <CardHeader className="flex flex-row items-center justify-between gap-3">
               <CardTitle>{t('shifts.tripsTitle', { id: shift?.id ?? shiftId })}</CardTitle>
               {shift?.status === 'REOPENED' && (
@@ -387,7 +407,7 @@ export function ShiftDetailPage(): React.JSX.Element {
                 </Button>
               )}
             </CardHeader>
-            <CardContent className="flex min-h-0 flex-col">
+            <CardContent className="flex min-h-0 flex-1 flex-col">
               <Dialog
                 open={isAddTripDialogOpen}
                 onOpenChange={(open) => {

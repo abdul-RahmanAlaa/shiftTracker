@@ -92,6 +92,10 @@ const apiFieldNames = {
     shiftId: true,
     reason: true
   } satisfies Record<keyof ReopenShiftInput, true>),
+  getSuggestedTripPrices: defineApiFields<'getSuggestedTripPrices'>({
+    clientId: true,
+    crusherId: true
+  }),
   createTrip: defineApiFields<'createTrip'>({
     shiftId: true,
     tripDate: true,
@@ -180,31 +184,42 @@ let noticeRoot: Root | undefined
 let noticeContainer: HTMLDivElement | undefined
 let noticeTimer: number | undefined
 let dismissTimer: number | undefined
-let pendingNotices: string[] = []
-let visibleNotice: string | undefined
+type Notice = { message: string; kind: 'error' | 'success' }
+
+let pendingNotices: Notice[] = []
+let visibleNotice: Notice | undefined
 const recentNotices = new Map<string, number>()
 
-function showNotice(message: string): void {
+function showNotice(message: string, kind: Notice['kind'] = 'error'): void {
   const now = Date.now()
   for (const [recentMessage, timestamp] of recentNotices) {
     if (now - timestamp >= 3000) recentNotices.delete(recentMessage)
   }
   if (recentNotices.has(message)) return
   recentNotices.set(message, now)
-  if (!pendingNotices.includes(message)) pendingNotices.push(message)
+  if (!pendingNotices.some((notice) => notice.message === message)) {
+    pendingNotices.push({ message, kind })
+  }
 
   if (noticeTimer === undefined) {
     noticeTimer = window.setTimeout(() => {
       noticeTimer = undefined
-      visibleNotice = pendingNotices.join('\n')
+      const notices = pendingNotices
+      visibleNotice = {
+        message: notices.map((notice) => notice.message).join('\n'),
+        kind: notices.every((notice) => notice.kind === 'success') ? 'success' : 'error'
+      }
       pendingNotices = []
       if (dismissTimer !== undefined) window.clearTimeout(dismissTimer)
       renderNotice()
-      dismissTimer = window.setTimeout(() => {
-        visibleNotice = undefined
-        dismissTimer = undefined
-        renderNotice()
-      }, 5000)
+      dismissTimer = window.setTimeout(
+        () => {
+          visibleNotice = undefined
+          dismissTimer = undefined
+          renderNotice()
+        },
+        visibleNotice.kind === 'success' ? 3000 : 5000
+      )
     }, 75)
   }
 }
@@ -225,10 +240,11 @@ function renderNotice(): void {
       {
         role: 'status',
         'aria-live': 'polite',
-        className:
-          'fixed bottom-4 left-4 z-[100] flex max-w-md items-start gap-4 rounded-md border bg-background px-4 py-3 text-sm text-foreground shadow-lg'
+        className: `fixed bottom-4 left-4 z-[100] flex max-w-md items-start gap-4 rounded-md border bg-background px-4 py-3 text-sm text-foreground shadow-lg ${
+          visibleNotice.kind === 'success' ? 'border-green-600' : 'border-border'
+        }`
       },
-      createElement('span', { className: 'whitespace-pre-line' }, visibleNotice),
+      createElement('span', { className: 'whitespace-pre-line' }, visibleNotice.message),
       createElement(
         'button',
         {
@@ -241,6 +257,14 @@ function renderNotice(): void {
       )
     )
   )
+}
+
+export function showSuccessNotice(message: string): void {
+  showNotice(message, 'success')
+}
+
+export function showErrorNotice(message: string): void {
+  showNotice(message)
 }
 
 function dismissNotice(): void {

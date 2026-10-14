@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { formatQuantity } from '@/lib/numberFormat'
 
 type ShiftListRow = Extract<
   Awaited<ReturnType<typeof ipcApi.listShifts>>,
@@ -242,7 +243,11 @@ export function ShiftsPage(): React.JSX.Element {
       accessorFn: (shift) => shift.endDate ?? t('common.emDash'),
       header: t('shifts.columns.endDate')
     },
-    { accessorKey: 'actualTripCount', header: t('shifts.columns.tripCount') }
+    {
+      accessorKey: 'actualTripCount',
+      header: t('shifts.columns.tripCount'),
+      cell: ({ getValue }) => formatQuantity(getValue<number>())
+    }
   ]
 
   return (
@@ -497,11 +502,11 @@ export function ShiftsPage(): React.JSX.Element {
           </Dialog>
         </div>
       </div>
-      <Card className="min-h-0 flex-1">
+      <Card className="flex min-h-0 flex-1 flex-col">
         <CardHeader>
           <CardTitle>{t('shifts.listTitle')}</CardTitle>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-col">
+        <CardContent className="flex min-h-0 flex-1 flex-col">
           <DataTable
             columns={columns}
             data={shifts}

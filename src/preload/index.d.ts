@@ -146,6 +146,13 @@ interface CreateTripInput {
   notes?: string
 }
 
+interface SuggestedTripPrices {
+  source: 'LAST_TRIP' | 'DEFAULTS' | 'NONE'
+  stonePrice: number | null
+  transportPrice: number | null
+  clientPrice: number | null
+}
+
 interface ShiftListRow {
   id: string
   vehicleNo: number
@@ -389,6 +396,10 @@ interface Api {
     clientReceiptNo?: string
     notes?: string
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
+  getSuggestedTripPrices: (input: {
+    clientId: number
+    crusherId: number
+  }) => Promise<UseCaseResult<SuggestedTripPrices> | FailedUseCaseResult>
   listTripsByShift: (input: {
     shiftId: string
   }) => Promise<UseCaseResult<TripRow[]> | FailedUseCaseResult>

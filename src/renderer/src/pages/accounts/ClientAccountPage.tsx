@@ -37,6 +37,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { hasAtMostTwoDecimals } from '@/lib/money'
+import { formatMoney } from '@/lib/numberFormat'
 import {
   AccountCard,
   AccountSummary,
@@ -189,12 +190,37 @@ export function ClientAccountPage(): React.JSX.Element {
         <>
           <AccountSummary
             items={[
-              { label: t('clientAccount.summary.receivable'), value: account.receivableTotal },
-              { label: t('statementsPage.totals.fines'), value: account.fineTotal },
-              { label: t('clientAccount.summary.totalQuantity'), value: account.totalCubic },
-              { label: t('clientAccount.summary.paid'), value: account.paidTotal },
-              { label: t('common.openingBalance'), value: account.openingBalance },
-              { label: t('clientAccount.summary.balance'), value: account.balance, highlight: true }
+              {
+                label: t('clientAccount.summary.receivable'),
+                value: account.receivableTotal,
+                format: 'money'
+              },
+              {
+                label: t('statementsPage.totals.fines'),
+                value: account.fineTotal,
+                format: 'money'
+              },
+              {
+                label: t('clientAccount.summary.totalQuantity'),
+                value: account.totalCubic,
+                format: 'quantity'
+              },
+              {
+                label: t('clientAccount.summary.paid'),
+                value: account.paidTotal,
+                format: 'money'
+              },
+              {
+                label: t('common.openingBalance'),
+                value: account.openingBalance,
+                format: 'money'
+              },
+              {
+                label: t('clientAccount.summary.balance'),
+                value: account.balance,
+                format: 'money',
+                highlight: true
+              }
             ]}
           />
           <DataTable
@@ -206,6 +232,7 @@ export function ClientAccountPage(): React.JSX.Element {
             getRowId={(payment) => String(payment.id)}
             enableRowSelection
             sumColumnId="amount"
+            formatSum={formatMoney}
           />
           <Dialog
             open={isPaymentDialogOpen}

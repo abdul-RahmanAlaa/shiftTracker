@@ -113,6 +113,7 @@ export interface ClientAccountingTrip extends ClientTripAccountingInput {
   id: string
   date: string
   description: string | null
+  notes: string | null
   fineReason: string | null
 }
 
@@ -120,6 +121,7 @@ export interface ContractorAccountingTrip extends ContractorTripAccountingInput 
   id: string
   date: string
   description: string | null
+  notes: string | null
 }
 
 export interface ClientAccountingInput {

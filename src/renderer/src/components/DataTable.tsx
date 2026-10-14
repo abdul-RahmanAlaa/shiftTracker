@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import { formatMoney } from '@/lib/numberFormat'
 
 const emptyFilterValue = '-'
 
@@ -43,6 +44,7 @@ interface DataTableProps<T> {
   onRowClick?: (row: T) => void
   enableRowSelection?: boolean
   sumColumnId?: string
+  formatSum?: (value: number) => string
   initialSorting?: SortingState
   emptyMessage?: string
 }
@@ -71,6 +73,7 @@ function DataTable<T>({
   onRowClick,
   enableRowSelection = false,
   sumColumnId,
+  formatSum = formatMoney,
   initialSorting = [],
   emptyMessage
 }: DataTableProps<T>): React.JSX.Element {
@@ -130,7 +133,7 @@ function DataTable<T>({
   })
 
   if (!loading && data.length === 0) {
-    return <p className="text-sm text-muted-foreground">{resolvedEmptyMessage}</p>
+    return <p className="min-h-0 flex-1 text-sm text-muted-foreground">{resolvedEmptyMessage}</p>
   }
 
   const selectedRows = enableRowSelection ? table.getSelectedRowModel().rows : []
@@ -153,9 +156,9 @@ function DataTable<T>({
   }
 
   return (
-    <div>
-      <Table>
-        <TableHeader>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <Table containerClassName="min-h-0 flex-1 overflow-auto">
+        <TableHeader className="sticky top-0 z-10 bg-card">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {enableRowSelection && (
@@ -296,7 +299,7 @@ function DataTable<T>({
             </TableRow>
           ))}
         </TableHeader>
-        <TableBody className="max-h-full overflow-y-scroll">
+        <TableBody>
           {loading ? (
             Array.from({ length: 6 }, (_, rowIndex) => (
               <TableRow key={`skeleton-${rowIndex}`} aria-hidden="true">
@@ -357,7 +360,7 @@ function DataTable<T>({
       {!loading && enableRowSelection && sumColumnId && selectedRows.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-4 border-t pt-3 text-sm text-muted-foreground">
           <span>{t('dataTable.selectedRows', { count: selectedRows.length })}</span>
-          <span>{t('dataTable.total', { sum: selectedSum })}</span>
+          <span>{t('dataTable.total', { sum: formatSum(selectedSum) })}</span>
         </div>
       )}
     </div>
