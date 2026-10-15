@@ -128,6 +128,7 @@ export function TripEntryGrid({
   const [rows, setRows] = useState<GridRow[]>([])
   const [showExtras, setShowExtras] = useState(false)
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const [selectedRowId, setSelectedRowId] = useState<number>()
   const rowIdRef = useRef(0)
   const inputRefs = useRef(new Map<string, HTMLInputElement>())
@@ -572,42 +573,48 @@ export function TripEntryGrid({
   }
 
   async function saveAll(): Promise<void> {
-    const errorsByRow = errorsForRows()
-    const valid = rows.filter((row) => {
-      const built = buildTripPayload(row, rowDefaults.shiftId)
-      return (
-        built.payload !== undefined &&
-        validateTripPayload(built.payload).length === 0 &&
-        Object.keys(errorsByRow.get(row.rowId) ?? {}).length === 0
-      )
-    })
-    if (!valid.length) return
-    setSaving(true)
-    let savedCount = 0
-    let failedCount = 0
-    for (const row of valid) {
-      const built = buildTripPayload(row, rowDefaults.shiftId)
-      if (!built.payload) continue
-      if (validateTripPayload(built.payload).length > 0) continue
-      const response = await ipcApi.createTrip(built.payload)
-      if (response.ok) {
-        savedCount += 1
-        setRows((current) => current.filter((item) => item.rowId !== row.rowId))
-      } else {
-        failedCount += 1
-        const mapped = mapServerErrors(response.errors)
-        updateRow(row.rowId, (current) => ({
-          ...current,
-          serverErrors: mapped.cells,
-          rowMessage: mapped.rowMessage
-        }))
+    if (savingRef.current) return
+    savingRef.current = true
+    try {
+      const errorsByRow = errorsForRows()
+      const valid = rows.filter((row) => {
+        const built = buildTripPayload(row, rowDefaults.shiftId)
+        return (
+          built.payload !== undefined &&
+          validateTripPayload(built.payload).length === 0 &&
+          Object.keys(errorsByRow.get(row.rowId) ?? {}).length === 0
+        )
+      })
+      if (!valid.length) return
+      setSaving(true)
+      let savedCount = 0
+      let failedCount = 0
+      for (const row of valid) {
+        const built = buildTripPayload(row, rowDefaults.shiftId)
+        if (!built.payload) continue
+        if (validateTripPayload(built.payload).length > 0) continue
+        const response = await ipcApi.createTrip(built.payload)
+        if (response.ok) {
+          savedCount += 1
+          setRows((current) => current.filter((item) => item.rowId !== row.rowId))
+        } else {
+          failedCount += 1
+          const mapped = mapServerErrors(response.errors)
+          updateRow(row.rowId, (current) => ({
+            ...current,
+            serverErrors: mapped.cells,
+            rowMessage: mapped.rowMessage
+          }))
+        }
       }
+      suggestionCache.current.clear()
+      await onRefresh()
+      if (savedCount) showSuccessNotice(t('tripGrid.savedNotice', { count: savedCount }))
+      if (failedCount) showErrorNotice(t('tripGrid.failedNotice', { count: failedCount }))
+    } finally {
+      savingRef.current = false
+      setSaving(false)
     }
-    suggestionCache.current.clear()
-    await onRefresh()
-    if (savedCount) showSuccessNotice(t('tripGrid.savedNotice', { count: savedCount }))
-    if (failedCount) showErrorNotice(t('tripGrid.failedNotice', { count: failedCount }))
-    setSaving(false)
   }
 
   const errorsByRow = errorsForRows()

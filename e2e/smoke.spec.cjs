@@ -337,7 +337,7 @@ testWithApp(
 )
 
 testWithApp(
-  'S3 trip grid rejects zero price, then saves a typed row with correct detail labels',
+  'S3 trip grid rejects zero price, double-click saves once, and details show correct labels',
   async ({ launchApp }) => {
     const app = await launchApp('open-shift')
     const page = app.page
@@ -362,7 +362,7 @@ testWithApp(
     await page.getByRole('button', { name: text('tripGrid.showExtra'), exact: true }).click()
     await gridCell(page, 'tripForm.fields.crusherReceiptNumber').fill('7002')
     await gridCell(page, 'tripForm.fields.recipientName').fill(`E2E Receiver ${process.pid}`)
-    await page.getByRole('button', { name: text('tripGrid.saveAll'), exact: true }).click()
+    await page.getByRole('button', { name: text('tripGrid.saveAll'), exact: true }).dblclick()
     await expect(page.getByRole('status')).toContainText(text('tripGrid.savedNotice', { count: 1 }))
 
     await navigate(page, '/shifts', 'shifts.title')

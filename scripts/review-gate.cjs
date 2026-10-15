@@ -46,6 +46,19 @@ function summaryLine(output, fallback) {
   return meaningfulLines.length > 0 ? meaningfulLines[meaningfulLines.length - 1] : fallback
 }
 
+function playwrightSummaryLine(output) {
+  const lines = output
+    .replace(/\u001b\[[0-9;]*m/g, '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+  const resultLines = lines.filter((line) => /^\d+ (?:passed|failed)(?: \([^)]*\))?$/.test(line))
+  return (
+    resultLines.find((line) => line.includes('failed')) ??
+    resultLines.find((line) => line.includes('passed')) ??
+    null
+  )
+}
+
 function parseStatus(statusText) {
   return statusText
     .split(/\r?\n/)
@@ -382,7 +395,15 @@ function main() {
   checks.push(harnessCheck)
 
   if (useE2E) {
-    checks.push(executeNpmCheck('npm run test:e2e', 'test:e2e'))
+    const e2eCheck = executeNpmCheck('npm run test:e2e', 'test:e2e')
+    const playwrightSummary = playwrightSummaryLine(e2eCheck.output)
+    if (playwrightSummary === null) {
+      recordFail('Playwright result line was not found in E2E output')
+      e2eCheck.summary = 'Playwright result line missing'
+    } else {
+      e2eCheck.summary = playwrightSummary
+    }
+    checks.push(e2eCheck)
   }
 
   checkMechanicalRules(addedLines, changedPaths)

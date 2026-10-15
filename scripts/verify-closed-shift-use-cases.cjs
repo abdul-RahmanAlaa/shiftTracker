@@ -342,19 +342,27 @@ function runSuggestedPriceCases() {
 function runTripGridCases() {
   runCase('G1 digits and separators normalize', 'Arabic digits and separators become Latin decimal text', () => ({
     normalized: tripGrid.normalizeDigits('١٬٢٥٠٫٥٠'),
-    Persian: tripGrid.normalizeDigits('۱۲۳')
+    Persian: tripGrid.normalizeDigits('۱۲۳'),
+    arabicNumber: tripGrid.parseNumberCell('١٬٢٥٠٫٥٠', { money: true })
   }), (actual) => {
     const value = result(actual)
-    return value?.normalized === '1,250.50' && value.Persian === '123'
+    return value?.normalized === '1,250.50' && value.Persian === '123' &&
+      value.arabicNumber?.ok === true && value.arabicNumber.value === 1250.5
   })
-  runCase('G2 numbers and money decimals parse', 'grouped money accepted, locale mix and third decimal rejected', () => ({
+  runCase('G2 numbers and comma grouping validate strictly', 'valid grouping accepted; malformed commas, locale mix, and excess money decimals rejected', () => ({
     grouped: tripGrid.parseNumberCell('1,250.50', { money: true }),
+    groupedDecimal: tripGrid.parseNumberCell('12,345.5', { money: true }),
     mixed: tripGrid.parseNumberCell('1.250,5', { money: true }),
-    tooPrecise: tripGrid.parseNumberCell('5.255', { money: true })
+    tooPrecise: tripGrid.parseNumberCell('5.255', { money: true }),
+    malformed: ['1,25', '1,2345', '12,34,567', ',5', '5,'].map((input) =>
+      tripGrid.parseNumberCell(input, { money: true })
+    )
   }), (actual) => {
     const value = result(actual)
     return value?.grouped?.ok === true && value.grouped.value === 1250.5 &&
-      value.mixed?.ok === false && value.tooPrecise?.ok === false
+      value.groupedDecimal?.ok === true && value.groupedDecimal.value === 12345.5 &&
+      value.mixed?.ok === false && value.tooPrecise?.ok === false &&
+      value.malformed?.length === 5 && value.malformed.every((entry) => entry.ok === false)
   })
   runCase('G3 real dates parse', 'ISO and D/M/YYYY accepted, impossible date rejected', () => ({
     iso: tripGrid.parseDateCell('2026-10-14'),
