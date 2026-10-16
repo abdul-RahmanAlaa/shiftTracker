@@ -83,11 +83,15 @@ export function normalizeDigits(value: string): string {
 
 export function parseNumberCell(
   input: string,
-  options: { money?: boolean } = {}
+  options: { money?: boolean; allowGrouping?: boolean } = {}
 ): ParseResult<number | null> {
   const value = normalizeDigits(input).trim()
   if (!value) return { ok: true, value: null }
-  if (!/^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(value)) {
+  const validNumber =
+    options.allowGrouping === false
+      ? /^-?\d+(?:\.\d+)?$/.test(value)
+      : /^-?(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(value)
+  if (!validNumber) {
     return { ok: false, message: 'invalid' }
   }
   const decimals = value.split('.')[1]?.length ?? 0
@@ -95,6 +99,10 @@ export function parseNumberCell(
   const parsed = Number(value.replace(/,/g, ''))
   if (!Number.isFinite(parsed)) return { ok: false, message: 'invalid' }
   return { ok: true, value: parsed }
+}
+
+export function isCubicQuantityHigh(value: number): boolean {
+  return value > 150
 }
 
 export function parseDateCell(input: string): ParseResult<string> {
@@ -165,20 +173,35 @@ export function parsePaste(input: string, knownColumnLabels: string[] = []): str
     row.push(cell)
     rows.push(row)
   }
-  if (rows[0] && knownColumnLabels.includes(rows[0][0])) rows.shift()
-  return rows
+  const populatedRows = rows.filter((cells) => cells.some((value) => value.trim().length > 0))
+  if (populatedRows[0] && knownColumnLabels.includes(populatedRows[0][0])) populatedRows.shift()
+  return populatedRows
 }
+
+export type NameResolution = { id: number } | { ambiguous: true } | null
 
 export function resolveName(
   input: string,
   options: { id: number; name: string }[]
-): { id: number } | null {
-  const normalized = input.trim().replace(/\s+/g, ' ').toLowerCase()
+): NameResolution {
+  const normalize = (value: string): string =>
+    value
+      .replace(/[\u064b-\u0652\u0670\u0640]/g, '')
+      .replace(/[\u0622-\u0625\u0671-\u0675]/g, '\u0627')
+      .replace(/\u0649/g, '\u064a')
+      .replace(/\u0629/g, '\u0647')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase()
+  const normalized = normalize(input)
   if (!normalized) return null
-  const match = options.find(
-    (option) => option.name.trim().replace(/\s+/g, ' ').toLowerCase() === normalized
-  )
-  return match ? { id: match.id } : null
+  const matchingIds = [
+    ...new Set(
+      options.filter((option) => normalize(option.name) === normalized).map(({ id }) => id)
+    )
+  ]
+  if (matchingIds.length > 1) return { ambiguous: true }
+  return matchingIds.length === 1 ? { id: matchingIds[0] } : null
 }
 
 export interface TripGridBuildResult {
@@ -205,13 +228,14 @@ export function buildTripPayload(row: TripGridRow, shiftId: string): TripGridBui
       | 'fineAmount'
     input: string
     money: boolean
+    allowGrouping: boolean
   }[] = [
-    { field: 'clientCubic', input: row.clientCubic, money: false },
-    { field: 'crusherCubic', input: row.crusherCubic, money: false },
-    { field: 'stonePrice', input: row.stonePrice, money: true },
-    { field: 'transportPrice', input: row.transportPrice, money: true },
-    { field: 'clientPrice', input: row.clientPrice, money: true },
-    { field: 'fineAmount', input: row.fineAmount, money: true }
+    { field: 'clientCubic', input: row.clientCubic, money: false, allowGrouping: false },
+    { field: 'crusherCubic', input: row.crusherCubic, money: false, allowGrouping: false },
+    { field: 'stonePrice', input: row.stonePrice, money: true, allowGrouping: true },
+    { field: 'transportPrice', input: row.transportPrice, money: true, allowGrouping: true },
+    { field: 'clientPrice', input: row.clientPrice, money: true, allowGrouping: true },
+    { field: 'fineAmount', input: row.fineAmount, money: true, allowGrouping: true }
   ]
   const parsedNumbers: Partial<
     Record<
@@ -224,8 +248,8 @@ export function buildTripPayload(row: TripGridRow, shiftId: string): TripGridBui
       number | null
     >
   > = {}
-  for (const { field, input, money } of numberFields) {
-    const parsedNumber = parseNumberCell(input, { money })
+  for (const { field, input, money, allowGrouping } of numberFields) {
+    const parsedNumber = parseNumberCell(input, { money, allowGrouping })
     if (!parsedNumber.ok) errors[field] = parsedNumber.message
     else parsedNumbers[field] = parsedNumber.value
   }

@@ -7,6 +7,7 @@ import { ipcApi, showErrorNotice, showSuccessNotice } from '@/lib/ipcErrors'
 import { createLatestGuard } from '@/lib/latestGuard'
 import {
   buildTripPayload,
+  isCubicQuantityHigh,
   mapServerErrors,
   parseDateCell,
   parseNumberCell,
@@ -103,6 +104,12 @@ function createRow(
 
 function fieldValue(row: GridRow, key: TripGridColumn): string {
   return row[key]
+}
+
+function hasHighCubicWarning(row: GridRow, column: TripGridColumn): boolean {
+  if (column !== 'clientCubic' && column !== 'crusherCubic') return false
+  const parsed = parseNumberCell(row[column], { allowGrouping: false })
+  return parsed.ok && parsed.value !== null && isCubicQuantityHigh(parsed.value)
 }
 
 export function TripEntryGrid({
@@ -219,7 +226,8 @@ export function TripEntryGrid({
           column === 'stonePrice' ||
           column === 'transportPrice' ||
           column === 'clientPrice' ||
-          column === 'fineAmount'
+          column === 'fineAmount',
+        allowGrouping: column !== 'clientCubic' && column !== 'crusherCubic'
       })
       return parsed.ok ? undefined : t(`tripGrid.validation.${parsed.message}`)
     }
@@ -394,29 +402,29 @@ export function TripEntryGrid({
           ? names.crushers
           : names.materialTypes
     const resolved = resolveName(value, options)
+    const resolvedId = resolved && 'id' in resolved ? resolved.id : undefined
     updateRow(rowId, (row) => {
-      const cleaned = value.trim().replace(/\s+/g, ' ')
       return {
         ...row,
-        [column]: cleaned,
-        ...(column === 'client' ? { clientId: resolved?.id } : {}),
-        ...(column === 'crusher' ? { crusherId: resolved?.id } : {}),
-        ...(column === 'materialType' ? { materialTypeId: resolved?.id } : {}),
+        [column]: value,
+        ...(column === 'client' ? { clientId: resolvedId } : {}),
+        ...(column === 'crusher' ? { crusherId: resolvedId } : {}),
+        ...(column === 'materialType' ? { materialTypeId: resolvedId } : {}),
         serverErrors: { ...row.serverErrors, [column]: undefined }
       }
     })
     const currentRow = rows.find((row) => row.rowId === rowId)
     const currentIndex = rows.findIndex((row) => row.rowId === rowId)
     if (
-      resolved &&
+      resolvedId !== undefined &&
       currentRow &&
       currentIndex >= 0 &&
       (column === 'client' || column === 'crusher')
     ) {
       const updated: GridRow = {
         ...currentRow,
-        [column]: value.trim().replace(/\s+/g, ' '),
-        ...(column === 'client' ? { clientId: resolved.id } : { crusherId: resolved.id })
+        [column]: value,
+        ...(column === 'client' ? { clientId: resolvedId } : { crusherId: resolvedId })
       }
       void suggestPrices(rowId, updated, currentIndex)
     }
@@ -460,13 +468,13 @@ export function TripEntryGrid({
           : column === 'materialType'
             ? resolveName(value, names.materialTypes)
             : null
-    const cleaned = resolved ? value.trim().replace(/\s+/g, ' ') : value
+    const resolvedId = resolved && 'id' in resolved ? resolved.id : undefined
     return {
       ...row,
-      [column]: cleaned,
-      ...(column === 'client' ? { clientId: resolved?.id } : {}),
-      ...(column === 'crusher' ? { crusherId: resolved?.id } : {}),
-      ...(column === 'materialType' ? { materialTypeId: resolved?.id } : {}),
+      [column]: value,
+      ...(column === 'client' ? { clientId: resolvedId } : {}),
+      ...(column === 'crusher' ? { crusherId: resolvedId } : {}),
+      ...(column === 'materialType' ? { materialTypeId: resolvedId } : {}),
       ...(column === 'client' || column === 'crusher'
         ? {
             stonePrice: row.priceEdited.stonePrice ? row.stonePrice : '',
@@ -759,7 +767,11 @@ export function TripEntryGrid({
                           aria-label={column.label}
                           aria-invalid={Boolean(errors[column.key])}
                           title={errors[column.key]}
-                          className={`h-8 min-w-24 ${priceColumns.some((priceColumn) => priceColumn === column.key && row.suggested[priceColumn]) ? 'bg-amber-50 dark:bg-amber-950' : ''}`}
+                          className={`h-8 min-w-24 ${priceColumns.some((priceColumn) => priceColumn === column.key && row.suggested[priceColumn]) ? 'bg-amber-50 dark:bg-amber-950' : ''} ${
+                            hasHighCubicWarning(row, column.key)
+                              ? 'border-amber-500 bg-amber-50 ring-1 ring-amber-500 dark:bg-amber-950'
+                              : ''
+                          }`}
                           onChange={(event) =>
                             changeCell(row.rowId, column.key, event.target.value)
                           }

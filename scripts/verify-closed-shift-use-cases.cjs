@@ -40,7 +40,10 @@ import { createShift } from '../src/main/use-cases/createShift'
 import { closeShift } from '../src/main/use-cases/closeShift'
 import { createTrip, updateTrip } from '../src/main/use-cases/createTrip'
 import { reopenShift } from '../src/main/use-cases/reopenShift'
-import { getTripById as getTripRawById } from '../src/main/repository/tripRepository'
+import {
+  getTripById as getTripRawById,
+  listTripLocations
+} from '../src/main/repository/tripRepository'
 import { listTripsByShift } from '../src/main/use-cases/listTripData'
 import { createClient } from '../src/main/use-cases/createClient'
 import { createContractor } from '../src/main/use-cases/createContractor'
@@ -495,6 +498,104 @@ function runTripGridCases() {
       value.cells.fineAmount === 'fine' && value.cells.fineReason === 'reason' &&
       value.rowMessage === 'form'
   })
+  runCase(
+    'G10 cubic cells reject comma grouping while money accepts it',
+    'comma-formatted values are invalid cubic cells and valid grouped money',
+    () => {
+      const inputs = ['1,250', '0,500', '22,500']
+      return inputs.map((input) => ({
+        cubic: tripGrid.parseNumberCell(input, { allowGrouping: false }),
+        money: tripGrid.parseNumberCell(input, { money: true })
+      }))
+    },
+    (actual) => {
+      const values = result(actual)
+      return (
+        values?.length === 3 &&
+        values.every(
+          (entry) =>
+            entry.cubic?.ok === false &&
+            entry.money?.ok === true &&
+            entry.money.value !== null
+        ) &&
+        values[0].money.value === 1250 &&
+        values[1].money.value === 500 &&
+        values[2].money.value === 22500
+      )
+    }
+  )
+  runCase(
+    'G11 cubic warning threshold is above 150',
+    '150 is not warned and values above 150 are warned',
+    () => ({
+      atLimit: tripGrid.isCubicQuantityHigh(150),
+      aboveLimit: tripGrid.isCubicQuantityHigh(150.01)
+    }),
+    (actual) => result(actual)?.atLimit === false && result(actual)?.aboveLimit === true
+  )
+  runCase(
+    'G12 paste ignores empty lines',
+    'empty lines in the middle and trailing newline are omitted',
+    () => tripGrid.parsePaste('a\\tb\\n\\nc\\td\\n'),
+    (actual) =>
+      JSON.stringify(result(actual)) === JSON.stringify([
+        ['a', 'b'],
+        ['c', 'd']
+      ])
+  )
+  runCase(
+    'G13 names normalize Arabic variants and reject ambiguity',
+    'plain alef resolves hamza alef; normalized collisions are ambiguous; unknown stays unresolved',
+    () => ({
+      match: tripGrid.resolveName('\\u0627\\u062d\\u0645\\u062f', [
+        { id: 1, name: '\\u0623\\u062d\\u0645\\u062f' }
+      ]),
+      variants: tripGrid.resolveName('\\u0645\\u0648\\u0633\\u0649   \\u0645\\u062f\\u0631\\u0633\\u0647', [
+        { id: 2, name: '\\u0645\\u0648\\u0633\\u064a\\u0651\\u0640 \\u0645\\u062f\\u0631\\u0633\\u0629' }
+      ]),
+      caseAndSpacing: tripGrid.resolveName('mixed   case', [
+        { id: 6, name: 'MiXeD Case' }
+      ]),
+      ambiguous: tripGrid.resolveName('same name', [
+        { id: 3, name: 'Same   Name' },
+        { id: 4, name: 'same name' }
+      ]),
+      unknown: tripGrid.resolveName('missing', [{ id: 5, name: 'other' }])
+    }),
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.match?.id === 1 &&
+        value.variants?.id === 2 &&
+        value.caseAndSpacing?.id === 6 &&
+        value.ambiguous?.ambiguous === true &&
+        value.unknown === null
+      )
+    }
+  )
+  runCase(
+    'R locations omit empty stored values',
+    'a trip with empty location is stored, but the location list omits the empty string',
+    () => {
+      const shift = createOwnShift()
+      const trip = createTrip({ ...tripInput(shift.id), location: '' })
+      if (!trip.ok) return { trip, locations: listTripLocations() }
+      return {
+        trip,
+        storedLocation: db.prepare('SELECT location FROM Trip WHERE id = ?').get(trip.data.id)
+          ?.location,
+        locations: listTripLocations()
+      }
+    },
+    (actual) => {
+      const value = result(actual)
+      return (
+        value?.trip?.ok === true &&
+        value.storedLocation === '' &&
+        !value.locations.includes('')
+      )
+    }
+  )
 }
 
 function newMigrationDirectory(name) {

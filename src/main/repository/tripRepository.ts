@@ -189,7 +189,9 @@ export function listTripsByShift(shiftId: string): TripRow[] {
 export function listTripLocations(): string[] {
   const db = getDb()
   const rows = db
-    .prepare(`SELECT DISTINCT location FROM Trip WHERE location IS NOT NULL ORDER BY location`)
+    .prepare(
+      `SELECT DISTINCT location FROM Trip WHERE location IS NOT NULL AND TRIM(location) <> '' ORDER BY location`
+    )
     .all() as { location: string }[]
   return rows.map((r) => r.location)
 }

@@ -337,7 +337,7 @@ testWithApp(
 )
 
 testWithApp(
-  'S3 trip grid rejects zero price, double-click saves once, and details show correct labels',
+  'S3 grid rejects zero price, double-click saves one receipt-free note trip, then shows details labels',
   async ({ launchApp }) => {
     const app = await launchApp('open-shift')
     const page = app.page
@@ -350,6 +350,10 @@ testWithApp(
     await gridCell(page, 'tripForm.fields.crusher').press('Tab')
     await gridCell(page, 'tripForm.fields.materialType').fill(app.seedData.materialType.name)
     await gridCell(page, 'tripForm.fields.materialType').press('Tab')
+    await gridCell(page, 'tripForm.fields.clientCubic').fill('150')
+    await expect(gridCell(page, 'tripForm.fields.clientCubic')).not.toHaveClass(/ring-amber-500/)
+    await gridCell(page, 'tripForm.fields.clientCubic').fill('151')
+    await expect(gridCell(page, 'tripForm.fields.clientCubic')).toHaveClass(/ring-amber-500/)
     await gridCell(page, 'tripForm.fields.stonePrice').fill('0')
     await gridCell(page, 'tripForm.fields.stonePrice').press('Tab')
     await expect(gridCell(page, 'tripForm.fields.stonePrice')).toHaveAttribute(
@@ -359,23 +363,58 @@ testWithApp(
     await gridCell(page, 'tripForm.fields.stonePrice').fill('12')
     await gridCell(page, 'tripForm.fields.transportPrice').fill('8')
     await gridCell(page, 'tripForm.fields.clientPrice').fill('15')
-    await page.getByRole('button', { name: text('tripGrid.showExtra'), exact: true }).click()
-    await gridCell(page, 'tripForm.fields.crusherReceiptNumber').fill('7002')
-    await gridCell(page, 'tripForm.fields.recipientName').fill(`E2E Receiver ${process.pid}`)
+    const uniqueNote = `Double save ${process.pid} ${Date.now()}`
+    await gridCell(page, 'common.columns.notes').fill(uniqueNote)
     await page.getByRole('button', { name: text('tripGrid.saveAll'), exact: true }).dblclick()
     await expect(page.getByRole('status')).toContainText(text('tripGrid.savedNotice', { count: 1 }))
+    await expect(page.getByRole('status')).toBeHidden()
 
     await navigate(page, '/shifts', 'shifts.title')
     await page.getByRole('row').filter({ hasText: app.seedData.shift.id }).click()
     await expect(
       page.getByRole('heading', { name: new RegExp(app.seedData.shift.id) })
     ).toBeVisible()
-    const tripRows = page.getByRole('row')
-    await expect(tripRows).toHaveCount(2)
+    let tripRows = page.getByRole('row')
+    let noteMatches = 0
+    const tripRowCount = await tripRows.count()
+    expect(tripRowCount).toBeGreaterThan(1)
+    for (let index = 1; index < tripRowCount; index += 1) {
+      const editButton = tripRows
+        .nth(index)
+        .getByRole('button', { name: text('common.edit'), exact: true })
+      await editButton.focus()
+      await editButton.press('Enter')
+      const dialog = page.getByRole('dialog')
+      const noteField = dialog.getByLabel(text('common.columns.notes'))
+      if ((await noteField.inputValue()) === uniqueNote) noteMatches += 1
+      await page.keyboard.press('Escape')
+      await expect(dialog).toBeHidden()
+      tripRows = page.getByRole('row')
+    }
+    expect(noteMatches).toBe(1)
+
+    await navigate(page, '/', 'addTrip.title')
+    await pickDriverOnAddTrip(page, app.seedData.driver.name)
+    await gridCell(page, 'tripForm.fields.client').fill(app.seedData.client.name)
+    await gridCell(page, 'tripForm.fields.client').press('Tab')
+    await gridCell(page, 'tripForm.fields.crusher').fill(app.seedData.crusher.name)
+    await gridCell(page, 'tripForm.fields.crusher').press('Tab')
+    await gridCell(page, 'tripForm.fields.materialType').fill(app.seedData.materialType.name)
+    await gridCell(page, 'tripForm.fields.materialType').press('Tab')
+    await gridCell(page, 'tripForm.fields.stonePrice').fill('12')
+    await gridCell(page, 'tripForm.fields.transportPrice').fill('8')
+    await gridCell(page, 'tripForm.fields.clientPrice').fill('15')
+    await page.getByRole('button', { name: text('tripGrid.showExtra'), exact: true }).click()
+    await gridCell(page, 'tripForm.fields.crusherReceiptNumber').fill('7002')
+    await gridCell(page, 'tripForm.fields.recipientName').fill(`E2E Receiver ${process.pid}`)
+    await page.getByRole('button', { name: text('tripGrid.saveAll'), exact: true }).click()
+    await expect(page.getByRole('status')).toContainText(text('tripGrid.savedNotice', { count: 1 }))
+    await expect(page.getByRole('status')).toBeHidden()
+
     await navigate(page, '/all-trips', 'allTrips.title')
     await page
       .getByRole('row')
-      .nth(1)
+      .nth(2)
       .getByRole('button', { name: text('common.details'), exact: true })
       .click()
     await expect(
