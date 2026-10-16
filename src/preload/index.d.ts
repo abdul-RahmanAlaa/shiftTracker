@@ -147,10 +147,14 @@ interface CreateTripInput {
 }
 
 interface SuggestedTripPrices {
-  source: 'LAST_TRIP' | 'DEFAULTS' | 'NONE'
   stonePrice: number | null
-  transportPrice: number | null
   clientPrice: number | null
+  transportPrice: number | null
+  sources: {
+    stonePrice: 'LAST_TRIP' | 'DEFAULT' | null
+    clientPrice: 'LAST_TRIP' | 'DEFAULT' | null
+    transportPrice: 'LAST_TRIP' | null
+  }
 }
 
 interface ShiftListRow {
@@ -399,6 +403,8 @@ interface Api {
   getSuggestedTripPrices: (input: {
     clientId: number
     crusherId: number
+    materialTypeId?: number
+    location?: string
   }) => Promise<UseCaseResult<SuggestedTripPrices> | FailedUseCaseResult>
   listTripsByShift: (input: {
     shiftId: string

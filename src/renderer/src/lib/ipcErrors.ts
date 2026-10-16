@@ -94,7 +94,9 @@ const apiFieldNames = {
   } satisfies Record<keyof ReopenShiftInput, true>),
   getSuggestedTripPrices: defineApiFields<'getSuggestedTripPrices'>({
     clientId: true,
-    crusherId: true
+    crusherId: true,
+    materialTypeId: true,
+    location: true
   }),
   createTrip: defineApiFields<'createTrip'>({
     shiftId: true,

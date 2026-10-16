@@ -34,7 +34,7 @@
 `renderer -> preload (window.api) -> ipcMain -> use-cases -> repositories -> SQLite`
 
 - `src/main/index.ts` registers IPC handlers; `src/preload/index.ts` exposes `window.api`, and `src/preload/index.d.ts` types it.
-- `trip:suggestPrices` validates client and crusher IDs and reads the latest matching trip's prices; when no pair trip exists, it returns the client and crusher initial prices without writing data.
+- `trip:suggestPrices` validates the client, crusher, optional material type, and optional location, then reads independent price suggestions without writing data. Stone and client prices use material-specific history or their entity's initial price; transport uses client history with an exact-location preference.
 - Electron requests a single-instance lock for the current `userData` path before startup opens the database. A second launch exits silently; the first window is restored, shown, and focused when available.
 - `src/main/ipcWrapper.ts` converts thrown or rejected IPC handlers into the standard `_form` error result and logs the original error. Preload invocation rejections use the same failure result.
 - The renderer shell fills the window; the navigation bar stays visible while table pages scroll inside their table viewport.
@@ -65,7 +65,7 @@
 | `src/main/photoStorage.ts`                      | JPEG storage under Electron `userData`                         |
 | `src/main/use-cases/`                           | Validated business operations and result contracts             |
 | `src/main/repository/`                          | SQLite reads, writes, and transactions                         |
-| `src/main/use-cases/suggestTripPrices.ts`       | Read-only latest-trip and default price suggestions            |
+| `src/main/use-cases/suggestTripPrices.ts`       | Read-only material-keyed and location-aware price suggestions  |
 | `src/preload/index.ts`                          | Typed IPC bridge exposed as `window.api`                       |
 | `src/preload/index.d.ts`                        | Renderer-facing API and row types                              |
 | `src/renderer/src/App.tsx`                      | HashRouter routes and active navigation                        |
@@ -157,7 +157,16 @@ Attachment rows store paths relative to user data. JPEG files are stored under `
 - Grid name cells resolve exact matches after whitespace/case normalization and Arabic normalization (alef forms, alef maqsura, ta marbuta, diacritics, and tatweel). Normalized collisions are rejected as ambiguous; unknown text remains unresolved, and the typed cell text is preserved. Number cells accept optional dot decimals and normalized Arabic digits/separators; only money cells accept valid thousands grouping, and money permits at most two decimal places. Cubic cells reject all commas and show a non-blocking amber hint above 150. Date cells accept real `YYYY-MM-DD` and `D/M/YYYY` dates.
 - Pasting tab-separated rows supports quoted cells, skips a recognized header, ignores wholly empty lines, and ignores a trailing newline.
 - Crusher receipt cells map blank to `UNKNOWN`, a positive integer to `PROVIDED`, and `-` to `CONFIRMED_MISSING`; recipient cells map blank to `UNCLEAR` and text to `PROVIDED`. Duplicate crusher/receipt pairs within the grid are blocked before saving.
-- Prices are suggested from the nearest earlier matching row in the grid, then from `trip:suggestPrices` for the client/crusher pair. Suggestions remain editable; user-edited prices are not overwritten. Saving valid rows is sequential and guarded against re-entrant submissions; successful rows disappear after saving and failed rows remain with mapped errors.
+- Prices are suggested independently by key. The nearest earlier grid row with a matching key takes precedence; otherwise the corresponding server suggestion is used. Unedited suggestions refresh or clear when their key changes, while user-edited prices are never overwritten. Results are cached in memory per request key and the cache is cleared after saving.
+
+| Price     | Trip-history key                      | Default and fallback                                                 |
+| --------- | ------------------------------------- | -------------------------------------------------------------------- |
+| Stone     | Crusher + material type               | Crusher initial price; material type is not required for the default |
+| Client    | Client + material type                | Client initial price; material type is not required for the default  |
+| Transport | Client + exact location when supplied | Latest trip for the client when no location match exists             |
+
+Trip history ordering uses the greatest trip date, then the greatest numeric trip ID. Trips with no material type do not match material-keyed prices. Suggestion results carry a source for each price (`LAST_TRIP`, `DEFAULT`, or `null` as applicable); `DEFAULT` source metadata is tracked internally by the grid without a separate UI indicator. Saving valid rows is sequential and guarded against re-entrant submissions; successful rows disappear after saving and failed rows remain with mapped errors.
+
 - A fine is a fixed non-negative monetary amount with an optional reason. It can be edited only while the shift is OPEN or REOPENED; after close, reopen the shift to edit it. A fine does not change cubic quantities.
 
 ### Balances and accounting
@@ -189,7 +198,7 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 ## 7. Verification
 
 - `npm run verify:use-cases` bundles and invokes the real use cases under Electron-as-Node, uses an isolated temporary user-data directory, prints a result table and exits non-zero on failed cases.
-- The use-case harness verifies P1–P8 for trip-price suggestions and G1–G9 for pure trip-grid behavior, alongside the shift, trip, ledger, accounting, and migration cases.
+- The use-case harness verifies P1–P9 for trip-price suggestions and G1–G9 for pure trip-grid behavior, alongside the shift, trip, ledger, accounting, and migration cases.
 - The use-case harness includes M1–M9 migration checks for fresh baseline equivalence, verified backups, migration rollback, version refusals, foreign-key rebuilds, backup failure, and refusal immutability. All fixtures use temporary directories.
 - `npm run db:inspect -- <database-path>` opens a database read-only and reports its version, integrity, table row counts, and first/last Shift and Trip IDs. It never writes to the inspected database.
 - `npm run test:e2e` builds the app and drives the real Electron app through seven Playwright smoke flows: all routes and runtime/translation-key health; shift creation and duplicate-vehicle rejection; trip-grid validation and detail labels; partial grid save with a server-rejected row; shift close/count/attachments; contractor-versus-client statement note; and refusal of a second instance while the first remains responsive.

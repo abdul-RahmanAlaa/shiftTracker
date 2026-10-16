@@ -20,10 +20,22 @@ import type { ResourceState } from '@/pages/AddTripPage'
 import type { TripGridPayload } from '@/lib/tripGrid'
 
 type PriceColumn = 'stonePrice' | 'transportPrice' | 'clientPrice'
+type SuggestionSource = 'LAST_TRIP' | 'DEFAULT' | null
+type SuggestedPrices = {
+  stonePrice: number | null
+  clientPrice: number | null
+  transportPrice: number | null
+  sources: {
+    stonePrice: SuggestionSource
+    clientPrice: SuggestionSource
+    transportPrice: 'LAST_TRIP' | null
+  }
+}
 type GridRow = TripGridRow & {
   rowId: number
   priceEdited: Partial<Record<PriceColumn, boolean>>
   suggested: Partial<Record<PriceColumn, boolean>>
+  suggestionSources: Partial<Record<PriceColumn, Exclude<SuggestionSource, null>>>
   serverErrors: Partial<Record<TripGridColumn, string>>
   rowMessage: string
 }
@@ -97,6 +109,7 @@ function createRow(
     fineReason: '',
     priceEdited: {},
     suggested: {},
+    suggestionSources: {},
     serverErrors: {},
     rowMessage: ''
   }
@@ -140,18 +153,9 @@ export function TripEntryGrid({
   const rowIdRef = useRef(0)
   const inputRefs = useRef(new Map<string, HTMLInputElement>())
   const suggestionGuards = useRef(new Map<number, ReturnType<typeof createLatestGuard>>())
+  const pendingSuggestionColumns = useRef(new Map<number, Set<PriceColumn>>())
   const pendingFocus = useRef<{ rowIndex: number; column: TripGridColumn } | null>(null)
-  const suggestionCache = useRef(
-    new Map<
-      string,
-      Promise<{
-        source: 'LAST_TRIP' | 'DEFAULTS' | 'NONE'
-        stonePrice: number | null
-        transportPrice: number | null
-        clientPrice: number | null
-      } | null>
-    >()
-  )
+  const suggestionCache = useRef(new Map<string, Promise<SuggestedPrices | null>>())
   const names = {
     clients: resources.clients,
     crushers: resources.crushers,
@@ -321,77 +325,153 @@ export function TripEntryGrid({
     )
   }
 
-  async function suggestPrices(
-    rowId: number,
+  function priceColumnsForKey(column: TripGridColumn): PriceColumn[] {
+    if (column === 'client') return ['clientPrice', 'transportPrice']
+    if (column === 'crusher') return ['stonePrice']
+    if (column === 'materialType') return ['stonePrice', 'clientPrice']
+    if (column === 'location') return ['transportPrice']
+    return []
+  }
+
+  function localPrice(
+    column: PriceColumn,
     row: GridRow,
     rowIndex: number,
-    sourceRows: GridRow[] = rows
-  ): Promise<void> {
-    if (!row.clientId || !row.crusherId || priceColumns.some((column) => row.priceEdited[column]))
-      return
-    const previous = sourceRows
-      .slice(0, rowIndex)
-      .reverse()
-      .find(
-        (candidate) => candidate.clientId === row.clientId && candidate.crusherId === row.crusherId
-      )
-    const previousValues = previous
-      ? priceColumns.map((column) => parseNumberCell(previous[column], { money: true }))
-      : []
-    let prices: {
-      stonePrice: number | null
-      transportPrice: number | null
-      clientPrice: number | null
-    } | null = null
-    if (previous && previousValues.every((value) => value.ok && value.value !== null)) {
-      prices = {
-        stonePrice: previousValues[0].ok ? previousValues[0].value : null,
-        transportPrice: previousValues[1].ok ? previousValues[1].value : null,
-        clientPrice: previousValues[2].ok ? previousValues[2].value : null
-      }
-    } else {
-      const pair = `${row.clientId}:${row.crusherId}`
-      let request = suggestionCache.current.get(pair)
-      if (!request) {
-        request = ipcApi
-          .getSuggestedTripPrices({
-            clientId: row.clientId,
-            crusherId: row.crusherId
-          })
-          .then((result) => (result.ok ? result.data : null))
-        suggestionCache.current.set(pair, request)
-      }
-      let guard = suggestionGuards.current.get(rowId)
-      if (!guard) {
-        guard = createLatestGuard()
-        suggestionGuards.current.set(rowId, guard)
-      }
-      const token = guard.next()
-      prices = await request
-      if (!guard.isLatest(token)) return
+    sourceRows: GridRow[]
+  ): number | null {
+    const candidates = sourceRows.slice(0, rowIndex).reverse()
+    for (const candidate of candidates) {
+      const matchesKey =
+        column === 'stonePrice'
+          ? Boolean(
+              row.crusherId &&
+              row.materialTypeId &&
+              candidate.crusherId === row.crusherId &&
+              candidate.materialTypeId === row.materialTypeId
+            )
+          : column === 'clientPrice'
+            ? Boolean(
+                row.clientId &&
+                row.materialTypeId &&
+                candidate.clientId === row.clientId &&
+                candidate.materialTypeId === row.materialTypeId
+              )
+            : (() => {
+                const rowLocation = row.location.trim()
+                const candidateLocation = candidate.location.trim()
+                return Boolean(
+                  row.clientId &&
+                  candidate.clientId === row.clientId &&
+                  (!rowLocation || !candidateLocation || rowLocation === candidateLocation)
+                )
+              })()
+      if (!matchesKey) continue
+      const parsed = parseNumberCell(candidate[column], { money: true })
+      if (parsed.ok && parsed.value !== null && parsed.value > 0) return parsed.value
     }
-    if (!prices) return
+    return null
+  }
+
+  function setPriceSuggestion(
+    rowId: number,
+    column: PriceColumn,
+    value: number | null,
+    source: SuggestionSource
+  ): void {
     updateRow(rowId, (current) => {
-      if (
-        current.clientId !== row.clientId ||
-        current.crusherId !== row.crusherId ||
-        priceColumns.some((column) => current.priceEdited[column])
-      ) {
-        return current
-      }
+      if (current.priceEdited[column]) return current
       return {
         ...current,
-        suggested: {
-          stonePrice: prices.stonePrice !== null,
-          transportPrice: prices.transportPrice !== null,
-          clientPrice: prices.clientPrice !== null
-        },
-        stonePrice: prices.stonePrice === null ? current.stonePrice : String(prices.stonePrice),
-        transportPrice:
-          prices.transportPrice === null ? current.transportPrice : String(prices.transportPrice),
-        clientPrice: prices.clientPrice === null ? current.clientPrice : String(prices.clientPrice)
+        [column]: value === null ? '' : String(value),
+        suggested: { ...current.suggested, [column]: value !== null },
+        suggestionSources: {
+          ...current.suggestionSources,
+          [column]: source ?? undefined
+        }
       }
     })
+  }
+
+  async function refreshPriceSuggestions(
+    rowId: number,
+    row: GridRow,
+    changedKeys: TripGridColumn[],
+    sourceRows: GridRow[] = rows
+  ): Promise<void> {
+    const affectedColumns = new Set(changedKeys.flatMap(priceColumnsForKey))
+    if (affectedColumns.size === 0) return
+
+    let guard = suggestionGuards.current.get(rowId)
+    if (!guard) {
+      guard = createLatestGuard()
+      suggestionGuards.current.set(rowId, guard)
+    }
+    const token = guard.next()
+    const pending = pendingSuggestionColumns.current.get(rowId) ?? new Set<PriceColumn>()
+    for (const column of affectedColumns) pending.add(column)
+    pendingSuggestionColumns.current.set(rowId, pending)
+
+    const currentRows = sourceRows.map((candidate) => (candidate.rowId === rowId ? row : candidate))
+    const currentIndex = currentRows.findIndex((candidate) => candidate.rowId === rowId)
+    const changedColumn = [...pending]
+    const local = new Map<PriceColumn, number | null>()
+    for (const column of changedColumn) {
+      local.set(
+        column,
+        currentIndex < 0 ? null : localPrice(column, row, currentIndex, currentRows)
+      )
+    }
+
+    if (!row.clientId || !row.crusherId) {
+      for (const column of changedColumn)
+        setPriceSuggestion(
+          rowId,
+          column,
+          local.get(column) ?? null,
+          local.get(column) === null ? null : 'LAST_TRIP'
+        )
+      return
+    }
+
+    const needsServer = changedColumn.some((column) => local.get(column) === null)
+    let serverPrices: SuggestedPrices | null = null
+    if (needsServer) {
+      const materialTypeId = row.materialTypeId
+      const location = row.location.trim()
+      const input = {
+        clientId: row.clientId,
+        crusherId: row.crusherId,
+        ...(materialTypeId === undefined ? {} : { materialTypeId }),
+        ...(location ? { location } : {})
+      }
+      const cacheKey = JSON.stringify([
+        input.clientId,
+        input.crusherId,
+        input.materialTypeId ?? null,
+        input.location ?? null
+      ])
+      let request = suggestionCache.current.get(cacheKey)
+      if (!request) {
+        request = ipcApi
+          .getSuggestedTripPrices(input)
+          .then((result) => (result.ok ? result.data : null))
+        suggestionCache.current.set(cacheKey, request)
+      }
+      serverPrices = await request
+      if (!guard.isLatest(token)) return
+    }
+    pendingSuggestionColumns.current.delete(rowId)
+
+    for (const column of changedColumn) {
+      const localValue = local.get(column) ?? null
+      if (localValue !== null) {
+        setPriceSuggestion(rowId, column, localValue, 'LAST_TRIP')
+        continue
+      }
+      const suggestedValue = serverPrices?.[column] ?? null
+      const source = serverPrices?.sources[column] ?? null
+      setPriceSuggestion(rowId, column, suggestedValue, source)
+    }
   }
 
   function resolveCellName(rowId: number, column: TripGridColumn, value: string): void {
@@ -403,6 +483,17 @@ export function TripEntryGrid({
           : names.materialTypes
     const resolved = resolveName(value, options)
     const resolvedId = resolved && 'id' in resolved ? resolved.id : undefined
+    const currentRow = rows.find((row) => row.rowId === rowId)
+    const updated = currentRow
+      ? {
+          ...currentRow,
+          [column]: value,
+          ...(column === 'client' ? { clientId: resolvedId } : {}),
+          ...(column === 'crusher' ? { crusherId: resolvedId } : {}),
+          ...(column === 'materialType' ? { materialTypeId: resolvedId } : {}),
+          serverErrors: { ...currentRow.serverErrors, [column]: undefined }
+        }
+      : undefined
     updateRow(rowId, (row) => {
       return {
         ...row,
@@ -413,50 +504,33 @@ export function TripEntryGrid({
         serverErrors: { ...row.serverErrors, [column]: undefined }
       }
     })
-    const currentRow = rows.find((row) => row.rowId === rowId)
-    const currentIndex = rows.findIndex((row) => row.rowId === rowId)
-    if (
-      resolvedId !== undefined &&
-      currentRow &&
-      currentIndex >= 0 &&
-      (column === 'client' || column === 'crusher')
-    ) {
-      const updated: GridRow = {
-        ...currentRow,
-        [column]: value,
-        ...(column === 'client' ? { clientId: resolvedId } : { crusherId: resolvedId })
-      }
-      void suggestPrices(rowId, updated, currentIndex)
-    }
+    if (updated) void refreshPriceSuggestions(rowId, updated, [column])
   }
 
   function changeCell(rowId: number, column: TripGridColumn, value: string): void {
-    updateRow(rowId, (row) => ({
-      ...row,
+    const previous = rows.find((row) => row.rowId === rowId)
+    if (!previous) return
+    const updated: GridRow = {
+      ...previous,
       [column]: value,
       ...(column === 'client' ? { clientId: undefined } : {}),
       ...(column === 'crusher' ? { crusherId: undefined } : {}),
       ...(column === 'materialType' ? { materialTypeId: undefined } : {}),
-      ...(column === 'client' || column === 'crusher'
-        ? {
-            stonePrice: row.priceEdited.stonePrice ? row.stonePrice : '',
-            transportPrice: row.priceEdited.transportPrice ? row.transportPrice : '',
-            clientPrice: row.priceEdited.clientPrice ? row.clientPrice : '',
-            suggested: {
-              stonePrice: row.priceEdited.stonePrice ? row.suggested.stonePrice : false,
-              transportPrice: row.priceEdited.transportPrice ? row.suggested.transportPrice : false,
-              clientPrice: row.priceEdited.clientPrice ? row.suggested.clientPrice : false
-            }
-          }
-        : {}),
-      serverErrors: { ...row.serverErrors, [column]: undefined },
+      serverErrors: { ...previous.serverErrors, [column]: undefined },
       ...(isPriceColumn(column)
         ? {
-            priceEdited: { ...row.priceEdited, [column]: true },
-            suggested: { ...row.suggested, [column]: false }
+            priceEdited: { ...previous.priceEdited, [column]: true },
+            suggested: { ...previous.suggested, [column]: false },
+            suggestionSources: { ...previous.suggestionSources, [column]: undefined }
           }
         : {})
+    }
+    updateRow(rowId, (row) => ({
+      ...row,
+      ...updated
     }))
+    if (priceColumnsForKey(column).length > 0)
+      void refreshPriceSuggestions(rowId, updated, [column])
   }
 
   function setPastedValue(row: GridRow, column: TripGridColumn, value: string): GridRow {
@@ -475,23 +549,12 @@ export function TripEntryGrid({
       ...(column === 'client' ? { clientId: resolvedId } : {}),
       ...(column === 'crusher' ? { crusherId: resolvedId } : {}),
       ...(column === 'materialType' ? { materialTypeId: resolvedId } : {}),
-      ...(column === 'client' || column === 'crusher'
-        ? {
-            stonePrice: row.priceEdited.stonePrice ? row.stonePrice : '',
-            transportPrice: row.priceEdited.transportPrice ? row.transportPrice : '',
-            clientPrice: row.priceEdited.clientPrice ? row.clientPrice : '',
-            suggested: {
-              stonePrice: row.priceEdited.stonePrice ? row.suggested.stonePrice : false,
-              transportPrice: row.priceEdited.transportPrice ? row.suggested.transportPrice : false,
-              clientPrice: row.priceEdited.clientPrice ? row.suggested.clientPrice : false
-            }
-          }
-        : {}),
       serverErrors: { ...row.serverErrors, [column]: undefined },
       ...(isPriceColumn(column)
         ? {
             priceEdited: { ...row.priceEdited, [column]: true },
-            suggested: { ...row.suggested, [column]: false }
+            suggested: { ...row.suggested, [column]: false },
+            suggestionSources: { ...row.suggestionSources, [column]: undefined }
           }
         : {})
     }
@@ -509,23 +572,26 @@ export function TripEntryGrid({
     if (matrix.length < 2 && (matrix[0]?.length ?? 0) < 2) return
     event.preventDefault()
     const next = [...rows]
+    const changedKeysByRow = new Map<number, TripGridColumn[]>()
     for (let y = 0; y < matrix.length; y += 1) {
       const targetIndex = rowIndex + y
       while (next.length <= targetIndex) {
         next.push(createRow(++rowIdRef.current, rowDefaults, next.at(-1)?.tripDate))
       }
       let target = next[targetIndex]
+      const changedKeys: TripGridColumn[] = []
       for (let x = 0; x < matrix[y].length && columnIndex + x < columns.length; x += 1) {
         const column = columns[columnIndex + x]
         target = setPastedValue(target, column.key, matrix[y][x])
+        if (priceColumnsForKey(column.key).length > 0) changedKeys.push(column.key)
       }
       next[targetIndex] = target
+      changedKeysByRow.set(target.rowId, changedKeys)
     }
     setRows(next)
-    next.slice(rowIndex, rowIndex + matrix.length).forEach((row, offset) => {
-      if (row.clientId && row.crusherId) {
-        void suggestPrices(row.rowId, row, rowIndex + offset, next)
-      }
+    next.slice(rowIndex, rowIndex + matrix.length).forEach((row) => {
+      const changedKeys = changedKeysByRow.get(row.rowId) ?? []
+      void refreshPriceSuggestions(row.rowId, row, changedKeys, next)
     })
   }
 

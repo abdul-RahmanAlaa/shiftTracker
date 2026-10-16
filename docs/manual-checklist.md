@@ -25,6 +25,10 @@ All scenarios remain unchecked until confirmed by the user.
 - [ ] Type one trip row in the Add Trip grid and confirm every displayed field is saved correctly.
 - [ ] Paste five tab-separated trip rows from Excel and confirm each parsed row is correct.
 - [ ] Resolve a client and crusher with previous trips and confirm suggested prices appear and remain editable.
+- [ ] Enter the same client with two material types and confirm each material can receive a different stone and client price suggestion.
+- [ ] Change a material type and confirm an unedited suggested price clears or changes while a user-edited price stays unchanged.
+- [ ] Confirm transport-price suggestions follow the client and prefer a matching trip location when one is entered.
+- [ ] Leave material type unselected and confirm stone and client suggestions use only initial prices while transport can still come from trip history.
 - [ ] Save a grid containing a server-rejected row and confirm the failed row remains with its error.
 - [ ] Use Ctrl+D in the grid and confirm the cell copies from the row above.
 - [ ] Confirm the Add Trip grid fits a 1366x768 laptop without page scrolling.

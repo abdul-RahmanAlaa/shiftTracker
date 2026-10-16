@@ -97,43 +97,92 @@ export interface TripWithContextRow {
 export interface SuggestedTripPriceInputs {
   clientExists: number
   crusherExists: number
+  materialTypeExists: number
   clientInitialPriceMinor: number | null
   crusherInitialPriceMinor: number | null
-  tripId: string | null
-  tripStonePriceMinor: number | null
-  tripTransportPriceMinor: number | null
-  tripClientPriceMinor: number | null
+  stoneTripId: string | null
+  stoneTripPriceMinor: number | null
+  clientTripId: string | null
+  clientTripPriceMinor: number | null
+  transportLocationTripId: string | null
+  transportLocationTripPriceMinor: number | null
+  transportClientTripId: string | null
+  transportClientTripPriceMinor: number | null
 }
 
-export function getSuggestedTripPriceInputs(
-  clientId: number,
+export function getSuggestedTripPriceInputs(input: {
+  clientId: number
   crusherId: number
-): SuggestedTripPriceInputs {
+  materialTypeId?: number
+  location?: string
+}): SuggestedTripPriceInputs {
   const db = getDb()
   return db
     .prepare(
       `
-      WITH latest AS (
-        SELECT id, stone_price, transport_price, client_price
+      WITH latest_stone AS (
+        SELECT id, stone_price
         FROM Trip
-        WHERE client_id = @clientId AND crusher_id = @crusherId
+        WHERE @materialTypeId IS NOT NULL
+          AND crusher_id = @crusherId
+          AND material_type_id = @materialTypeId
+        ORDER BY trip_date DESC, CAST(SUBSTR(id, 5) AS INTEGER) DESC
+        LIMIT 1
+      ),
+      latest_client AS (
+        SELECT id, client_price
+        FROM Trip
+        WHERE @materialTypeId IS NOT NULL
+          AND client_id = @clientId
+          AND material_type_id = @materialTypeId
+        ORDER BY trip_date DESC, CAST(SUBSTR(id, 5) AS INTEGER) DESC
+        LIMIT 1
+      ),
+      latest_transport_location AS (
+        SELECT id, transport_price
+        FROM Trip
+        WHERE @location IS NOT NULL
+          AND client_id = @clientId
+          AND location = @location
+        ORDER BY trip_date DESC, CAST(SUBSTR(id, 5) AS INTEGER) DESC
+        LIMIT 1
+      ),
+      latest_transport_client AS (
+        SELECT id, transport_price
+        FROM Trip
+        WHERE client_id = @clientId
         ORDER BY trip_date DESC, CAST(SUBSTR(id, 5) AS INTEGER) DESC
         LIMIT 1
       )
       SELECT
         EXISTS(SELECT 1 FROM Client WHERE id = @clientId) as clientExists,
         EXISTS(SELECT 1 FROM Crusher WHERE id = @crusherId) as crusherExists,
+        CASE WHEN @materialTypeId IS NULL THEN 1
+          ELSE EXISTS(SELECT 1 FROM MaterialType WHERE id = @materialTypeId) END
+          as materialTypeExists,
         (SELECT initial_price FROM Client WHERE id = @clientId) as clientInitialPriceMinor,
         (SELECT initial_price FROM Crusher WHERE id = @crusherId) as crusherInitialPriceMinor,
-        latest.id as tripId,
-        latest.stone_price as tripStonePriceMinor,
-        latest.transport_price as tripTransportPriceMinor,
-        latest.client_price as tripClientPriceMinor
+        latest_stone.id as stoneTripId,
+        latest_stone.stone_price as stoneTripPriceMinor,
+        latest_client.id as clientTripId,
+        latest_client.client_price as clientTripPriceMinor,
+        latest_transport_location.id as transportLocationTripId,
+        latest_transport_location.transport_price as transportLocationTripPriceMinor,
+        latest_transport_client.id as transportClientTripId,
+        latest_transport_client.transport_price as transportClientTripPriceMinor
       FROM (SELECT 1) AS seed
-      LEFT JOIN latest ON 1 = 1
+      LEFT JOIN latest_stone ON 1 = 1
+      LEFT JOIN latest_client ON 1 = 1
+      LEFT JOIN latest_transport_location ON 1 = 1
+      LEFT JOIN latest_transport_client ON 1 = 1
     `
     )
-    .get({ clientId, crusherId }) as SuggestedTripPriceInputs
+    .get({
+      clientId: input.clientId,
+      crusherId: input.crusherId,
+      materialTypeId: input.materialTypeId ?? null,
+      location: input.location ?? null
+    }) as SuggestedTripPriceInputs
 }
 
 export function getNextTripId(): string {
