@@ -156,10 +156,15 @@ export function VehiclesSettings(): React.JSX.Element {
   }
 
   const columns: ColumnDef<Vehicle, unknown>[] = [
-    { accessorKey: 'vehicleNo', header: t('vehiclesSettings.fields.vehicleNo') },
+    {
+      accessorKey: 'vehicleNo',
+      header: t('vehiclesSettings.fields.vehicleNo'),
+      meta: { nowrap: true }
+    },
     {
       accessorKey: 'trailerNo',
       header: t('vehiclesSettings.fields.trailerNo'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
     },
     {
@@ -171,6 +176,7 @@ export function VehiclesSettings(): React.JSX.Element {
     {
       accessorKey: 'defaultCubic',
       header: t('vehiclesSettings.fields.defaultCubic'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => {
         const value = getValue<number | null>()
         return value === null ? t('common.emptyCell') : formatQuantity(value)
@@ -184,6 +190,7 @@ export function VehiclesSettings(): React.JSX.Element {
     {
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (

@@ -135,6 +135,42 @@ async function expectNoRawTranslationKeys(page) {
   expect(bodyText.match(rawTranslationIdentifier) ?? []).toEqual([])
 }
 
+async function expectTablesFit(page, label, measurements) {
+  const containers = page.locator('[data-slot="table-container"]')
+  const count = await containers.count()
+  expect(count, `${label} should render a table`).toBeGreaterThan(0)
+
+  for (let index = 0; index < count; index += 1) {
+    const dimensions = await containers.nth(index).evaluate((element) => {
+      const headers = Array.from(element.querySelectorAll('[data-slot="table-head"]'))
+      const cells = Array.from(element.querySelectorAll('[data-slot="table-cell"]'))
+      const wrappedCells = Array.from(
+        element.querySelectorAll('[data-slot="table-cell"] > div:not(.whitespace-nowrap)')
+      )
+      return {
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        headersCentered: headers.every((header) => getComputedStyle(header).textAlign === 'center'),
+        cellsCentered: cells.every((cell) => getComputedStyle(cell).textAlign === 'center'),
+        wrappedCellsHaveTitles: wrappedCells.every((cell) => cell.getAttribute('title') !== null),
+        textIsClamped: wrappedCells.every((cell) => getComputedStyle(cell).webkitLineClamp === '2')
+      }
+    })
+    measurements.push({ label, index, ...dimensions })
+    expect(dimensions.headersCentered, `${label} headers should be centered`).toBe(true)
+    expect(dimensions.cellsCentered, `${label} cells should be centered`).toBe(true)
+    expect(
+      dimensions.wrappedCellsHaveTitles,
+      `${label} wrapped cells should have full-text titles`
+    ).toBe(true)
+    expect(dimensions.textIsClamped, `${label} text should clamp after two lines`).toBe(true)
+    expect(
+      dimensions.scrollWidth,
+      `${label} table ${index + 1} should not overflow horizontally`
+    ).toBeLessThanOrEqual(dimensions.clientWidth)
+  }
+}
+
 const testWithApp = test.extend({
   launchApp: async (
     // eslint-disable-next-line no-empty-pattern
@@ -606,3 +642,104 @@ testWithApp('S6 second instance exits and focuses the existing app', async ({ la
       .sort()
   ).toEqual(databaseFilesBefore)
 })
+
+testWithApp(
+  'F4 DataTables fit a 1366x768 viewport with long names and notes',
+  async ({ launchApp }) => {
+    const app = await launchApp('layout')
+    const page = app.page
+    const measurements = []
+    const longNote = 'N'.repeat(120)
+    await page.setViewportSize({ width: 1366, height: 768 })
+
+    await navigate(page, '/shifts', 'shifts.title')
+    await expectTablesFit(page, 'Shifts', measurements)
+    await page.getByRole('row').filter({ hasText: app.seedData.shift.id }).click()
+    await expect(page).toHaveURL(new RegExp(`/shifts/${app.seedData.shift.id}`))
+    await expect(page.locator('[data-slot="table-container"] tbody tr').first()).toBeVisible()
+    await page
+      .getByRole('button', { name: text('common.details'), exact: true })
+      .first()
+      .click()
+    await expect(page.getByText(text('tripForm.fields.location'), { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: text('floatingWindow.closeAriaLabel') }).click()
+    await expectTablesFit(page, 'Shift details', measurements)
+
+    await navigate(page, '/all-trips', 'allTrips.title')
+    await expectTablesFit(page, 'All trips', measurements)
+
+    await navigate(page, '/settings', 'settingsPage.title')
+    const settingsSections = [
+      ['vehicles', app.seedData.contractor.name],
+      ['drivers', app.seedData.driver.name],
+      ['contractors', app.seedData.contractor.name],
+      ['crushers', app.seedData.crusher.name],
+      ['clients', app.seedData.client.name],
+      ['materialTypes', app.seedData.materialType.name]
+    ]
+    for (const [section, expectedName] of settingsSections) {
+      await page
+        .getByRole('button', {
+          name: text(`settingsPage.sections.${section}`),
+          exact: true
+        })
+        .click()
+      const table = page.locator('[data-slot="table-container"]')
+      await expect(table.first()).toBeVisible()
+      await expect(table).toContainText(expectedName)
+      await expect(
+        table.locator('[data-slot="table-cell"] > div').filter({ hasText: expectedName }).first()
+      ).toHaveAttribute('title', expectedName)
+      await expectTablesFit(page, `Settings ${section}`, measurements)
+    }
+
+    await navigate(page, '/accounts', 'accountsPage.title')
+    const accountSections = [
+      ['contractor', 'accountsPage.sections.contractor'],
+      ['driver', 'accountsPage.sections.driver'],
+      ['client', 'accountsPage.sections.client'],
+      ['all-movements', 'accountsPage.sections.allMovements']
+    ]
+    for (const [section, labelKey] of accountSections) {
+      await page.getByRole('button', { name: text(labelKey), exact: true }).click()
+      if (section !== 'all-movements') {
+        await page.getByRole('combobox').first().click()
+        const optionName =
+          section === 'contractor'
+            ? app.seedData.contractor.name
+            : section === 'driver'
+              ? app.seedData.driver.name
+              : app.seedData.client.name
+        await page.getByRole('option', { name: optionName, exact: true }).click()
+        await expect(page.locator('[data-slot="table-container"]').first()).toBeVisible()
+        await expect(page.locator('[data-slot="table-container"] tbody tr').first()).toBeVisible()
+      } else {
+        await expect(page.locator('[data-slot="table-container"] tbody tr').first()).toBeVisible()
+      }
+      await expectTablesFit(page, `Accounts ${section}`, measurements)
+      if (section === 'contractor' || section === 'client' || section === 'all-movements') {
+        await expect(
+          page.locator('[data-slot="table-cell"] > div').filter({ hasText: longNote }).first()
+        ).toHaveAttribute('title', longNote)
+      }
+    }
+
+    await navigate(page, '/statements', 'statementsPage.title')
+    await page.getByRole('combobox', { name: text('statementsPage.entity'), exact: true }).click()
+    await page.getByRole('option', { name: app.seedData.client.name, exact: true }).click()
+    await expect(page.locator('[data-slot="table-container"] tbody tr').first()).toBeVisible()
+    await expectTablesFit(page, 'Client statement', measurements)
+    await expect(
+      page.locator('[data-slot="table-cell"] > div').filter({ hasText: longNote }).first()
+    ).toHaveAttribute('title', longNote)
+
+    await page.getByLabel(text('statementsPage.entityType')).click()
+    await page.getByRole('option', { name: text('statementsPage.contractor'), exact: true }).click()
+    await page.getByRole('combobox', { name: text('statementsPage.entity'), exact: true }).click()
+    await page.getByRole('option', { name: app.seedData.contractor.name, exact: true }).click()
+    await expect(page.locator('[data-slot="table-container"] tbody tr').first()).toBeVisible()
+    await expectTablesFit(page, 'Contractor statement', measurements)
+
+    console.log(`F4_TABLE_WIDTHS=${JSON.stringify(measurements)}`)
+  }
+)

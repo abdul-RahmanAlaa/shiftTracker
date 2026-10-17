@@ -25,6 +25,8 @@ const { createMaterialType } = require('../src/main/use-cases/createMaterialType
 const { createVehicle } = require('../src/main/use-cases/createVehicle')
 const { createShift } = require('../src/main/use-cases/createShift')
 const { createTrip } = require('../src/main/use-cases/createTrip')
+const { createLedgerEntry } = require('../src/main/use-cases/createLedgerEntry')
+const { createClientPayment } = require('../src/main/use-cases/createClientPayment')
 
 function requireCreated(result, entity) {
   if (!result.ok) throw new Error(`Could not seed ${entity}: ${JSON.stringify(result)}`)
@@ -38,21 +40,25 @@ function currentDate() {
 
 async function seed() {
   const db = initDatabase()
-  const contractor = requireCreated(
-    createContractor({ name: `E2E Contractor ${suffix}` }),
-    'contractor'
-  )
-  const driver = requireCreated(createDriver({ name: `E2E Driver ${suffix}` }), 'driver')
+  const layoutName = `N${suffix.slice(-29)}`.padEnd(30, 'N').slice(0, 30)
+  const displayName = mode === 'layout' ? layoutName : `E2E Contractor ${suffix}`
+  const displayDriverName = mode === 'layout' ? layoutName : `E2E Driver ${suffix}`
+  const displayClientName = mode === 'layout' ? layoutName : `E2E Client ${suffix}`
+  const displayCrusherName = mode === 'layout' ? layoutName : `E2E Crusher ${suffix}`
+  const displayMaterialName = mode === 'layout' ? layoutName : `E2E Material ${suffix}`
+  const layoutNote = 'N'.repeat(120)
+  const contractor = requireCreated(createContractor({ name: displayName }), 'contractor')
+  const driver = requireCreated(createDriver({ name: displayDriverName }), 'driver')
   const client = requireCreated(
-    createClient({ name: `E2E Client ${suffix}`, initialPrice: 12 }),
+    createClient({ name: displayClientName, initialPrice: 12 }),
     'client'
   )
   const crusher = requireCreated(
-    createCrusher({ name: `E2E Crusher ${suffix}`, initialPrice: 7 }),
+    createCrusher({ name: displayCrusherName, initialPrice: 7 }),
     'crusher'
   )
   const materialType = requireCreated(
-    createMaterialType({ name: `E2E Material ${suffix}` }),
+    createMaterialType({ name: displayMaterialName }),
     'material type'
   )
   const firstVehicleNo = 73000 + (Number(suffix.replace(/\D/g, '').slice(-3)) || 1)
@@ -98,7 +104,7 @@ async function seed() {
       'shift'
     )
 
-    if (mode === 'with-trip') {
+    if (mode === 'with-trip' || mode === 'layout') {
       data.trip = requireCreated(
         createTrip({
           shiftId: data.shift.id,
@@ -119,10 +125,36 @@ async function seed() {
           recipientNameStatus: 'PROVIDED',
           recipientName: `E2E Receiver ${suffix}`,
           clientReceiptNo: '',
-          notes: ''
+          notes: mode === 'layout' ? layoutNote : ''
         }),
         'trip'
       )
+      if (mode === 'layout') {
+        requireCreated(
+          createTrip({
+            shiftId: data.shift.id,
+            tripDate: currentDate(),
+            crusherCubic: 1,
+            clientCubicReported: 1,
+            fineAmount: 0,
+            fineReason: '',
+            location: '',
+            crusherId: crusher.id,
+            stonePrice: 12,
+            crusherReceiptStatus: 'PROVIDED',
+            crusherReceiptNo: 7002,
+            clientId: client.id,
+            transportPrice: 8,
+            clientPrice: 15,
+            materialTypeId: materialType.id,
+            recipientNameStatus: 'UNCLEAR',
+            recipientName: '',
+            clientReceiptNo: '',
+            notes: layoutNote
+          }),
+          'long-text layout trip'
+        )
+      }
       const relativePath = `docs/attachments/e2e-${suffix}.jpg`
       const attachmentDirectory = path.join(appPath, 'docs', 'attachments')
       fs.mkdirSync(attachmentDirectory, { recursive: true })
@@ -142,6 +174,30 @@ async function seed() {
       db.prepare(
         "INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
       ).run('SHIFT', data.shift.id, 'CLOSING_SHEET', closingPath)
+
+      if (mode === 'layout') {
+        requireCreated(
+          createLedgerEntry({
+            entryDate: currentDate(),
+            driverId: driver.id,
+            movementType: 'ADVANCE',
+            amount: 100,
+            shiftId: data.shift.id,
+            contractorId: contractor.id,
+            notes: layoutNote
+          }),
+          'layout ledger entry'
+        )
+        requireCreated(
+          createClientPayment({
+            entryDate: currentDate(),
+            clientId: client.id,
+            amount: 100,
+            notes: layoutNote
+          }),
+          'layout client payment'
+        )
+      }
     }
   }
 

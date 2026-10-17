@@ -155,11 +155,13 @@ export function ContractorsSettings(): React.JSX.Element {
     {
       accessorKey: 'phone',
       header: t('contractorsSettings.phoneNumber'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
     },
     {
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (

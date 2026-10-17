@@ -119,16 +119,19 @@ export function DriversSettings(): React.JSX.Element {
     {
       accessorKey: 'phone1',
       header: t('driversSettings.phone1'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
     },
     {
       accessorKey: 'phone2',
       header: t('driversSettings.phone2'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
     },
     {
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (

@@ -96,3 +96,8 @@ All scenarios remain unchecked until confirmed by the user.
 - [ ] Confirm the active navigation item is highlighted, every page has a visible title, and all table, summary, statement, details, and floating-window numbers use grouped Latin digits without changing input values.
 - [ ] Confirm successful trip create/update notices are non-blocking and the Add Trip page no longer lists successful operations.
 - [ ] Confirm Statements shows selection, totals, then the table.
+- [ ] Confirm long names and notes wrap to two lines and show the full text on hover.
+- [ ] Confirm every table fits a 1366×768 window without horizontal scrolling.
+- [ ] Confirm all table headers and cells are centered.
+- [ ] Confirm table sorting and filtering still work after text wrapping.
+- [ ] Confirm table sum rows are unchanged by the layout.

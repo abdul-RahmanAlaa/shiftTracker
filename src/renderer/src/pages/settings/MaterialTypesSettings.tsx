@@ -114,6 +114,7 @@ export function MaterialTypesSettings(): React.JSX.Element {
     {
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (

@@ -30,18 +30,24 @@ export function getLedgerColumns({
 } = {}): ColumnDef<LedgerRow, unknown>[] {
   const t = i18n.t
   const columns: ColumnDef<LedgerRow, unknown>[] = [
-    { accessorKey: 'id', header: t('common.columns.id') },
-    { accessorKey: 'entryDate', header: t('common.columns.date') },
-    { accessorKey: 'movementType', header: t('common.columns.movementType') },
+    { accessorKey: 'id', header: t('common.columns.id'), meta: { nowrap: true } },
+    { accessorKey: 'entryDate', header: t('common.columns.date'), meta: { nowrap: true } },
+    {
+      accessorKey: 'movementType',
+      header: t('common.columns.movementType'),
+      meta: { nowrap: true }
+    },
     {
       accessorKey: 'amount',
       header: t('common.columns.amount'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => formatMoney(getValue<number>())
     },
     {
       id: 'shiftId',
       accessorFn: (entry) => entry.shiftId ?? t('common.emptyCell'),
-      header: t('common.columns.shift')
+      header: t('common.columns.shift'),
+      meta: { nowrap: true }
     },
     {
       id: 'notes',
@@ -54,6 +60,7 @@ export function getLedgerColumns({
     columns.push({
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => {
@@ -102,11 +109,12 @@ export function getClientPaymentColumns({
 } = {}): ColumnDef<ClientPaymentRow, unknown>[] {
   const t = i18n.t
   const columns: ColumnDef<ClientPaymentRow, unknown>[] = [
-    { accessorKey: 'id', header: t('common.columns.id') },
-    { accessorKey: 'entryDate', header: t('common.columns.date') },
+    { accessorKey: 'id', header: t('common.columns.id'), meta: { nowrap: true } },
+    { accessorKey: 'entryDate', header: t('common.columns.date'), meta: { nowrap: true } },
     {
       accessorKey: 'amount',
       header: t('common.columns.amount'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => formatMoney(getValue<number>())
     },
     {
@@ -120,6 +128,7 @@ export function getClientPaymentColumns({
     columns.push({
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (

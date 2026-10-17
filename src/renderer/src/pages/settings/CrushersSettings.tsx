@@ -144,6 +144,7 @@ export function CrushersSettings(): React.JSX.Element {
     {
       accessorKey: 'initialPrice',
       header: t('common.defaultPrice'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => {
         const value = getValue<number | null>()
         return value === null ? t('common.emptyCell') : formatMoney(value)
@@ -152,6 +153,7 @@ export function CrushersSettings(): React.JSX.Element {
     {
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (

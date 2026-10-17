@@ -112,44 +112,42 @@ export function StatementsPage(): React.JSX.Element {
     setStatementError(false)
   }
 
+  function descriptionForRow(row: StatementRow): string {
+    if (row.kind === 'OPENING') return t('statementsPage.openingBalanceDescription')
+    if (row.kind === 'FINE') return t('statementsPage.fineDescription')
+    if (row.component === 'TRANSPORT') return t('statementsPage.transportComponent')
+    if (row.component === 'MATERIAL') return t('statementsPage.materialComponent')
+
+    if (entityType === 'contractor' && row.kind === 'PAYMENT') {
+      switch (row.description) {
+        case 'ADVANCE':
+          return t('ledgerEntryForm.movementTypes.custody')
+        case 'PAYMENT':
+          return t('ledgerEntryForm.movementTypes.payment')
+        case 'OTHER':
+          return t('ledgerEntryForm.movementTypes.other')
+      }
+    }
+
+    return row.description ?? t('common.emptyCell')
+  }
+
   const columns: ColumnDef<StatementRow, unknown>[] = [
-    { accessorKey: 'date', header: t('statementsPage.columns.date') },
+    {
+      accessorKey: 'date',
+      header: t('statementsPage.columns.date'),
+      meta: { nowrap: true }
+    },
     {
       accessorKey: 'description',
       header: t('statementsPage.columns.description'),
-      cell: ({ row }) => {
-        if (row.original.kind === 'OPENING') {
-          return t('statementsPage.openingBalanceDescription')
-        }
-
-        if (row.original.kind === 'FINE') {
-          return t('statementsPage.fineDescription')
-        }
-
-        if (row.original.component === 'TRANSPORT') {
-          return t('statementsPage.transportComponent')
-        }
-        if (row.original.component === 'MATERIAL') {
-          return t('statementsPage.materialComponent')
-        }
-
-        if (entityType === 'contractor' && row.original.kind === 'PAYMENT') {
-          switch (row.original.description) {
-            case 'ADVANCE':
-              return t('ledgerEntryForm.movementTypes.custody')
-            case 'PAYMENT':
-              return t('ledgerEntryForm.movementTypes.payment')
-            case 'OTHER':
-              return t('ledgerEntryForm.movementTypes.other')
-          }
-        }
-
-        return row.original.description ?? t('common.emptyCell')
-      }
+      cell: ({ row }) => descriptionForRow(row.original),
+      meta: { title: descriptionForRow }
     },
     {
       accessorKey: 'quantity',
       header: t('statementsPage.columns.quantity'),
+      meta: { nowrap: true },
       cell: ({ row }) =>
         row.original.quantity === null
           ? t('common.emptyCell')
@@ -158,24 +156,28 @@ export function StatementsPage(): React.JSX.Element {
     {
       accessorKey: 'price',
       header: t('statementsPage.columns.price'),
+      meta: { nowrap: true },
       cell: ({ row }) =>
         row.original.price === null ? t('common.emptyCell') : formatMoney(row.original.price)
     },
     {
       accessorKey: 'value',
       header: t('statementsPage.columns.value'),
+      meta: { nowrap: true },
       cell: ({ row }) =>
         row.original.value === null ? t('common.emptyCell') : formatMoney(row.original.value)
     },
     {
       accessorKey: 'payment',
       header: t('statementsPage.columns.payment'),
+      meta: { nowrap: true },
       cell: ({ row }) =>
         row.original.payment === null ? t('common.emptyCell') : formatMoney(row.original.payment)
     },
     {
       accessorKey: 'runningBalance',
       header: t('statementsPage.columns.runningBalance'),
+      meta: { nowrap: true },
       cell: ({ row }) => (
         <span className={cn('font-medium', row.original.runningBalance < 0 && 'text-destructive')}>
           {formatMoney(row.original.runningBalance)}

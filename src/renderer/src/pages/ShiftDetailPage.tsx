@@ -5,13 +5,15 @@ import { useTranslation } from 'react-i18next'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Plus } from 'lucide-react'
+import { Eye, Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import { AttachmentManager } from '@/components/AttachmentManager'
 import { ShiftBreadcrumb } from '@/components/ShiftBreadcrumb'
+import { TripDetailsContent } from '@/components/TripDetailsContent'
+import { useFloatingWindows } from '@/components/FloatingWindowsContext'
 import { formatMoney, formatQuantity } from '@/lib/numberFormat'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TripForm, tripSchema } from './AddTripPage'
@@ -27,12 +29,18 @@ type ShiftListRow = Extract<
   { ok: true }
 >['data'][number]
 
+type AllTripsRow = Extract<
+  Awaited<ReturnType<typeof ipcApi.listAllTrips>>,
+  { ok: true }
+>['data'][number]
+
 function isTripFormField(field: string): field is keyof TripValues {
   return Object.hasOwn(tripSchema.shape, field)
 }
 
 export function ShiftDetailPage(): React.JSX.Element {
   const { t } = useTranslation()
+  const { openWindow } = useFloatingWindows()
   const { shiftId = '' } = useParams()
   const [shift, setShift] = useState<ShiftListRow | null>(null)
   const [trips, setTrips] = useState<TripRow[]>([])
@@ -255,46 +263,60 @@ export function ShiftDetailPage(): React.JSX.Element {
     if (result.ok) await loadShiftTrips()
   }
 
+  function openTripDetails(trip: TripRow): void {
+    const detailsTrip: AllTripsRow = {
+      ...trip,
+      driverName: shift?.driverName ?? t('common.emptyCell'),
+      vehicleNo: shift?.vehicleNo ?? 0,
+      crusherName:
+        resources.crushers.find((crusher) => crusher.id === trip.crusherId)?.name ??
+        t('common.emptyCell'),
+      clientName:
+        resources.clients.find((client) => client.id === trip.clientId)?.name ??
+        t('common.emptyCell'),
+      materialTypeName:
+        resources.materialTypes.find((materialType) => materialType.id === trip.materialTypeId)
+          ?.name ?? null
+    }
+
+    openWindow(
+      trip.id,
+      t('allTrips.detailsTitle', { id: trip.id }),
+      <TripDetailsContent trip={detailsTrip} />
+    )
+  }
+
   const isShiftClosed = shift?.status === 'CLOSED'
   const loading = loadedShiftId !== shiftId
   const tripColumns: ColumnDef<TripRow, unknown>[] = [
-    { accessorKey: 'id', header: t('common.columns.id') },
-    { accessorKey: 'tripDate', header: t('tripForm.fields.tripDate') },
+    { accessorKey: 'id', header: t('common.columns.id'), meta: { nowrap: true } },
     {
-      id: 'location',
-      accessorFn: (trip) => trip.location ?? t('common.emDash'),
-      header: t('tripForm.fields.location')
+      accessorKey: 'tripDate',
+      header: t('tripForm.fields.tripDate'),
+      meta: { nowrap: true }
     },
     {
       accessorKey: 'crusherCubic',
       header: t('tripForm.fields.crusherCubic'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => formatQuantity(getValue<number>())
     },
     {
       accessorKey: 'clientCubicReported',
       header: t('tripForm.fields.clientCubic'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => formatQuantity(getValue<number>())
-    },
-    {
-      id: 'stonePrice',
-      accessorFn: (trip) => trip.stonePrice ?? t('common.emDash'),
-      header: t('tripForm.fields.stonePrice'),
-      cell: ({ row }) =>
-        row.original.stonePrice === null ? t('common.emDash') : formatMoney(row.original.stonePrice)
-    },
-    {
-      accessorKey: 'transportPrice',
-      header: t('tripForm.fields.transportPrice'),
-      cell: ({ getValue }) => formatMoney(getValue<number>())
     },
     {
       accessorKey: 'clientPrice',
       header: t('tripForm.fields.clientPrice'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => formatMoney(getValue<number>())
     },
     {
       id: 'receiptPhoto',
       header: t('tripDetails.attachmentsTitle'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => <AttachmentManager entityType="TRIP" entityId={row.original.id} />
@@ -302,31 +324,45 @@ export function ShiftDetailPage(): React.JSX.Element {
     {
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
-      cell: ({ row }) =>
-        isShiftClosed ? (
-          <span className="text-sm text-muted-foreground">{t('common.lockedShift')}</span>
-        ) : (
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => startEditingTrip(row.original)}
-            >
-              {t('common.edit')}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => void handleDeleteTrip(row.original)}
-            >
-              {t('common.delete')}
-            </Button>
-          </div>
-        )
+      cell: ({ row }) => (
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            aria-label={t('common.details')}
+            title={t('common.details')}
+            onClick={() => openTripDetails(row.original)}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          {isShiftClosed ? (
+            <span className="text-sm text-muted-foreground">{t('common.lockedShift')}</span>
+          ) : (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => startEditingTrip(row.original)}
+              >
+                {t('common.edit')}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void handleDeleteTrip(row.original)}
+              >
+                {t('common.delete')}
+              </Button>
+            </>
+          )}
+        </div>
+      )
     }
   ]
 

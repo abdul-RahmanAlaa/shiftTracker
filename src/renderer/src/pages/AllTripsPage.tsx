@@ -20,20 +20,25 @@ export function AllTripsPage(): React.JSX.Element {
   const { t } = useTranslation()
 
   const columns: ColumnDef<AllTripsRow, unknown>[] = [
-    { accessorKey: 'tripDate', header: t('common.columns.date') },
-    { accessorKey: 'shiftId', header: t('common.columns.shift') },
+    { accessorKey: 'tripDate', header: t('common.columns.date'), meta: { nowrap: true } },
     { accessorKey: 'driverName', header: t('ledgerEntryForm.fields.driver') },
-    { accessorKey: 'vehicleNo', header: t('vehiclesSettings.fields.vehicleNo') },
+    {
+      accessorKey: 'vehicleNo',
+      header: t('vehiclesSettings.fields.vehicleNo'),
+      meta: { nowrap: true }
+    },
     { accessorKey: 'crusherName', header: t('tripForm.fields.crusher') },
     { accessorKey: 'clientName', header: t('tripForm.fields.client') },
     {
       accessorKey: 'clientCubicReported',
       header: t('tripDetails.fields.clientCubicReported'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => formatQuantity(getValue<number>())
     },
     {
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (

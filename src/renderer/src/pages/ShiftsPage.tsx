@@ -218,12 +218,17 @@ export function ShiftsPage(): React.JSX.Element {
   const checkingCloseRequirements =
     Boolean(closeShiftId) && loadedCloseRequirementsShiftId !== closeShiftId
   const columns: ColumnDef<ShiftListRow, unknown>[] = [
-    { accessorKey: 'id', header: t('shifts.shiftInfo.number') },
+    { accessorKey: 'id', header: t('shifts.shiftInfo.number'), meta: { nowrap: true } },
     { accessorKey: 'driverName', header: t('ledgerEntryForm.fields.driver') },
-    { accessorKey: 'vehicleNo', header: t('vehiclesSettings.fields.vehicleNo') },
+    {
+      accessorKey: 'vehicleNo',
+      header: t('vehiclesSettings.fields.vehicleNo'),
+      meta: { nowrap: true }
+    },
     {
       accessorKey: 'status',
       header: t('shifts.columns.status'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => {
         const status = String(getValue())
         const statusKey = status === 'OPEN' ? 'open' : status === 'REOPENED' ? 'reopened' : 'closed'
@@ -237,15 +242,21 @@ export function ShiftsPage(): React.JSX.Element {
         return <Badge className={colorClass}>{t(`shiftStatus.${statusKey}`)}</Badge>
       }
     },
-    { accessorKey: 'startDate', header: t('shifts.columns.startDate') },
+    {
+      accessorKey: 'startDate',
+      header: t('shifts.columns.startDate'),
+      meta: { nowrap: true }
+    },
     {
       id: 'endDate',
       accessorFn: (shift) => shift.endDate ?? t('common.emDash'),
-      header: t('shifts.columns.endDate')
+      header: t('shifts.columns.endDate'),
+      meta: { nowrap: true }
     },
     {
       accessorKey: 'actualTripCount',
       header: t('shifts.columns.tripCount'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => formatQuantity(getValue<number>())
     }
   ]

@@ -170,6 +170,7 @@ export function ClientsSettings(): React.JSX.Element {
     {
       accessorKey: 'initialPrice',
       header: t('common.defaultPrice'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => {
         const value = getValue<number | null>()
         return value === null ? t('common.emptyCell') : formatMoney(value)
@@ -183,16 +184,19 @@ export function ClientsSettings(): React.JSX.Element {
     {
       accessorKey: 'openingBalance',
       header: t('common.openingBalance'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => formatMoney(getValue<number>())
     },
     {
       accessorKey: 'openingBalanceDate',
       header: t('common.openingBalanceDate'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
     },
     {
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (

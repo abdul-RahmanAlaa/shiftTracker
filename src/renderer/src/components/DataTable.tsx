@@ -13,6 +13,7 @@ import {
   type RowSelectionState,
   type SortingState
 } from '@tanstack/react-table'
+import type { RowData } from '@tanstack/react-table'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -33,6 +34,13 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { formatMoney } from '@/lib/numberFormat'
+
+declare module '@tanstack/react-table' {
+  interface ColumnMeta<TData extends RowData, TValue> {
+    nowrap?: boolean
+    title?: (row: TData, value: TValue) => string | undefined
+  }
+}
 
 const emptyFilterValue = '-'
 
@@ -193,7 +201,7 @@ function DataTable<T>({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-full justify-between gap-2 font-medium"
+                          className="h-8 w-full justify-center gap-2 font-medium"
                         >
                           <span className="truncate">
                             {flexRender(header.column.columnDef.header, header.getContext())}
@@ -347,11 +355,33 @@ function DataTable<T>({
                     />
                   </TableCell>
                 )}
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+                {row.getVisibleCells().map((cell) => {
+                  const value = cell.getValue()
+                  const content = flexRender(cell.column.columnDef.cell, cell.getContext())
+                  const title =
+                    cell.column.columnDef.meta?.title?.(row.original, value) ??
+                    (typeof content === 'string' || typeof content === 'number'
+                      ? String(content)
+                      : value === null || value === undefined
+                        ? undefined
+                        : String(value)) ??
+                    ''
+
+                  return (
+                    <TableCell key={cell.id}>
+                      <div
+                        className={
+                          cell.column.columnDef.meta?.nowrap
+                            ? 'inline-block max-w-full whitespace-nowrap tabular-nums'
+                            : 'max-w-full overflow-hidden whitespace-normal break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]'
+                        }
+                        title={title}
+                      >
+                        {content}
+                      </div>
+                    </TableCell>
+                  )
+                })}
               </TableRow>
             ))
           )}

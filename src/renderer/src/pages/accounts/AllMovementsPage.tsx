@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import type { ColumnDef } from '@tanstack/react-table'
+import { Eye, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
@@ -158,24 +159,24 @@ export function AllMovementsPage(): React.JSX.Element {
   }
 
   const columns: ColumnDef<LedgerRow, unknown>[] = [
-    { accessorKey: 'id', header: t('common.columns.id') },
-    { accessorKey: 'entryDate', header: t('common.columns.date') },
+    { accessorKey: 'id', header: t('common.columns.id'), meta: { nowrap: true } },
+    { accessorKey: 'entryDate', header: t('common.columns.date'), meta: { nowrap: true } },
     {
       id: 'driverName',
       accessorFn: (entry) =>
         drivers.find((driver) => driver.id === entry.driverId)?.name ?? t('common.emptyCell'),
       header: t('ledgerEntryForm.fields.driver')
     },
-    { accessorKey: 'movementType', header: t('ledgerEntryForm.fields.movementType') },
+    {
+      accessorKey: 'movementType',
+      header: t('ledgerEntryForm.fields.movementType'),
+      meta: { nowrap: true }
+    },
     {
       accessorKey: 'amount',
       header: t('common.columns.amount'),
+      meta: { nowrap: true },
       cell: ({ getValue }) => formatMoney(getValue<number>())
-    },
-    {
-      id: 'shiftId',
-      accessorFn: (entry) => entry.shiftId ?? t('common.emptyCell'),
-      header: t('common.columns.shift')
     },
     {
       id: 'contractorName',
@@ -192,6 +193,7 @@ export function AllMovementsPage(): React.JSX.Element {
     {
       id: 'actions',
       header: t('common.columns.actions'),
+      meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => {
@@ -199,11 +201,14 @@ export function AllMovementsPage(): React.JSX.Element {
         const locked = isEntryLocked(entry)
 
         return (
-          <div className="flex gap-2">
+          <div className="flex justify-center gap-1">
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
+              className="h-7 w-7 p-0"
+              aria-label={t('common.details')}
+              title={t('common.details')}
               onClick={() =>
                 openWindow(
                   `ledger-entry-${entry.id}`,
@@ -221,27 +226,31 @@ export function AllMovementsPage(): React.JSX.Element {
                 )
               }
             >
-              {t('common.details')}
+              <Eye className="h-3.5 w-3.5" />
             </Button>
             <Button
               type="button"
               variant="outline"
-              size="sm"
+              size="icon"
+              className="h-7 w-7 p-0"
               disabled={locked}
+              aria-label={t('common.edit')}
               title={locked ? t('common.lockedShift') : t('common.edit')}
               onClick={() => openEditEntryDialog(entry)}
             >
-              {t('common.edit')}
+              <Pencil className="h-3.5 w-3.5" />
             </Button>
             <Button
               type="button"
               variant="destructive"
-              size="sm"
+              size="icon"
+              className="h-7 w-7 p-0"
               disabled={locked}
+              aria-label={t('common.delete')}
               title={locked ? t('common.lockedShift') : t('common.delete')}
               onClick={() => void handleDeleteEntry(entry)}
             >
-              {t('common.delete')}
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
           </div>
         )

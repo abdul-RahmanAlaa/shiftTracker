@@ -38,7 +38,10 @@
 - Electron requests a single-instance lock for the current `userData` path before startup opens the database. A second launch exits silently; the first window is restored, shown, and focused when available.
 - `src/main/ipcWrapper.ts` converts thrown or rejected IPC handlers into the standard `_form` error result and logs the original error. Preload invocation rejections use the same failure result.
 - The renderer shell fills the window; the navigation bar stays visible while table pages scroll inside their table viewport.
-- `DataTable` provides internal vertical and horizontal scrolling with a sticky header. `src/renderer/src/lib/numberFormat.ts` formats displayed money to two decimals and quantities to at most three decimals with en-US grouping and Latin digits; raw values remain the basis for sorting, filtering, and calculations.
+- `DataTable` provides internal scrolling with a sticky header. Headers and cells are centered. Text columns wrap, break long words, clamp to two lines, and expose their full displayed text in a hover title; columns without metadata use this behavior.
+- Numeric, identifier, date, and action columns set `meta: { nowrap: true }` to stay on one line with tabular numerals. Sorting, filtering, selection, and sums continue to use the original row values.
+- The 1366×768 layout keeps all tables within their containers. Shift details moves location, stone price, and transport price into `TripDetailsContent`; All Trips moves shift into that details window; All Movements moves shift into `LedgerEntryDetailsContent`. Other table columns remain visible, including every statement, settings, and client-payment column.
+- `src/renderer/src/lib/numberFormat.ts` formats displayed money to two decimals and quantities to at most three decimals with en-US grouping and Latin digits.
 - `src/renderer/src/lib/ipcErrors.ts` exports the shared `ipcApi`, translates unexpected IPC failures, and shows non-blocking notices for unhandled errors and failed deletes. Identical notices are suppressed for three seconds and parallel bursts are coalesced; field-level validation remains with each form. Successful trip creation and update use the same notice mechanism; success notices dismiss after three seconds.
 - Use cases return `{ ok: true, data }` or `{ ok: false, errors }`, where each error has a `field` and `message`.
 - Runtime validation is in main-process use cases and shared schemas/helpers in `src/main/validation.ts`; renderer forms also use Zod for immediate field feedback.
@@ -193,7 +196,7 @@ Trip history ordering uses the greatest trip date, then the greatest numeric tri
 | `/statements`      | `StatementsPage` — client and contractor statements                                                                  |
 | `/settings`        | `SettingsPage` — vehicles, drivers, contractors, crushers, clients, material types                                   |
 
-The wildcard route redirects to `/`. Every page has a visible title; the active top-navigation link is highlighted and marked with `aria-current="page"`. Shared renderer components include `DataTable` (internally scrollable with a sticky header), `TripEntryGrid`, `AttachmentManager`, `CreateShiftForm`, `LedgerEntryForm`, `TripDetailsContent`, `LedgerEntryDetailsContent`, `ShiftBreadcrumb`, `SubmitButton`, and the floating-window provider/components.
+The wildcard route redirects to `/`. Every page has a visible title; the active top-navigation link is highlighted and marked with `aria-current="page"`. Shared renderer components include `DataTable` (centered cells, text wrapping, nowrap column metadata, an internal scroll viewport, and a sticky header), `TripEntryGrid`, `AttachmentManager`, `CreateShiftForm`, `LedgerEntryForm`, `TripDetailsContent`, `LedgerEntryDetailsContent`, `ShiftBreadcrumb`, `SubmitButton`, and the floating-window provider/components.
 
 ## 7. Verification
 
@@ -218,6 +221,7 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - **OI-007 — Low, Add Trip grid manual confirmation:** typing, paste, suggestions, keyboard behavior, server-error retention, driver switching, and laptop fit remain unchecked; scenarios are listed in `docs/manual-checklist.md`.
 - **OI-008 — Medium, E2E coverage:** expand automated coverage according to `docs/e2e-coverage-plan.md`.
 - **OI-009 — Medium, E2E coverage:** expand E2E coverage per `docs/e2e-coverage-plan.md`.
+- **OI-010 — Low, table layout manual confirmation:** confirm two-line text wrapping, full-text hover titles, centered headers and cells, laptop fit, and unchanged sorting, filtering, and sums using `docs/manual-checklist.md`.
 
 Manual confirmation scenarios are listed unchecked by area in `docs/manual-checklist.md`.
 
