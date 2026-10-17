@@ -324,10 +324,6 @@ export function AddTripPage(): React.JSX.Element {
               </Badge>
             </>
           )}
-          <Badge variant={selectedDriverId ? 'secondary' : 'outline'}>
-            {t('tripGrid.stepDriver')}
-          </Badge>
-          <Badge variant={openShift ? 'secondary' : 'outline'}>{t('tripGrid.stepTrips')}</Badge>
         </div>
       </header>
 
