@@ -217,6 +217,7 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - **OI-006 — Low, app packaging metadata:** boilerplate app metadata, window title, HTML language/direction, and app ID alignment need review. Review `package.json`, `src/renderer/index.html`, and `src/main/index.ts`.
 - **OI-007 — Low, Add Trip grid manual confirmation:** typing, paste, suggestions, keyboard behavior, server-error retention, driver switching, and laptop fit remain unchecked; scenarios are listed in `docs/manual-checklist.md`.
 - **OI-008 — Medium, E2E coverage:** expand automated coverage according to `docs/e2e-coverage-plan.md`.
+- **OI-009 — Medium, E2E coverage:** expand E2E coverage per `docs/e2e-coverage-plan.md`.
 
 Manual confirmation scenarios are listed unchecked by area in `docs/manual-checklist.md`.
 
