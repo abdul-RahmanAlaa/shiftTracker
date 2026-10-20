@@ -171,6 +171,41 @@ async function expectTablesFit(page, label, measurements) {
   }
 }
 
+function nextDialog(page, action) {
+  return new Promise((resolve, reject) => {
+    page.once('dialog', (dialog) => {
+      const message = dialog.message()
+      void dialog[action]().then(() => resolve(message), reject)
+    })
+  })
+}
+
+async function expectNotice(page, key) {
+  await expect(page.getByRole('status').filter({ hasText: text(key) })).toBeVisible()
+}
+
+async function closeShiftViaApi(page, shiftId) {
+  const endDate = today()
+  const result = await page.evaluate(
+    ({ shiftId: id, endDate: date }) =>
+      window.api.closeShift({ shiftId: id, endDate: date, reportedTripCount: 1 }),
+    { shiftId, endDate }
+  )
+  expect(result.ok).toBe(true)
+}
+
+async function openShiftDetails(page, shiftId) {
+  await navigate(page, '/shifts', 'shifts.title')
+  const shiftRow = page.getByRole('row').filter({ hasText: shiftId })
+  await shiftRow.locator('[data-slot="table-cell"]').nth(1).click()
+  await expect(page).toHaveURL(new RegExp(`/shifts/${escapeRegExp(shiftId)}$`))
+  await expect(page.getByRole('heading', { name: shiftId, exact: true })).toBeVisible()
+}
+
+function allTripsRow(page, driverName) {
+  return page.getByRole('row').filter({ hasText: driverName })
+}
+
 const testWithApp = test.extend({
   launchApp: async (
     // eslint-disable-next-line no-empty-pattern
@@ -312,6 +347,11 @@ module.exports = {
   expectNoRawTranslationKeys,
   expectTablesFit,
   rawTranslationIdentifier,
+  nextDialog,
+  expectNotice,
+  closeShiftViaApi,
+  openShiftDetails,
+  allTripsRow,
   routes,
   testWithApp
 }
