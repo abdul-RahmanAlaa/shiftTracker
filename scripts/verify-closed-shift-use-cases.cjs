@@ -31,7 +31,13 @@ import Database from 'better-sqlite3'
 import crypto from 'node:crypto'
 import { initDatabase, getDb, SCHEMA, CURRENT_VERSION } from '../src/main/db'
 import { MigrationError, runMigrations } from '../src/main/migrations'
-import { createVerifiedDatabaseBackup } from '../src/main/backup'
+import {
+  BackupService,
+  createVerifiedDatabaseBackup,
+  initializeBackupService,
+  syncAttachmentMirror,
+  verifyDatabaseSnapshot
+} from '../src/main/backup'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createLedgerEntry, updateLedgerEntry, deleteLedgerEntry } from '../src/main/use-cases/createLedgerEntry'
@@ -60,31 +66,41 @@ import * as tripGrid from '../src/renderer/src/lib/tripGrid'
 import { getSuggestedTripPrices } from '../src/main/use-cases/suggestTripPrices'
 
 const outcomes = []
+const pendingCases = []
 const harnessUserData = process.env.SHIFT_TRACKER_USER_DATA
 const migrationRoot = path.join(process.env.SHIFT_TRACKER_USER_DATA, 'migration-cases')
 globalThis.__migrationDialog = []
 globalThis.__migrationQuitCount = 0
 
 function runCase(name, expected, operation, passes) {
-  let actual
-  try {
-    actual = { threw: false, value: operation() }
-  } catch (error) {
-    actual = { threw: true, error: error instanceof Error ? error.message : String(error) }
+  const finish = (actual) => {
+    const pass = passes(actual)
+    if (!pass) outcomes.push(name)
+    console.log(
+      '| ' +
+        name.replaceAll('|', '\\|') +
+        ' | ' +
+        (pass ? 'PASS' : 'FAIL') +
+        ' | ' +
+        expected.replaceAll('|', '\\|') +
+        ' |'
+    )
+    if (!pass) console.log('DETAIL ' + name + ' | ' + JSON.stringify(actual))
   }
-  const pass = passes(actual)
-  if (!pass) outcomes.push(name)
-  console.log(
-    '| ' +
-      name.replaceAll('|', '\\|') +
-      ' | ' +
-      (pass ? 'PASS' : 'FAIL') +
-      ' | ' +
-      expected.replaceAll('|', '\\|') +
-      ' |'
-  )
-  if (!pass) console.log('DETAIL ' + name + ' | ' + JSON.stringify(actual))
-  return actual
+  try {
+    const value = operation()
+    if (value && typeof value.then === 'function') {
+      const pending = Promise.resolve(value).then(
+        (resolved) => finish({ threw: false, value: resolved }),
+        (error) => finish({ threw: true, error: error instanceof Error ? error.message : String(error) })
+      )
+      pendingCases.push(pending)
+      return pending
+    }
+    finish({ threw: false, value })
+  } catch (error) {
+    finish({ threw: true, error: error instanceof Error ? error.message : String(error) })
+  }
 }
 async function runAsyncCase(name, expected, operation, passes) {
   let actual
@@ -106,6 +122,258 @@ async function runAsyncCase(name, expected, operation, passes) {
   )
   if (!pass) console.log('DETAIL ' + name + ' | ' + JSON.stringify(actual))
   return actual
+}
+async function runBackupCases() {
+  const backupRoot = path.join(harnessUserData, 'backup-cases')
+  fs.mkdirSync(backupRoot, { recursive: true })
+  const makeRoot = (name) => {
+    const userDataPath = path.join(backupRoot, name)
+    fs.mkdirSync(userDataPath, { recursive: true })
+    return userDataPath
+  }
+  const now = new Date(2026, 2, 10, 12, 30, 45, 123)
+
+  await runAsyncCase(
+    'BK-1 post-close snapshot is created, verified and named correctly',
+    'verified post-close-<timestamp>-<shiftId>.db snapshot',
+    async () => {
+      const userDataPath = makeRoot('BK-1')
+      const service = new BackupService(userDataPath, db)
+      const response = await service.backupAfterClose('BK1-SHIFT', now)
+      const snapshotPath = response.ok ? response.data.snapshotPath : ''
+      const verification = snapshotPath
+        ? verifyDatabaseSnapshot(snapshotPath, CURRENT_VERSION)
+        : undefined
+      return {
+        response,
+        name: path.basename(snapshotPath),
+        verification,
+        files: fs.readdirSync(path.join(userDataPath, 'backups', 'db'))
+      }
+    },
+    (actual) => {
+      const output = result(actual)
+      return output?.response?.ok === true &&
+        output.name ===
+          'post-close-' +
+            now.toISOString().replaceAll(':', '-').replaceAll('.', '-') +
+            '-BK1-SHIFT.db' &&
+        output.verification?.ok === true &&
+        output.verification.data.version === CURRENT_VERSION &&
+        output.files.includes(output.name)
+    }
+  )
+
+  await runAsyncCase(
+    'BK-2 attachment mirror copies once and skips unchanged files',
+    'first copies all files; second copies none and preserves file timestamps',
+    async () => {
+      const userDataPath = makeRoot('BK-2')
+      const source = path.join(userDataPath, 'docs', 'attachments')
+      fs.mkdirSync(path.join(source, 'nested'), { recursive: true })
+      fs.writeFileSync(path.join(source, 'one.jpg'), Buffer.from('one'))
+      fs.writeFileSync(path.join(source, 'nested', 'two.jpg'), Buffer.from('two'))
+      const first = await syncAttachmentMirror(userDataPath)
+      const mirrored = [
+        path.join(userDataPath, 'backups', 'attachments', 'one.jpg'),
+        path.join(userDataPath, 'backups', 'attachments', 'nested', 'two.jpg')
+      ]
+      const mtimes = mirrored.map((file) => fs.statSync(file).mtimeMs)
+      const second = await syncAttachmentMirror(userDataPath)
+      return { first, second, mtimes, after: mirrored.map((file) => fs.statSync(file).mtimeMs) }
+    },
+    (actual) => {
+      const output = result(actual)
+      return output?.first.copied === 2 &&
+        output.first.skipped === 0 &&
+        output.first.failed === 0 &&
+        output.second.copied === 0 &&
+        output.second.skipped === 2 &&
+        output.second.failed === 0 &&
+        JSON.stringify(output.mtimes) === JSON.stringify(output.after)
+    }
+  )
+
+  await runAsyncCase(
+    'BK-3 mirror retains deleted files and recopies smaller partial files',
+    'deleted source remains mirrored; smaller target is copied again',
+    async () => {
+      const userDataPath = makeRoot('BK-3')
+      const source = path.join(userDataPath, 'docs', 'attachments')
+      const mirror = path.join(userDataPath, 'backups', 'attachments')
+      fs.mkdirSync(source, { recursive: true })
+      fs.writeFileSync(path.join(source, 'removed.jpg'), Buffer.from('kept'))
+      fs.writeFileSync(path.join(source, 'partial.jpg'), Buffer.from('complete'))
+      await syncAttachmentMirror(userDataPath)
+      fs.rmSync(path.join(source, 'removed.jpg'))
+      fs.writeFileSync(path.join(mirror, 'partial.jpg'), Buffer.from('x'))
+      const counts = await syncAttachmentMirror(userDataPath)
+      return {
+        counts,
+        removedStillExists: fs.existsSync(path.join(mirror, 'removed.jpg')),
+        partialContents: fs.readFileSync(path.join(mirror, 'partial.jpg'), 'utf8')
+      }
+    },
+    (actual) => {
+      const output = result(actual)
+      return output?.counts.copied === 1 &&
+        output.counts.skipped === 0 &&
+        output.counts.failed === 0 &&
+        output.removedStillExists === true &&
+        output.partialContents === 'complete'
+    }
+  )
+
+  await runAsyncCase(
+    'BK-4 daily snapshot runs once per local date',
+    'same date does not create a second snapshot; next date creates another',
+    async () => {
+      const userDataPath = makeRoot('BK-4')
+      const service = new BackupService(userDataPath, db)
+      const first = await service.createDailySnapshot(now)
+      const sameDay = await service.createDailySnapshot(new Date(2026, 2, 10, 23, 0))
+      const nextDay = await service.createDailySnapshot(new Date(2026, 2, 11, 0, 1))
+      const files = fs.readdirSync(path.join(userDataPath, 'backups', 'db')).sort()
+      return { first, sameDay, nextDay, files }
+    },
+    (actual) => {
+      const output = result(actual)
+      return output?.first.ok === true &&
+        output.first.data.snapshotPath !== null &&
+        output.sameDay.ok === true &&
+        output.sameDay.data.snapshotPath === null &&
+        output.nextDay.ok === true &&
+        output.nextDay.data.snapshotPath !== null &&
+        output.files.length === 2 &&
+        output.files.includes('daily-2026-03-10.db') &&
+        output.files.includes('daily-2026-03-11.db')
+    }
+  )
+
+  await runAsyncCase(
+    'BK-5 retention prunes only oldest named snapshots',
+    'keeps newest 60 daily and 120 post-close files and preserves unrelated files/folders',
+    async () => {
+      const userDataPath = makeRoot('BK-5')
+      const databaseDirectory = path.join(userDataPath, 'backups', 'db')
+      fs.mkdirSync(databaseDirectory, { recursive: true })
+      const start = new Date(2026, 0, 1)
+      for (let index = 0; index < 62; index += 1) {
+        const date = new Date(start)
+        date.setDate(start.getDate() + index)
+        const day = String(date.getFullYear()) + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0')
+        fs.writeFileSync(path.join(databaseDirectory, 'daily-' + day + '.db'), 'daily')
+      }
+      for (let index = 0; index < 122; index += 1) {
+        const date = new Date(start)
+        date.setDate(start.getDate() + index)
+        const stamp = String(date.getFullYear()) + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0') + 'T00-00-00-000Z'
+        fs.writeFileSync(path.join(databaseDirectory, 'post-close-' + stamp + '-OLD.db'), 'post')
+      }
+      fs.writeFileSync(path.join(databaseDirectory, 'pre-migration-v1.db'), 'pre-migration')
+      fs.writeFileSync(path.join(databaseDirectory, 'unknown.bin'), 'unknown')
+      const legacyDirectory = path.join(userDataPath, 'backups', 'legacy')
+      fs.mkdirSync(legacyDirectory)
+      fs.writeFileSync(path.join(legacyDirectory, 'keep.txt'), 'legacy')
+      const service = new BackupService(userDataPath, db)
+      const dailyResult = await service.createDailySnapshot(now)
+      const postResult = await service.backupAfterClose('BK5-SHIFT', now)
+      const files = fs.readdirSync(databaseDirectory)
+      return {
+        dailyResult,
+        postResult,
+        dailyCount: files.filter((name) => name.startsWith('daily-') && name.endsWith('.db')).length,
+        postCount: files.filter((name) => name.startsWith('post-close-') && name.endsWith('.db')).length,
+        preserved: [
+          files.includes('pre-migration-v1.db'),
+          files.includes('unknown.bin'),
+          fs.readFileSync(path.join(legacyDirectory, 'keep.txt'), 'utf8') === 'legacy'
+        ]
+      }
+    },
+    (actual) => {
+      const output = result(actual)
+      return output?.dailyResult.ok === true &&
+        output.postResult.ok === true &&
+        output.dailyCount === 60 &&
+        output.postCount === 120 &&
+        output.preserved.every(Boolean)
+    }
+  )
+
+  await runAsyncCase(
+    'BK-6 unwritable backup path warns but close succeeds',
+    'closeShift returns ok with backupWarning and persists CLOSED state',
+    async () => {
+      const userDataPath = makeRoot('BK-6')
+      const previousUserDataPath = process.env.SHIFT_TRACKER_USER_DATA
+      try {
+        process.env.SHIFT_TRACKER_USER_DATA = userDataPath
+        fs.writeFileSync(path.join(userDataPath, 'backups'), 'not a directory')
+        initializeBackupService(userDataPath, db)
+        const shift = createOwnShift()
+        addClosingSheet(shift.id, 'bk6-closing-sheet.jpg')
+        const response = await closeShift({
+          shiftId: shift.id,
+          endDate: '2026-03-11',
+          reportedTripCount: 0
+        })
+        const status = db.prepare('SELECT status FROM Shift WHERE id = ?').get(shift.id)?.status
+        return { response, status }
+      } finally {
+        process.env.SHIFT_TRACKER_USER_DATA = previousUserDataPath
+      }
+    },
+    (actual) => {
+      const output = result(actual)
+      return output?.response?.ok === true &&
+        output.response.data.backupWarning === true &&
+        output.status === 'CLOSED'
+    }
+  )
+
+  await runAsyncCase(
+    'BK-7 corrupt snapshot is removed and reported',
+    'verification returns failure and deletes the invalid database file',
+    () => {
+      const snapshotPath = path.join(makeRoot('BK-7'), 'corrupt.db')
+      fs.writeFileSync(snapshotPath, 'not sqlite')
+      const verification = verifyDatabaseSnapshot(snapshotPath, CURRENT_VERSION)
+      return { verification, exists: fs.existsSync(snapshotPath) }
+    },
+    (actual) => {
+      const output = result(actual)
+      return output?.verification.ok === false &&
+        output.verification.errors[0].field === 'snapshot' &&
+        output.exists === false
+    }
+  )
+
+  await runAsyncCase(
+    'BK-8 backup status persists and reloads after restart',
+    'success timestamp and subsequent error are both available after service recreation',
+    async () => {
+      const userDataPath = makeRoot('BK-8')
+      const service = new BackupService(userDataPath, db)
+      await service.createDailySnapshot(now)
+      const databaseDirectory = path.join(userDataPath, 'backups', 'db')
+      fs.rmSync(databaseDirectory, { recursive: true, force: true })
+      fs.writeFileSync(databaseDirectory, 'blocked directory')
+      await service.createDailySnapshot(new Date(2026, 2, 11, 12, 30))
+      const persisted = JSON.parse(
+        fs.readFileSync(path.join(userDataPath, 'backups', 'status.json'), 'utf8')
+      )
+      const reloaded = new BackupService(userDataPath, db).getStatus()
+      return { persisted, reloaded }
+    },
+    (actual) => {
+      const output = result(actual)
+      return typeof output?.persisted.lastSuccessAt === 'string' &&
+        typeof output.persisted.lastError === 'string' &&
+        output.reloaded.lastSuccessAt === output.persisted.lastSuccessAt &&
+        output.reloaded.lastError === output.persisted.lastError
+    }
+  )
 }
 function result(actual) {
   return actual && !actual.threw ? actual.value : undefined
@@ -1306,6 +1574,7 @@ try {
 
   process.env.SHIFT_TRACKER_USER_DATA = harnessUserData
   db = initDatabase()
+  initializeBackupService(harnessUserData, db)
   const contractorInsert = db.prepare('INSERT INTO TransportContractor (name) VALUES (?)').run('Verify Contractor')
   contractorId = Number(contractorInsert.lastInsertRowid)
   const driverInsert = db.prepare('INSERT INTO Driver (name) VALUES (?)').run('Verify Driver')
@@ -1377,7 +1646,7 @@ try {
     const before = db.prepare('SELECT id FROM Ledger WHERE id = ?').get(closedLedgerId)
     return deleted?.ok === false && before?.id === closedLedgerId
   })
-  runCase('C1 OPEN close with empty reported count rejected', 'ok:false / field reportedTripCount and row still OPEN', () => {
+  runCase('C1 OPEN close with empty reported count rejected', 'ok:false / field reportedTripCount and row still OPEN', async () => {
     const shiftResult = createShift({
       vehicleNo: 97010,
       driverId: Number(db.prepare('INSERT INTO Driver (name) VALUES (?)').run('Verify Open Close Driver').lastInsertRowid),
@@ -1387,12 +1656,12 @@ try {
     })
     if (!shiftResult.ok) return { shiftResult }
     const shiftId = shiftResult.data.id
-    return { shiftId, closeResult: closeShift({ shiftId, endDate: '2026-01-21' }) }
+    return { shiftId, closeResult: await closeShift({ shiftId, endDate: '2026-01-21' }) }
   }, (actual) => {
     const output = result(actual)
     return output?.shiftId && output?.closeResult && !output.closeResult.ok && hasFieldErrors(output.closeResult, ['reportedTripCount']) && db.prepare('SELECT status FROM Shift WHERE id = ?').get(output.shiftId)?.status === 'OPEN'
   })
-  runCase('C2 OPEN close with invalid reported count values rejected', 'ok:false / field reportedTripCount and row still OPEN', () => {
+  runCase('C2 OPEN close with invalid reported count values rejected', 'ok:false / field reportedTripCount and row still OPEN', async () => {
     const values = [2.5, -1, '3', Number.NaN]
     const generated = []
     for (const reportedTripCount of values) {
@@ -1404,7 +1673,7 @@ try {
         startDate: '2026-01-22'
       })
       if (!shiftResult.ok) return { failure: shiftResult }
-      const closeResult = closeShift({
+      const closeResult = await closeShift({
         shiftId: shiftResult.data.id,
         endDate: '2026-01-23',
         reportedTripCount: reportedTripCount as unknown as number
@@ -1442,6 +1711,7 @@ try {
     const output = result(actual)
     return output?.second && !output.second.ok && hasFieldErrors(output.second, ['vehicleNo'])
   })
+  await Promise.all(pendingCases)
   const invalidTripNumbers = [
     ['string', '10'],
     ['NaN', Number.NaN],
@@ -1518,19 +1788,19 @@ try {
     const output = result(actual)
     return !actual.threw && output?.unchanged === true && hasExactFieldError(output.response, 'reportedTripCount')
   })
-  runCase('V closeShift rejects endDate before startDate without changing shift', 'ok:false / exact field endDate / shift unchanged', () => {
+  runCase('V closeShift rejects endDate before startDate without changing shift', 'ok:false / exact field endDate / shift unchanged', async () => {
     const shift = createOwnShift()
     const before = shiftRowSnapshot(shift.id)
-    const response = closeShift({ shiftId: shift.id, endDate: '2026-01-31', reportedTripCount: 0 })
+    const response = await closeShift({ shiftId: shift.id, endDate: '2026-01-31', reportedTripCount: 0 })
     return { response, unchanged: before === shiftRowSnapshot(shift.id) }
   }, (actual) => {
     const output = result(actual)
     return !actual.threw && output?.unchanged === true && hasExactFieldError(output.response, 'endDate')
   })
-  runCase('V closeShift rejects mismatched valid count and leaves OPEN shift unchanged', 'ok:false / exact field tripCount / OPEN row unchanged', () => {
+  runCase('V closeShift rejects mismatched valid count and leaves OPEN shift unchanged', 'ok:false / exact field tripCount / OPEN row unchanged', async () => {
     const shift = createOwnShift()
     const before = shiftRowSnapshot(shift.id)
-    const response = closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 1 })
+    const response = await closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 1 })
     return {
       response,
       unchanged: before === shiftRowSnapshot(shift.id),
@@ -1543,16 +1813,17 @@ try {
       output.status === 'OPEN' &&
       hasExactFieldError(output.response, 'tripCount')
   })
-  runCase('V closeShift succeeds when backup works without warning', 'ok:true / CLOSED shift / backup created / no backupWarning', () => {
+  await runCase('V closeShift succeeds when backup works without warning', 'ok:true / CLOSED shift / backup created / no backupWarning', async () => {
     const shift = createOwnShift()
     addClosingSheet(shift.id, 'validation-backup-success.jpg')
     const backupDir = path.join(process.env.SHIFT_TRACKER_USER_DATA, 'backups')
-    const before = fs.existsSync(backupDir)
-      ? new Set(fs.readdirSync(backupDir).filter((name) => name.startsWith('shift-tracker-')))
+    const databaseDir = path.join(backupDir, 'db')
+    const before = fs.existsSync(databaseDir)
+      ? new Set(fs.readdirSync(databaseDir).filter((name) => name.startsWith('post-close-')))
       : new Set()
-    const response = closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 0 })
-    const createdBackups = fs.existsSync(backupDir)
-      ? fs.readdirSync(backupDir).filter((name) => name.startsWith('shift-tracker-') && !before.has(name))
+    const response = await closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 0 })
+    const createdBackups = fs.existsSync(databaseDir)
+      ? fs.readdirSync(databaseDir).filter((name) => name.startsWith('post-close-') && !before.has(name))
       : []
     return {
       response,
@@ -1566,7 +1837,7 @@ try {
       output.status === 'CLOSED' &&
       output.createdBackups.length > 0
   })
-  runCase('V closeShift backup failure still closes and returns warning', 'ok:true / CLOSED shift / backupWarning:true', () => {
+  await runCase('V closeShift backup failure still closes and returns warning', 'ok:true / CLOSED shift / backupWarning:true', async () => {
     const shift = createOwnShift()
     addClosingSheet(shift.id, 'validation-backup-failure.jpg')
     const backupDir = path.join(process.env.SHIFT_TRACKER_USER_DATA, 'backups')
@@ -1576,7 +1847,7 @@ try {
     fs.writeFileSync(backupDir, 'blocked backup destination')
     let response
     try {
-      response = closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 0 })
+      response = await closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 0 })
     } finally {
       fs.unlinkSync(backupDir)
       if (hadBackupDir) fs.renameSync(parkedBackupDir, backupDir)
@@ -1591,35 +1862,35 @@ try {
       output.response.data.backupWarning === true &&
       output.status === 'CLOSED'
   })
-  runCase('V closeShift impossible endDate is not valid', 'ok:false / exact field endDate / invalid-date message / shift unchanged', () => {
+  runCase('V closeShift impossible endDate is not valid', 'ok:false / exact field endDate / invalid-date message / shift unchanged', async () => {
     const shift = createOwnShift()
     const before = shiftRowSnapshot(shift.id)
-    const response = closeShift({ shiftId: shift.id, endDate: '2026-13-45', reportedTripCount: 0 })
+    const response = await closeShift({ shiftId: shift.id, endDate: '2026-13-45', reportedTripCount: 0 })
     return { response, unchanged: before === shiftRowSnapshot(shift.id) }
   }, (actual) => {
     const output = result(actual)
     return !actual.threw && output?.unchanged === true && hasExactFieldErrorMessage(output.response, 'endDate', 'غير صحيح')
   })
-  runCase('V closeShift empty endDate is required', 'ok:false / exact field endDate / required message / shift unchanged', () => {
+  runCase('V closeShift empty endDate is required', 'ok:false / exact field endDate / required message / shift unchanged', async () => {
     const shift = createOwnShift()
     const before = shiftRowSnapshot(shift.id)
-    const response = closeShift({ shiftId: shift.id, endDate: '', reportedTripCount: 0 })
+    const response = await closeShift({ shiftId: shift.id, endDate: '', reportedTripCount: 0 })
     return { response, unchanged: before === shiftRowSnapshot(shift.id) }
   }, (actual) => {
     const output = result(actual)
     return !actual.threw && output?.unchanged === true && hasExactFieldErrorMessage(output.response, 'endDate', 'مطلوب')
   })
-  runCase('V CLOSED shift with invalid count reports already-closed shiftId first', 'ok:false / exact field shiftId / row unchanged', () => {
+  runCase('V CLOSED shift with invalid count reports already-closed shiftId first', 'ok:false / exact field shiftId / row unchanged', async () => {
     const shift = createOwnShift()
     db.prepare("UPDATE Shift SET status = 'CLOSED', end_date = ? WHERE id = ?").run('2026-02-02', shift.id)
     const before = shiftRowSnapshot(shift.id)
-    const response = closeShift({ shiftId: shift.id, endDate: '2026-02-03', reportedTripCount: -1 })
+    const response = await closeShift({ shiftId: shift.id, endDate: '2026-02-03', reportedTripCount: -1 })
     return { response, unchanged: before === shiftRowSnapshot(shift.id) }
   }, (actual) => {
     const output = result(actual)
     return !actual.threw && output?.unchanged === true && hasExactFieldErrorMessage(output.response, 'shiftId', 'مقفولة بالفعل')
   })
-  runCase('V vehicle becomes available after close and reopened shift does not block it', 'second OPEN rejects vehicleNo, close frees vehicle, REOPENED allows new shift', () => {
+  runCase('V vehicle becomes available after close and reopened shift does not block it', 'second OPEN rejects vehicleNo, close frees vehicle, REOPENED allows new shift', async () => {
     const firstInput = newShiftInput()
     const vehicleNo = firstInput.vehicleNo
     const first = createShift(firstInput)
@@ -1629,12 +1900,12 @@ try {
     const secondRejected = createShift(secondInput)
     const noInsert = beforeRejectedCreate === shiftRowsSnapshot()
     addClosingSheet(first.data.id, 'validation-vehicle-close.jpg')
-    const firstClosed = closeShift({ shiftId: first.data.id, endDate: '2026-02-02', reportedTripCount: 0 })
+    const firstClosed = await closeShift({ shiftId: first.data.id, endDate: '2026-02-02', reportedTripCount: 0 })
     const thirdInput = { ...newShiftInput(), vehicleNo }
     const afterClose = createShift(thirdInput)
     if (!afterClose.ok) return { secondRejected, noInsert, firstClosed, afterClose }
     addClosingSheet(afterClose.data.id, 'validation-vehicle-close-again.jpg')
-    const secondClosed = closeShift({ shiftId: afterClose.data.id, endDate: '2026-02-03', reportedTripCount: 0 })
+    const secondClosed = await closeShift({ shiftId: afterClose.data.id, endDate: '2026-02-03', reportedTripCount: 0 })
     const reopened = reopenShift({ shiftId: first.data.id, reason: 'vehicle guard verification' })
     const fourthInput = { ...newShiftInput(), vehicleNo }
     const afterReopen = createShift(fourthInput)
@@ -1783,7 +2054,7 @@ try {
     return closed?.ok === true && db.prepare('SELECT status FROM Shift WHERE id = ?').get(closedShiftId)?.status === 'CLOSED' && db.prepare('SELECT closed_again_at FROM ShiftReopenLog WHERE shift_id = ? ORDER BY id DESC LIMIT 1').get(closedShiftId)?.closed_again_at != null
   })
 
-  runCase('R8 re-close without a new count after adding a reopened-shift trip is rejected', 'initial close ok, reopen ok, trip creation ok, re-close rejects missing count', () => {
+  await runCase('R8 re-close without a new count after adding a reopened-shift trip is rejected', 'initial close ok, reopen ok, trip creation ok, re-close rejects missing count', async () => {
     const mismatchDriverId = Number(db.prepare('INSERT INTO Driver (name) VALUES (?)').run('Verify Mismatch Driver').lastInsertRowid)
     const mismatchShiftResult = createShift({
       vehicleNo: 97030,
@@ -1802,7 +2073,7 @@ try {
     fs.writeFileSync(path.join(mismatchAttachmentDir, 'count-mismatch-close.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00]))
     db.prepare("INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))").run('SHIFT', mismatchShiftId, 'CLOSING_SHEET', mismatchClosePath)
 
-    const initialClose = closeShift({ shiftId: mismatchShiftId, endDate: '2026-01-22', reportedTripCount: 0 })
+    const initialClose = await closeShift({ shiftId: mismatchShiftId, endDate: '2026-01-22', reportedTripCount: 0 })
     if (!initialClose.ok) return { stage: 'initialClose', initialClose }
     const reopenResult = reopenShift({ shiftId: mismatchShiftId, reason: 'add forgotten trip' })
     if (!reopenResult.ok) return { stage: 'reopen', initialClose, reopenResult }
@@ -1827,22 +2098,22 @@ try {
     fs.writeFileSync(path.join(mismatchAttachmentDir, 'count-mismatch-trip.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00]))
     db.prepare("INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))").run('TRIP', tripResult.data.id, 'CRUSHER_RECEIPT', tripAttachmentPath)
 
-    const recloseWithoutCount = closeShift({ shiftId: mismatchShiftId, endDate: '2026-01-23' })
+    const recloseWithoutCount = await closeShift({ shiftId: mismatchShiftId, endDate: '2026-01-23' })
     return { initialClose, reopenResult, tripResult, recloseWithoutCount }
   }, (actual) => {
     const sequence = result(actual)
     return sequence?.initialClose?.ok === true && sequence.reopenResult?.ok === true && sequence.tripResult?.ok === true && hasFieldErrors(sequence.recloseWithoutCount, ['reportedTripCount'])
   })
-  runCase('R9 re-close with an incorrect reported count is rejected', 'ok:false / field tripCount and shift remains REOPENED', () => {
+  await runCase('R9 re-close with an incorrect reported count is rejected', 'ok:false / field tripCount and shift remains REOPENED', () => {
     if (!reopenedCountShiftId) return { ok: false, errors: [{ field: 'shiftId', message: 'R8 did not create its shift' }] }
     return closeShift({ shiftId: reopenedCountShiftId, endDate: '2026-01-23', reportedTripCount: 2 })
   }, (actual) => {
     const closed = result(actual)
     return hasFieldErrors(closed, ['tripCount']) && db.prepare('SELECT status FROM Shift WHERE id = ?').get(reopenedCountShiftId)?.status === 'REOPENED'
   })
-  runCase('R10 re-close with the correct reported count closes shift and updates log', 'ok:true / status CLOSED, reported count 1, closed_again_at set', () => {
+  await runCase('R10 re-close with the correct reported count closes shift and updates log', 'ok:true / status CLOSED, reported count 1, closed_again_at set', async () => {
     if (!reopenedCountShiftId) return { ok: false, errors: [{ field: 'shiftId', message: 'R8 did not create its shift' }] }
-    const result = closeShift({ shiftId: reopenedCountShiftId, endDate: '2026-01-23', reportedTripCount: 1 })
+    const result = await closeShift({ shiftId: reopenedCountShiftId, endDate: '2026-01-23', reportedTripCount: 1 })
     return {
       result,
       status: db.prepare('SELECT status FROM Shift WHERE id = ?').get(reopenedCountShiftId)?.status,
@@ -1853,7 +2124,7 @@ try {
     const closed = result(actual)
     return closed?.result?.ok === true && closed.status === 'CLOSED' && closed.reportedTripCount === 1 && closed.closedAgainAt != null
   })
-  runCase('R11 OPEN close accepted with a valid reported count', 'ok:true / status CLOSED / reported count 0', () => {
+  runCase('R11 OPEN close accepted with a valid reported count', 'ok:true / status CLOSED / reported count 0', async () => {
     const shiftResult = createShift({
       vehicleNo: 97050,
       driverId: Number(db.prepare('INSERT INTO Driver (name) VALUES (?)').run('Verify Open Close Accepted Driver').lastInsertRowid),
@@ -1867,7 +2138,7 @@ try {
     fs.mkdirSync(attachmentDir, { recursive: true })
     fs.writeFileSync(path.join(attachmentDir, 'open-close-sheet.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00]))
     db.prepare("INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))").run('SHIFT', shiftResult.data.id, 'CLOSING_SHEET', attachmentPath)
-    const closeResult = closeShift({ shiftId: shiftResult.data.id, endDate: '2026-01-31', reportedTripCount: 0 })
+    const closeResult = await closeShift({ shiftId: shiftResult.data.id, endDate: '2026-01-31', reportedTripCount: 0 })
     return {
       shiftResult,
       closeResult,
@@ -1881,7 +2152,7 @@ try {
   runCase('R12 invalid reported trip count type rejected without throwing', 'ok:false / field reportedTripCount', () => closeShift({ shiftId: openShiftId, endDate: '2026-01-11', reportedTripCount: '1' }), (actual) => !actual.threw && hasFieldErrors(result(actual), ['reportedTripCount']))
   runCase('R13 reopen rejects a non-string shiftId without throwing', 'ok:false / field shiftId', () => reopenShift({ shiftId: 123, reason: 'invalid input' }), (actual) => !actual.threw && hasFieldErrors(result(actual), ['shiftId']))
   runCase('R14 reopen rejects undefined input without throwing', 'ok:false / field shiftId', () => reopenShift(undefined), (actual) => !actual.threw && hasFieldErrors(result(actual), ['shiftId']))
-  runCase('R15 REOPENED shift accepts reported count when closing', 'ok:true / status CLOSED / reported count 0 / reopen log closed', () => {
+  runCase('R15 REOPENED shift accepts reported count when closing', 'ok:true / status CLOSED / reported count 0 / reopen log closed', async () => {
     const reopenResult = reopenShift({ shiftId: secondClosedShiftId, reason: 'verify reported count close' })
     if (!reopenResult.ok) return { reopenResult }
     const attachmentPath = 'docs/attachments/reopened-count-close.jpg'
@@ -1889,7 +2160,7 @@ try {
     fs.mkdirSync(attachmentDir, { recursive: true })
     fs.writeFileSync(path.join(attachmentDir, 'reopened-count-close.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00]))
     db.prepare("INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))").run('SHIFT', secondClosedShiftId, 'CLOSING_SHEET', attachmentPath)
-    const closeResult = closeShift({ shiftId: secondClosedShiftId, endDate: '2026-01-05', reportedTripCount: 0 })
+    const closeResult = await closeShift({ shiftId: secondClosedShiftId, endDate: '2026-01-05', reportedTripCount: 0 })
     return {
       reopenResult,
       closeResult,
@@ -2332,11 +2603,11 @@ try {
           !plan.details.some((detail) => detail.includes('SCAN ' + plan.table))
       )
   })
-  runCase('A7 closing a shift creates no automatic ledger settlement', 'ledger rows are unchanged by closeShift', () => {
+  runCase('A7 closing a shift creates no automatic ledger settlement', 'ledger rows are unchanged by closeShift', async () => {
     const shift = createOwnShift()
     addClosingSheet(shift.id, 'no-auto-settlement.jpg')
     const before = db.prepare('SELECT COUNT(*) as count FROM Ledger').get().count
-    const closed = closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 0 })
+    const closed = await closeShift({ shiftId: shift.id, endDate: '2026-02-02', reportedTripCount: 0 })
     const after = db.prepare('SELECT COUNT(*) as count FROM Ledger').get().count
     return { closed, before, after }
   }, (actual) => {
@@ -2571,6 +2842,8 @@ try {
     return applied
   }, (actual) => JSON.stringify(result(actual)) === JSON.stringify(['B']))
 
+  await Promise.all(pendingCases)
+  await runBackupCases()
   console.log('SUMMARY ' + (outcomes.length === 0 ? 'PASS' : 'FAIL') + ' | failed cases: ' + JSON.stringify(outcomes))
   if (outcomes.length > 0) process.exitCode = 1
 } finally {
@@ -2580,7 +2853,7 @@ try {
 }
 }
 
-void runHarness()
+globalThis.__useCaseRun = runHarness()
 `
 
 async function main() {
@@ -2631,6 +2904,7 @@ async function main() {
     bundleModule.filename = filename
     bundleModule.paths = Module._nodeModulePaths(root)
     bundleModule._compile(buildResult.outputFiles[0].text, filename)
+    await globalThis.__useCaseRun
   } catch (error) {
     console.error(
       `FAIL harness | actual: ${error instanceof Error ? error.stack : String(error)} | expected: bundle and execute real use cases`

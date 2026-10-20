@@ -101,3 +101,10 @@ All scenarios remain unchecked until confirmed by the user.
 - [ ] Confirm all table headers and cells are centered.
 - [ ] Confirm table sorting and filtering still work after text wrapping.
 - [ ] Confirm table sum rows are unchanged by the layout.
+
+## Backups and restore
+
+- [ ] Close a shift and confirm a verified post-close database snapshot and any missing attachment mirror files appear under `userData/backups`.
+- [ ] Start the app on a new local date and confirm a daily snapshot is created without delaying the window.
+- [ ] Make the backups folder unwritable, restart the app, and confirm a non-blocking backup warning appears.
+- [ ] Restore a database snapshot and missing attachments by following `docs/restore.md`.

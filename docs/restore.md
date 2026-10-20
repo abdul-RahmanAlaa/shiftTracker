@@ -1,69 +1,76 @@
 # Restore database and attachments
 
-## Backup contents
+## Backup layout
 
-- A pre-migration backup is a standalone SQLite database snapshot created with `VACUUM INTO` immediately before a migration. The app opens it read-only and checks `integrity_check` and `user_version`. It contains no `userData/docs` directory or other user-data files. A failed verification removes that backup file.
-- A regular backup is a standalone SQLite database snapshot named `backups/shift-tracker-<timestamp>.db`. When `userData/docs` exists, `backupDatabase()` also copies that entire directory to the matching `backups/docs-<timestamp>` directory. It does not copy other `userData` files or preserve the active `-wal` and `-shm` sidecars as backup files.
-- Trip attachment JPEGs are stored below `userData/docs/attachments`; a database-only backup therefore does not contain the attachment files. Restore a matching regular-backup `docs-<timestamp>` directory separately when those files are needed. Pre-migration database backups have no paired docs backup.
+- Verified SQLite snapshots are stored in `userData/backups/db/`.
+- `post-close-<timestamp>-<shiftId>.db` captures the database after a successful shift close.
+- `daily-<YYYY-MM-DD>.db` is the first verified snapshot created on that local date after app startup.
+- The attachment mirror is stored in `userData/backups/attachments/`. It contains copies of files from `userData/docs/attachments`. Existing mirrored files are never removed; files with a different size are recopied.
+- Backup files are on the same disk as the app data. Keep an external copy for protection against disk failure.
+
+Post-close snapshots are useful for restoring a particular shift-close point. The daily snapshot is useful as a broader once-per-day recovery point. Both contain the database only; restore attachments separately from the mirror when required.
 
 ## PowerShell restore
 
 1. Close the app and verify that all its processes have exited.
-2. Set the exact Electron `userData` directory for this installation, then archive the current database files and the current `docs` folder:
+2. Set the app's `userData` directory and archive the current database files before restoring:
 
    ```powershell
    $userData = Read-Host 'Enter the app userData directory'
    $archive = Join-Path $env:USERPROFILE ("shift-tracker-before-restore-" + (Get-Date -Format 'yyyyMMdd-HHmmss'))
    New-Item -ItemType Directory -Path $archive | Out-Null
-   foreach ($name in @('shift-tracker.db', 'shift-tracker.db-wal', 'shift-tracker.db-shm', 'docs')) {
+   foreach ($name in @('shift-tracker.db', 'shift-tracker.db-wal', 'shift-tracker.db-shm')) {
      $source = Join-Path $userData $name
      if (Test-Path -LiteralPath $source) {
-       Copy-Item -LiteralPath $source -Destination (Join-Path $archive $name) -Recurse -Force
+       Copy-Item -LiteralPath $source -Destination (Join-Path $archive $name) -Force
      }
    }
    ```
 
-3. Choose the database backup file. Prefer a regular `shift-tracker-<timestamp>.db` with its matching `docs-<timestamp>` when attachments are needed. A pre-migration backup may use an older schema version and may require the app version that created it.
+3. Select a database snapshot. Use a post-close snapshot for a known close point, or a daily snapshot for the daily recovery point:
 
    ```powershell
-   $backupFile = Read-Host 'Enter the full path to the selected .db backup'
+   $backupFile = Read-Host 'Enter the full path to the selected snapshot .db file'
    if (-not (Test-Path -LiteralPath $backupFile -PathType Leaf)) {
      throw 'The selected backup file does not exist.'
    }
    ```
 
-4. Remove stale WAL sidecars from the restore target:
+4. Remove stale WAL sidecars, then restore the selected snapshot:
 
    ```powershell
    $databasePath = Join-Path $userData 'shift-tracker.db'
-   Remove-Item -LiteralPath "$databasePath-wal", "$databasePath-shm" -Force -ErrorAction SilentlyContinue
-   ```
-
-5. Copy the selected database backup over `shift-tracker.db`:
-
-   ```powershell
+   foreach ($name in @("$databasePath-wal", "$databasePath-shm")) {
+     if (Test-Path -LiteralPath $name) {
+       Remove-Item -LiteralPath $name -Force
+     }
+   }
    Copy-Item -LiteralPath $backupFile -Destination $databasePath -Force
    ```
 
-6. From the repository root, inspect the restored database:
+5. From the repository root, inspect the restored database before starting the app:
 
    ```powershell
    npm run db:inspect -- "$databasePath"
    ```
 
-7. Start the app and confirm that the database opens as expected, then close it before touching attachment files.
-8. When attachments are needed and a matching regular-backup docs folder exists, restore it separately after confirming the current `docs` directory is safely archived:
+6. Start the app, confirm that the database opens as expected, then close it before restoring attachments.
+7. To restore missing attachments only, copy files from the mirror without overwriting files already in `docs/attachments`:
 
    ```powershell
-   $backupDocs = Read-Host 'Enter the full path to the matching docs-<timestamp> directory'
-   if (-not (Test-Path -LiteralPath $backupDocs -PathType Container)) {
-     throw 'The selected attachment backup directory does not exist.'
+   $backupAttachments = Join-Path $userData 'backups\attachments'
+   $attachments = Join-Path $userData 'docs\attachments'
+   if (Test-Path -LiteralPath $backupAttachments -PathType Container) {
+     Get-ChildItem -LiteralPath $backupAttachments -File -Recurse | ForEach-Object {
+       $relativePath = [System.IO.Path]::GetRelativePath($backupAttachments, $_.FullName)
+       $destination = Join-Path $attachments $relativePath
+       if (-not (Test-Path -LiteralPath $destination)) {
+         $destinationDirectory = Split-Path -Parent $destination
+         New-Item -ItemType Directory -Path $destinationDirectory -Force | Out-Null
+         Copy-Item -LiteralPath $_.FullName -Destination $destination
+       }
+     }
    }
-   $docsPath = Join-Path $userData 'docs'
-   if (Test-Path -LiteralPath $docsPath) {
-     Move-Item -LiteralPath $docsPath -Destination (Join-Path $archive 'docs-before-attachment-restore')
-   }
-   Copy-Item -LiteralPath $backupDocs -Destination $docsPath -Recurse
    ```
 
-9. Start the app again and confirm the restored attachments open.
+8. Start the app again and confirm that restored attachments open.

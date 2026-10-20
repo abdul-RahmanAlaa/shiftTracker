@@ -31,7 +31,10 @@ const closeShiftSchema = z.object({
   reportedTripCount: nonNegativeIntegerSchema('عدد النقلات لازم يكون عددًا صحيحًا غير سالب')
 })
 
-export function closeShift(input: CloseShiftInput): CloseShiftResult {
+export async function closeShift(
+  input: CloseShiftInput,
+  now = new Date()
+): Promise<CloseShiftResult> {
   if (typeof input !== 'object' || input === null) {
     return { ok: false, errors: [{ field: 'shiftId', message: 'رقم الوردية مطلوب' }] }
   }
@@ -135,8 +138,10 @@ export function closeShift(input: CloseShiftInput): CloseShiftResult {
 
   closeShiftInDb(shiftId, endDate, reportedTripCount)
   try {
-    backupDatabase()
-    return { ok: true, data: { id: shiftId } }
+    const backup = await backupDatabase(shiftId, now)
+    return backup.ok
+      ? { ok: true, data: { id: shiftId } }
+      : { ok: true, data: { id: shiftId, backupWarning: true } }
   } catch (error) {
     console.error('Failed to back up after closing shift', error)
     return { ok: true, data: { id: shiftId, backupWarning: true } }

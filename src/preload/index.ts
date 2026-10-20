@@ -44,6 +44,8 @@ const api = {
   createShift: (input: CreateShiftInput) => invoke('shift:create', input),
   closeShift: (input: CloseShiftInput): Promise<CloseShiftResult> =>
     invoke<CloseShiftResult>('shift:close', input),
+  getBackupStatus: () =>
+    invoke<{ lastSuccessAt: string | null; lastError: string | null }>('backup:getStatus'),
   reopenShift: (input: { shiftId: string; reason: string }) => invoke('shift:reopen', input),
   listDrivers: () => invoke('driver:list'),
   listMaterialTypes: () => invoke('materialType:list'),

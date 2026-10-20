@@ -64,7 +64,7 @@
 | `src/main/migrations.ts`                        | Ordered numbered migrations and verified pre-migration backups |
 | `src/main/validation.ts`                        | Shared date, number, and money validation                      |
 | `src/main/accounting.ts`                        | Money conversion, per-line rounding, account calculations      |
-| `src/main/backup.ts`                            | Post-close SQLite and attachment-directory backup              |
+| `src/main/backup.ts`                            | Verified snapshots, attachment mirror, retention, and status   |
 | `src/main/photoStorage.ts`                      | JPEG storage under Electron `userData`                         |
 | `src/main/use-cases/`                           | Validated business operations and result contracts             |
 | `src/main/repository/`                          | SQLite reads, writes, and transactions                         |
@@ -152,6 +152,12 @@ Attachment rows store paths relative to user data. JPEG files are stored under `
 - Closing an `OPEN` or `REOPENED` shift requires an explicitly supplied non-negative integer reported trip count equal to the actual trip count, an end date not before its start date, a valid closing-sheet file, and at least one attachment on every trip.
 - The close dialog pre-fills `reportedTripCount ?? actualTripCount ?? 0` for any shift. Main requires the count explicitly and applies no fallback.
 - The close transaction stores the end date, reported count, and CLOSED status and updates the active reopen log. A post-close backup failure is logged and returned as a visible warning; it does not fail the close.
+- Post-close snapshots are written to `userData/backups/db/post-close-<timestamp>-<shiftId>.db`; the first successful daily snapshot is `daily-<YYYY-MM-DD>.db` using the local date.
+- Snapshots are created with `VACUUM INTO`, then opened read-only and verified with `integrity_check` and `user_version`. Failed snapshots are deleted and reported.
+- `userData/backups/attachments/` mirrors files from `userData/docs/attachments` asynchronously with a concurrency limit of four. Missing and different-size files are copied; equal-size files are skipped, and mirror files are never deleted.
+- After a successful snapshot, retention keeps the newest 60 daily and 120 post-close snapshots. Pre-migration snapshots, legacy directories, and unrecognized files are preserved.
+- A non-blocking daily snapshot and attachment sync run after the window is created. Backup status is persisted at `userData/backups/status.json`; the renderer displays one warning when the last operation failed or the latest success is over three days old.
+- Backups share the app data disk; copy them to external storage to protect against disk failure. See `docs/restore.md` for database and attachment recovery.
 - Only a CLOSED shift can be reopened; a non-empty reason is required and recorded in `ShiftReopenLog`. Reopened shifts can be edited and closed again with a newly entered count and the normal close checks.
 - CLOSED shifts are locked for trip, attachment, and ledger changes. Reopening is the correction path.
 - Trips require positive finite cubic quantities and positive prices. Optional trip details are nullable in SQLite. Crusher and recipient status values have required matching receipt/name data.
@@ -202,7 +208,7 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 
 - `npm run verify:use-cases` bundles and invokes the real use cases under Electron-as-Node, uses an isolated temporary user-data directory, prints a result table and exits non-zero on failed cases.
 - The use-case harness verifies P1–P9 for trip-price suggestions and G1–G9 for pure trip-grid behavior, alongside the shift, trip, ledger, accounting, and migration cases.
-- The use-case harness includes M1–M9 migration checks for fresh baseline equivalence, verified backups, migration rollback, version refusals, foreign-key rebuilds, backup failure, and refusal immutability. All fixtures use temporary directories.
+- The use-case harness includes M1–M9 migration checks and BK-1–BK-8 backup checks for snapshot verification, attachment mirroring, daily snapshots, retention, close warnings, and status persistence. All fixtures use temporary directories.
 - `npm run db:inspect -- <database-path>` opens a database read-only and reports its version, integrity, table row counts, and first/last Shift and Trip IDs. It never writes to the inspected database.
 - `npm run test:e2e` builds the app and drives the real Electron app through seven Playwright smoke flows: all routes and runtime/translation-key health; shift creation and duplicate-vehicle rejection; trip-grid validation and detail labels; partial grid save with a server-rejected row; shift close/count/attachments; contractor-versus-client statement note; and refusal of a second instance while the first remains responsive.
 - E2E fixtures and each app launch use temporary user-data directories.

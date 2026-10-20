@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { initDatabase } from './db'
+import { initializeBackupService } from './backup'
 import { wrapHandler } from './ipcWrapper'
 import {
   createContractor,
@@ -115,7 +116,8 @@ if (!hasSingleInstanceLock) {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   if (!hasSingleInstanceLock) return
-  initDatabase()
+  const db = initDatabase()
+  const backupService = initializeBackupService(app.getPath('userData'), db)
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
@@ -183,8 +185,12 @@ app.whenReady().then(() => {
   registerIpcHandler('attachment:remove', (_event, input) => removeAttachment(input))
   registerIpcHandler('attachment:list', (_event, input) => listEntityAttachments(input))
   registerIpcHandler('attachment:getPhoto', (_event, input) => getAttachmentPhoto(input))
+  registerIpcHandler('backup:getStatus', () => backupService.getStatus())
 
   createWindow()
+  void backupService.createDailySnapshot(new Date()).then((result) => {
+    if (!result.ok) console.error('Daily backup failed', result.errors)
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

@@ -1,4 +1,5 @@
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BookOpen, Calculator, ClipboardList, List, Settings, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ import { ShiftsPage } from '@/pages/ShiftsPage'
 import { ShiftDetailPage } from '@/pages/ShiftDetailPage'
 import { AllTripsPage } from '@/pages/AllTripsPage'
 import { StatementsPage } from '@/pages/StatementsPage'
+import { ipcApi, showErrorNotice } from '@/lib/ipcErrors'
 
 const navigationItems = [
   { to: '/', label: 'addTrip.title', icon: Truck },
@@ -61,10 +63,32 @@ function AppLayout(): React.JSX.Element {
   )
 }
 
+function BackupStatusCheck(): null {
+  const { t } = useTranslation()
+  const requested = useRef(false)
+
+  useEffect(() => {
+    if (requested.current) return
+    requested.current = true
+    void ipcApi.getBackupStatus().then((result) => {
+      if ('ok' in result) return
+      const lastSuccessAt = result.lastSuccessAt
+      const isOlderThanThreeDays =
+        lastSuccessAt !== null && Date.now() - Date.parse(lastSuccessAt) > 3 * 24 * 60 * 60 * 1000
+      if (result.lastError !== null || isOlderThanThreeDays) {
+        showErrorNotice(t('backupStatus.warning'))
+      }
+    })
+  }, [t])
+
+  return null
+}
+
 function App(): React.JSX.Element {
   return (
     <HashRouter>
       <FloatingWindowsProvider>
+        <BackupStatusCheck />
         <Routes>
           <Route element={<AppLayout />}>
             <Route index element={<AddTripPage />} />

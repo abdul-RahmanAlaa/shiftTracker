@@ -264,6 +264,9 @@ interface Api {
     endDate: string
     reportedTripCount: number
   }) => Promise<UseCaseResult<{ id: string; backupWarning?: true }> | FailedUseCaseResult>
+  getBackupStatus: () => Promise<
+    { lastSuccessAt: string | null; lastError: string | null } | FailedUseCaseResult
+  >
   reopenShift: (input: {
     shiftId: string
     reason: string
