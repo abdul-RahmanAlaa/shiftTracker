@@ -197,8 +197,8 @@ Trip history ordering uses the greatest trip date, then the greatest numeric tri
 | ------------------ | -------------------------------------------------------------------------------------------------------------------- |
 | `/`                | `AddTripPage` — select a driver and enter multiple trips for one OPEN shift                                          |
 | `/shifts`          | `ShiftsPage` — browse shifts, close and reopen shifts                                                                |
-| `/shifts/:shiftId` | `ShiftDetailPage` — inspect a shift, manage trips and attachments                                                    |
-| `/all-trips`       | `AllTripsPage` — browse trips across shifts                                                                          |
+| `/shifts/:shiftId` | `ShiftDetailPage` — inspect a shift, manage trips and attachments; successful trip deletion shows a notice           |
+| `/all-trips`       | `AllTripsPage` — browse trips across shifts; inspect or delete a trip                                                |
 | `/accounts`        | `AccountsPage` — contractor account, driver history, client account, and all movements; page label is `حركة النقدية` |
 | `/statements`      | `StatementsPage` — client and contractor statements                                                                  |
 | `/settings`        | `SettingsPage` — vehicles, drivers, contractors, crushers, clients, material types                                   |
@@ -230,6 +230,7 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - **OI-009 — Medium, E2E coverage:** expand E2E coverage per `docs/e2e-coverage-plan.md`.
 - **OI-010 — Low, table layout manual confirmation:** confirm two-line text wrapping, full-text hover titles, centered headers and cells, laptop fit, and unchanged sorting, filtering, and sums using `docs/manual-checklist.md`.
 - **OI-011 — Low, installer helper manual confirmation:** double-click `build-installer.bat` and confirm it builds the installer, opens `dist`, and leaves failures visible.
+- **OI-012 — Low, trip deletion manual confirmation:** delete a trip from Shift Details and All Trips; confirm the success notice and that the deleted trip disappears from the list.
 
 Manual confirmation scenarios are listed unchecked by area in `docs/manual-checklist.md`.
 

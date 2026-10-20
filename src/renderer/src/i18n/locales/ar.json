@@ -2,7 +2,8 @@
   "ipcErrors": {
     "unexpected": "حدث خطأ غير متوقع. حاول مرة أخرى.",
     "deleteFailed": "تعذر إتمام الحذف. حاول مرة أخرى.",
-    "tripUpdated": "تم تحديث بيانات النقلة بنجاح."
+    "tripUpdated": "تم تحديث بيانات النقلة بنجاح.",
+    "tripDeleted": "تم حذف النقلة"
   },
   "common": {
     "close": "إغلاق",
@@ -446,7 +447,8 @@
   },
   "allTrips": {
     "title": "كل النقلات",
-    "detailsTitle": "تفاصيل النقلة {{id}}"
+    "detailsTitle": "تفاصيل النقلة {{id}}",
+    "deleteTripConfirmation": "مسح النقلة {{id}}؟ العملية مش هترجع."
   },
   "settingsPage": {
     "title": "بيانات أساسية",

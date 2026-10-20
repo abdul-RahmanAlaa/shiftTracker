@@ -1,4 +1,4 @@
-import { ipcApi } from '@/lib/ipcErrors'
+import { ipcApi, showSuccessNotice } from '@/lib/ipcErrors'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -18,6 +18,15 @@ export function AllTripsPage(): React.JSX.Element {
   const [loading, setLoading] = useState(true)
   const { openWindow } = useFloatingWindows()
   const { t } = useTranslation()
+
+  async function handleDeleteTrip(tripId: string): Promise<void> {
+    if (!confirm(t('allTrips.deleteTripConfirmation', { id: tripId }))) return
+    const result = await ipcApi.deleteTrip({ id: tripId })
+    if (result.ok) {
+      showSuccessNotice(t('ipcErrors.tripDeleted'))
+      setTrips((prev) => prev.filter((trip) => trip.id !== tripId))
+    }
+  }
 
   const columns: ColumnDef<AllTripsRow, unknown>[] = [
     { accessorKey: 'tripDate', header: t('common.columns.date'), meta: { nowrap: true } },
@@ -42,20 +51,30 @@ export function AllTripsPage(): React.JSX.Element {
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            openWindow(
-              row.original.id,
-              t('allTrips.detailsTitle', { id: row.original.id }),
-              <TripDetailsContent trip={row.original} />
-            )
-          }
-        >
-          {t('common.details')}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              openWindow(
+                row.original.id,
+                t('allTrips.detailsTitle', { id: row.original.id }),
+                <TripDetailsContent trip={row.original} />
+              )
+            }
+          >
+            {t('common.details')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void handleDeleteTrip(row.original.id)}
+          >
+            {t('common.delete')}
+          </Button>
+        </div>
       )
     }
   ]

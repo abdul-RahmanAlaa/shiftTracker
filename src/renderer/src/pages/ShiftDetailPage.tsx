@@ -260,7 +260,10 @@ export function ShiftDetailPage(): React.JSX.Element {
   async function handleDeleteTrip(trip: TripRow): Promise<void> {
     if (!confirm(t('shifts.deleteTripConfirmation', { id: trip.id }))) return
     const result = await ipcApi.deleteTrip({ id: trip.id })
-    if (result.ok) await loadShiftTrips()
+    if (result.ok) {
+      showSuccessNotice(t('ipcErrors.tripDeleted'))
+      await loadShiftTrips()
+    }
   }
 
   function openTripDetails(trip: TripRow): void {
