@@ -14,6 +14,7 @@
     "verify:use-cases": "electron --run-as-node scripts/verify-closed-shift-use-cases.cjs",
     "db:inspect": "electron --run-as-node scripts/db-inspect.cjs",
     "test:e2e": "electron-vite build && playwright test",
+    "test:e2e:full": "electron-vite build && playwright test -c playwright.full.config.ts",
     "test:e2e:headed": "electron-vite build && playwright test --headed",
     "review:gate": "node scripts/review-gate.cjs",
     "review:gate:e2e": "node scripts/review-gate.cjs --e2e",

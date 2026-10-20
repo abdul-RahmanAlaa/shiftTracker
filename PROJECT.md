@@ -86,6 +86,7 @@
 | `scripts/db-inspect.cjs`                        | Read-only database integrity and row-count inspection          |
 | `scripts/review-gate.cjs`                       | Automated checks, mechanical rules, and task report            |
 | `docs/dev-reset-checklist.md`                   | One-time manual development database reset procedure           |
+| `docs/e2e-test-cases.md`                        | Concrete E2E test cases and expected results                   |
 | `docs/manual-checklist.md`                      | Unchecked manual confirmation scenarios                        |
 | `docs/restore.md`                               | Database and attachment backup restoration steps               |
 | `playwright.config.ts`                          | Playwright Electron test configuration                         |

@@ -104,7 +104,7 @@ async function seed() {
       'shift'
     )
 
-    if (mode === 'with-trip' || mode === 'layout') {
+    if (mode === 'with-trip' || mode === 'layout' || mode === 'two-shifts') {
       data.trip = requireCreated(
         createTrip({
           shiftId: data.shift.id,
@@ -199,6 +199,70 @@ async function seed() {
         )
       }
     }
+  }
+
+  if (mode === 'two-shifts') {
+    const secondDriver = requireCreated(
+      createDriver({ name: `E2E Closed Driver ${suffix}` }),
+      'second driver'
+    )
+    const closedShift = requireCreated(
+      createShift({
+        vehicleNo: secondVehicleNo,
+        driverId: secondDriver.id,
+        crusherCubicDefault: 1,
+        clientCubicDefault: 1,
+        startDate: currentDate()
+      }),
+      'closed shift'
+    )
+    const closedTrip = requireCreated(
+      createTrip({
+        shiftId: closedShift.id,
+        tripDate: currentDate(),
+        crusherCubic: 1,
+        clientCubicReported: 1,
+        fineAmount: 0,
+        fineReason: '',
+        location: '',
+        crusherId: crusher.id,
+        stonePrice: 12,
+        crusherReceiptStatus: 'PROVIDED',
+        crusherReceiptNo: 7002,
+        clientId: client.id,
+        transportPrice: 8,
+        clientPrice: 15,
+        materialTypeId: materialType.id,
+        recipientNameStatus: 'PROVIDED',
+        recipientName: `E2E Closed Receiver ${suffix}`,
+        clientReceiptNo: '',
+        notes: ''
+      }),
+      'closed trip'
+    )
+    const attachmentDirectory = path.join(appPath, 'docs', 'attachments')
+    const closedTripPath = `docs/attachments/e2e-closed-${suffix}.jpg`
+    fs.writeFileSync(
+      path.join(attachmentDirectory, path.basename(closedTripPath)),
+      Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00])
+    )
+    db.prepare(
+      "INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
+    ).run('TRIP', closedTrip.id, 'CRUSHER_RECEIPT', closedTripPath)
+
+    const closedClosingPath = `docs/attachments/e2e-closed-close-${suffix}.jpg`
+    fs.writeFileSync(
+      path.join(attachmentDirectory, path.basename(closedClosingPath)),
+      Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00])
+    )
+    db.prepare(
+      "INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
+    ).run('SHIFT', closedShift.id, 'CLOSING_SHEET', closedClosingPath)
+
+    db.prepare(
+      "UPDATE Shift SET status = 'CLOSED', end_date = ?, reported_trip_count = 1 WHERE id = ?"
+    ).run(currentDate(), closedShift.id)
+    Object.assign(data, { secondDriver, closedShift, closedTrip })
   }
 
   db.close()

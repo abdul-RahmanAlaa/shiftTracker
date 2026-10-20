@@ -1,11 +1,13 @@
 # E2E coverage plan
 
+Concrete test cases (IDs, steps, expected results, seed modes) live in docs/e2e-test-cases.md. This plan defines tiers and coverage; that file defines the cases.
+
 ## Tiers
 
 | Tier  | Command                   | Scope                                                                                                                                                                     | Target                                                      |
 | ----- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | Smoke | `npm run review:gate:e2e` | The seven existing S1–S7 smoke flows, including build, route health, shift creation/close, grid entry/partial failure, statement sign note, and second-instance behavior. | Under 2 minutes                                             |
-| Full  | `npm run test:e2e:full`   | Smoke plus the full-only flows below. The command is proposed; it is not currently defined in `package.json`. Run on demand before a release or after large changes.      | About 40 full-only flows / 47 total; estimated 8–12 minutes |
+| Full  | `npm run test:e2e:full`   | Smoke plus the full-only flows below. Defined as npm run test:e2e:full. Run on demand before a release or after large changes.                                            | About 40 full-only flows / 47 total; estimated 8–12 minutes |
 
 The smoke tier should remain a fast regression path. Keep each full test independent with unique ASCII-only entity names and values. Reuse a baseline seed per `describe`, but create unique data for each test; run tests in parallel unless they share a mutable app/database, in which case serialize only that group. Resolve all visible text through `ar.json` keys in the test helper; do not embed Arabic literals. Use isolated temporary `userData` directories and remove them after each suite.
 
