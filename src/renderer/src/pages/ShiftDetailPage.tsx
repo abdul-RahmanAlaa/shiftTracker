@@ -323,7 +323,9 @@ export function ShiftDetailPage(): React.JSX.Element {
       meta: { nowrap: true },
       enableSorting: false,
       enableColumnFilter: false,
-      cell: ({ row }) => <AttachmentManager entityType="TRIP" entityId={row.original.id} />
+      cell: ({ row }) => (
+        <AttachmentManager entityType="TRIP" entityId={row.original.id} readOnly={isShiftClosed} />
+      )
     },
     {
       id: 'actions',

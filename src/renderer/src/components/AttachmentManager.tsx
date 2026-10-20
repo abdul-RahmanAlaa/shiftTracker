@@ -24,6 +24,7 @@ type AttachmentKind = AttachmentRow['kind']
 interface AttachmentManagerProps {
   entityType: AttachmentEntityType
   entityId: string
+  readOnly?: boolean
   onAttachmentsChange?: () => void
 }
 
@@ -110,6 +111,7 @@ async function createCroppedImage(
 export function AttachmentManager({
   entityType,
   entityId,
+  readOnly = false,
   onAttachmentsChange
 }: AttachmentManagerProps): React.JSX.Element {
   const { t } = useTranslation()
@@ -264,14 +266,16 @@ export function AttachmentManager({
         ) : (
           <span className="text-sm text-muted-foreground">{t('receiptPhoto.unavailable')}</span>
         )}
-        <Button
-          type="button"
-          variant="destructive"
-          size="sm"
-          onClick={() => void handleDelete(attachment)}
-        >
-          {t('common.delete')}
-        </Button>
+        {!readOnly && (
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            onClick={() => void handleDelete(attachment)}
+          >
+            {t('common.delete')}
+          </Button>
+        )}
       </div>
     )
   }
@@ -295,7 +299,7 @@ export function AttachmentManager({
               <section key={kind} className="flex flex-col gap-2">
                 <h3 className="text-sm font-medium">{label}</h3>
                 {kindAttachments.map(renderAttachment)}
-                {kindAttachments.length === 0 && (
+                {!readOnly && kindAttachments.length === 0 && (
                   <Button
                     type="button"
                     variant="outline"
@@ -315,15 +319,17 @@ export function AttachmentManager({
           {attachments
             .filter((attachment) => attachment.kind === 'CLOSING_SHEET')
             .map(renderAttachment)}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-fit"
-            onClick={() => openFilePicker('CLOSING_SHEET')}
-          >
-            {t('receiptPhoto.addDocument')}
-          </Button>
+          {!readOnly && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={() => openFilePicker('CLOSING_SHEET')}
+            >
+              {t('receiptPhoto.addDocument')}
+            </Button>
+          )}
         </section>
       )}
       {operationError && <p className="text-sm text-destructive">{operationError}</p>}

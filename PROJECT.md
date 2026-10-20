@@ -232,6 +232,7 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - **OI-010 — Low, table layout manual confirmation:** confirm two-line text wrapping, full-text hover titles, centered headers and cells, laptop fit, and unchanged sorting, filtering, and sums using `docs/manual-checklist.md`.
 - **OI-011 — Low, installer helper manual confirmation:** double-click `build-installer.bat` and confirm it builds the installer, opens `dist`, and leaves failures visible.
 - **OI-012 — Low, trip deletion manual confirmation:** delete a trip from Shift Details and All Trips; confirm the success notice and that the deleted trip disappears from the list. In All Trips, confirm Delete is hidden for trips in CLOSED shifts and the locked label is shown.
+- **OI-013 — Low, closed-shift attachment manual confirmation:** attachments of trips in CLOSED shifts show no upload or delete controls in Shift Details, the trip details window, and the All Trips details window; REOPENED and OPEN shifts keep them.
 
 Manual confirmation scenarios are listed unchecked by area in `docs/manual-checklist.md`.
 

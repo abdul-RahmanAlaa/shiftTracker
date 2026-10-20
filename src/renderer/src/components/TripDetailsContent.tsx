@@ -49,7 +49,11 @@ export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JS
       </dl>
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-medium">{t('tripDetails.attachmentsTitle')}</h3>
-        <AttachmentManager entityType="TRIP" entityId={trip.id} />
+        <AttachmentManager
+          entityType="TRIP"
+          entityId={trip.id}
+          readOnly={trip.shiftStatus === 'CLOSED'}
+        />
       </section>
     </div>
   )
