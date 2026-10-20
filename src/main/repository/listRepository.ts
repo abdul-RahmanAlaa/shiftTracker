@@ -16,10 +16,3 @@ export function listVehicles(): VehicleRow[] {
     )
     .all() as VehicleRow[]
 }
-
-export function listOpenShifts(): { id: string }[] {
-  const db = getDb()
-  return db.prepare(`SELECT id FROM Shift WHERE status = 'OPEN' ORDER BY id`).all() as {
-    id: string
-  }[]
-}

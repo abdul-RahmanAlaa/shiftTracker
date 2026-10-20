@@ -23,7 +23,7 @@ import { createVehicle, updateVehicle, deleteVehicle } from './use-cases/createV
 import { createShift } from './use-cases/createShift'
 import { closeShift } from './use-cases/closeShift'
 import { reopenShift } from './use-cases/reopenShift'
-import { listVehicles, listOpenShifts, getDriverOpenShift, listShifts } from './use-cases/listData'
+import { listVehicles, getDriverOpenShift, listShifts } from './use-cases/listData'
 import { createTrip, updateTrip, deleteTrip } from './use-cases/createTrip'
 import { listTripsByShift, listTripLocations } from './use-cases/listTripData'
 import { listAllTrips } from './use-cases/listAllTripsData'
@@ -143,7 +143,6 @@ app.whenReady().then(() => {
   registerIpcHandler('driver:list', () => listDrivers())
   registerIpcHandler('contractor:list', () => listContractors())
   registerIpcHandler('vehicle:list', () => listVehicles())
-  registerIpcHandler('shift:listOpen', () => listOpenShifts())
   registerIpcHandler('driver:update', (_event, input) => updateDriver(input))
   registerIpcHandler('driver:delete', (_event, input) => deleteDriver(input))
   registerIpcHandler('client:update', (_event, input) => updateClient(input))

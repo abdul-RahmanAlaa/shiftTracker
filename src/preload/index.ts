@@ -51,7 +51,6 @@ const api = {
   listMaterialTypes: () => invoke('materialType:list'),
   listContractors: () => invoke('contractor:list'),
   listVehicles: () => invoke('vehicle:list'),
-  listOpenShifts: () => invoke('shift:listOpen'),
   updateDriver: (input: { id: number; name: string; phone1?: string; phone2?: string }) =>
     invoke('driver:update', input),
   deleteDriver: (input: { id: number }) => invoke('driver:delete', input),

@@ -1,18 +1,10 @@
-import {
-  listVehicles as listVehiclesRepo,
-  listOpenShifts as listOpenShiftsRepo,
-  VehicleRow
-} from '../repository/listRepository'
+import { listVehicles as listVehiclesRepo, VehicleRow } from '../repository/listRepository'
 import { getOpenShiftByDriverFull, ShiftFullRow } from '../repository/shiftRepository'
 import { listAllShifts as listAllShiftsRepo, ShiftListRow } from '../repository/shiftRepository'
 import { UseCaseResult } from '../useCaseUtils'
 
 export function listVehicles(): UseCaseResult<VehicleRow[]> {
   return { ok: true, data: listVehiclesRepo() }
-}
-
-export function listOpenShifts(): UseCaseResult<{ id: string }[]> {
-  return { ok: true, data: listOpenShiftsRepo() }
 }
 
 export function getDriverOpenShift(driverId: number): UseCaseResult<ShiftFullRow | null> {

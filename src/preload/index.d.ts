@@ -300,7 +300,6 @@ interface Api {
       >
     | FailedUseCaseResult
   >
-  listOpenShifts: () => Promise<UseCaseResult<{ id: string }[]> | FailedUseCaseResult>
   updateDriver: (input: {
     id: number
     name: string
