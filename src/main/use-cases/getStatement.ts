@@ -13,10 +13,8 @@ import {
   getContractorStatementInputs,
   StatementPaymentRow
 } from '../repository/statementRepository'
-import arMessages from '../../renderer/src/i18n/locales/ar.json'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
+import { mainMessages } from '../mainMessages'
+import { UseCaseResult } from '../useCaseUtils'
 
 export interface StatementRow {
   date: string
@@ -175,7 +173,7 @@ export function getClientStatement(input: { clientId: number }): UseCaseResult<S
   if (statement.finalBalance !== fromMinorUnits(totals.balanceMinor)) {
     return {
       ok: false,
-      errors: [{ field: 'root', message: arMessages.statementsPage.accountingMismatch }]
+      errors: [{ field: 'root', message: mainMessages.accountingMismatch }]
     }
   }
   return { ok: true, data: statement }
@@ -236,7 +234,7 @@ export function getContractorStatement(input: { contractorId: number }): UseCase
   if (statement.finalBalance !== fromMinorUnits(totals.balanceMinor)) {
     return {
       ok: false,
-      errors: [{ field: 'root', message: arMessages.statementsPage.accountingMismatch }]
+      errors: [{ field: 'root', message: mainMessages.accountingMismatch }]
     }
   }
   return { ok: true, data: statement }

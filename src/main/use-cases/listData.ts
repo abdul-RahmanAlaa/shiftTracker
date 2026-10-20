@@ -5,9 +5,7 @@ import {
 } from '../repository/listRepository'
 import { getOpenShiftByDriverFull, ShiftFullRow } from '../repository/shiftRepository'
 import { listAllShifts as listAllShiftsRepo, ShiftListRow } from '../repository/shiftRepository'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
+import { UseCaseResult } from '../useCaseUtils'
 
 export function listVehicles(): UseCaseResult<VehicleRow[]> {
   return { ok: true, data: listVehiclesRepo() }

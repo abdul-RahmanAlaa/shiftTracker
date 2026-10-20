@@ -2,9 +2,7 @@ import { z } from 'zod'
 import { fromMinorUnits } from '../accounting'
 import { getSuggestedTripPriceInputs } from '../repository/tripRepository'
 import { positiveIntegerSchema } from '../validation'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
+import { UseCaseResult } from '../useCaseUtils'
 
 export interface SuggestedTripPrices {
   stonePrice: number | null

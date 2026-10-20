@@ -12,19 +12,7 @@ import {
   positiveNumberSchema,
   validationMessages
 } from '../validation'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
-
-interface SqliteError extends Error {
-  code: string
-}
-
-function isSqliteError(err: unknown): err is SqliteError {
-  return (
-    err instanceof Error && 'code' in err && typeof (err as { code: unknown }).code === 'string'
-  )
-}
+import { UseCaseResult, isSqliteError } from '../useCaseUtils'
 
 export interface CreateShiftInput {
   vehicleNo: number

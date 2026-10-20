@@ -5,19 +5,7 @@ import {
   deleteMaterialType as deleteMaterialTypeInDb,
   MaterialTypeRow
 } from '../repository/materialTypeRepository'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
-
-interface SqliteError extends Error {
-  code: string
-}
-
-function isSqliteError(err: unknown): err is SqliteError {
-  return (
-    err instanceof Error && 'code' in err && typeof (err as { code: unknown }).code === 'string'
-  )
-}
+import { UseCaseResult, isSqliteError } from '../useCaseUtils'
 
 export function createMaterialType(input: { name: string }): UseCaseResult<MaterialTypeRow> {
   const name = input.name?.trim()

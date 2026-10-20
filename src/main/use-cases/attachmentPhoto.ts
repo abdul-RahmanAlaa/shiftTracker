@@ -10,9 +10,7 @@ import {
 import { getTripById } from '../repository/tripRepository'
 import { getShiftById } from '../repository/shiftRepository'
 import { saveAttachmentPhoto, deleteAttachmentPhotoFile, readPhotoAsDataUri } from '../photoStorage'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
+import { UseCaseResult } from '../useCaseUtils'
 
 const VALID_KINDS_FOR_ENTITY: Record<AttachmentEntityType, AttachmentKind[]> = {
   TRIP: ['CRUSHER_RECEIPT', 'CLIENT_RECEIPT'],

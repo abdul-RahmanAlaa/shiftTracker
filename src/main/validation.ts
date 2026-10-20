@@ -1,17 +1,17 @@
 import { z } from 'zod'
-import arMessages from '../renderer/src/i18n/locales/ar.json'
+import { mainMessages } from './mainMessages'
 import { toMinorUnits } from './accounting'
 
 export const validationMessages = {
-  tripDateRequired: arMessages.tripForm.validation.tripDateRequired,
-  tripDateInvalid: arMessages.tripForm.validation.tripDateInvalid,
-  fineAmountNonNegative: arMessages.tripForm.validation.fineAmountNonNegative,
-  moneyDecimals: arMessages.common.validation.moneyDecimals,
-  positivePrice: arMessages.common.validation.positivePrice,
-  shiftStartDateRequired: arMessages.createShift.validation.startDateRequired,
-  shiftStartDateInvalid: arMessages.createShift.validation.startDateInvalid,
-  shiftEndDateRequired: arMessages.shifts.validation.endDateRequired,
-  shiftEndDateInvalid: arMessages.shifts.validation.endDateInvalid
+  tripDateRequired: mainMessages.tripDateRequired,
+  tripDateInvalid: mainMessages.tripDateInvalid,
+  fineAmountNonNegative: mainMessages.fineAmountNonNegative,
+  moneyDecimals: mainMessages.moneyDecimals,
+  positivePrice: mainMessages.positivePrice,
+  shiftStartDateRequired: mainMessages.shiftStartDateRequired,
+  shiftStartDateInvalid: mainMessages.shiftStartDateInvalid,
+  shiftEndDateRequired: mainMessages.shiftEndDateRequired,
+  shiftEndDateInvalid: mainMessages.shiftEndDateInvalid
 }
 
 export function isRealDate(value: string): boolean {

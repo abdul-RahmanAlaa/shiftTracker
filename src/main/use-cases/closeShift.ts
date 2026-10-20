@@ -1,13 +1,11 @@
 import { backupDatabase } from '../backup'
+import { getDb } from '../db'
 import { getShiftById, getShiftStats, closeShiftInDb } from '../repository/shiftRepository'
 import { listAttachments } from '../repository/attachmentRepository'
-import { listTripsByShift } from '../repository/tripRepository'
 import { attachmentFileExists } from '../photoStorage'
 import { dateStringSchema, nonNegativeIntegerSchema, validationMessages } from '../validation'
 import { z } from 'zod'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
+import { UseCaseResult } from '../useCaseUtils'
 
 export interface CloseShiftSuccessData {
   id: string
@@ -121,9 +119,19 @@ export async function closeShift(
     }
   }
 
-  const tripsMissingAttachments = listTripsByShift(shiftId)
-    .filter((trip) => listAttachments('TRIP', trip.id).length === 0)
-    .map((trip) => trip.id)
+  const tripsMissingAttachments = (
+    getDb()
+      .prepare(
+        `SELECT t.id FROM Trip t
+         WHERE t.shift_id = ?
+           AND NOT EXISTS (
+             SELECT 1 FROM Attachment a
+             WHERE a.entity_type = 'TRIP' AND a.entity_id = t.id
+           )
+         ORDER BY t.trip_date, t.id`
+      )
+      .all(shiftId) as { id: string }[]
+  ).map((row) => row.id)
   if (tripsMissingAttachments.length > 0) {
     return {
       ok: false,

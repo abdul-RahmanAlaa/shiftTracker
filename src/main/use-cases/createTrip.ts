@@ -19,19 +19,7 @@ import {
   nonNegativeMoneySchema,
   validationMessages
 } from '../validation'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
-
-interface SqliteError extends Error {
-  code: string
-}
-
-function isSqliteError(err: unknown): err is SqliteError {
-  return (
-    err instanceof Error && 'code' in err && typeof (err as { code: unknown }).code === 'string'
-  )
-}
+import { UseCaseResult, isSqliteError } from '../useCaseUtils'
 
 interface TripFieldsInput {
   tripDate: string
@@ -227,10 +215,16 @@ export function createTrip(input: CreateTripInput): UseCaseResult<{ id: string }
       }
     }
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
-      return {
-        ok: false,
-        errors: [{ field: 'crusherId', message: 'الكسارة أو العميل مش موجودين' }]
+      const db = getDb()
+      const crusherOk = db.prepare('SELECT 1 FROM Crusher WHERE id = ?').get(input.crusherId)
+      const clientOk = db.prepare('SELECT 1 FROM Client WHERE id = ?').get(input.clientId)
+      const fkField = !crusherOk ? 'crusherId' : !clientOk ? 'clientId' : 'materialTypeId'
+      const fkMessages: Record<string, string> = {
+        crusherId: 'الكسارة مش موجودة',
+        clientId: 'العميل مش موجود',
+        materialTypeId: 'نوع الصنف مش موجود'
       }
+      return { ok: false, errors: [{ field: fkField, message: fkMessages[fkField] }] }
     }
     throw err
   }
@@ -323,10 +317,16 @@ export function updateTrip(input: UpdateTripInput): UseCaseResult<{ id: string }
       }
     }
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
-      return {
-        ok: false,
-        errors: [{ field: 'crusherId', message: 'الكسارة أو العميل مش موجودين' }]
+      const db = getDb()
+      const crusherOk = db.prepare('SELECT 1 FROM Crusher WHERE id = ?').get(input.crusherId)
+      const clientOk = db.prepare('SELECT 1 FROM Client WHERE id = ?').get(input.clientId)
+      const fkField = !crusherOk ? 'crusherId' : !clientOk ? 'clientId' : 'materialTypeId'
+      const fkMessages: Record<string, string> = {
+        crusherId: 'الكسارة مش موجودة',
+        clientId: 'العميل مش موجود',
+        materialTypeId: 'نوع الصنف مش موجود'
       }
+      return { ok: false, errors: [{ field: fkField, message: fkMessages[fkField] }] }
     }
     throw err
   }
@@ -360,7 +360,11 @@ export function deleteTrip(input: { id: string }): UseCaseResult<{ id: string }>
   })()
 
   for (const attachment of attachments) {
-    deleteAttachmentPhotoFile(attachment.photoPath)
+    try {
+      deleteAttachmentPhotoFile(attachment.photoPath)
+    } catch (err) {
+      console.error('[deleteTrip] Failed to delete attachment file, orphan may remain:', err)
+    }
   }
 
   return { ok: true, data: { id: input.id } }

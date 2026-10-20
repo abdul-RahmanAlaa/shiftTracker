@@ -10,9 +10,7 @@ import {
   ClientPaymentRow
 } from '../repository/accountsRepository'
 import { calculateClientAccount, calculateContractorAccount, fromMinorUnits } from '../accounting'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
+import { UseCaseResult } from '../useCaseUtils'
 
 type LedgerEntry = Omit<LedgerRow, 'amountMinor'> & { amount: number }
 

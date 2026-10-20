@@ -1,7 +1,5 @@
 import { getShiftById, reopenShiftInDb } from '../repository/shiftRepository'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
+import { UseCaseResult } from '../useCaseUtils'
 
 export interface ReopenShiftInput {
   shiftId: string

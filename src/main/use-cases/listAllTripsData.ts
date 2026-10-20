@@ -1,8 +1,6 @@
 import { listAllTrips as listAllTripsRepo, TripWithContextRow } from '../repository/tripRepository'
 import { fromMinorUnits } from '../accounting'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
+import { UseCaseResult } from '../useCaseUtils'
 
 type PublicTripWithContextRow = Omit<
   TripWithContextRow,

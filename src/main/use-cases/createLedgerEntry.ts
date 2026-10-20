@@ -11,17 +11,7 @@ import {
 import { getContractorById } from '../repository/contractorRepository'
 import { driverExists } from '../repository/driverRepository'
 import { getShiftById } from '../repository/shiftRepository'
-
-type UseCaseResult<T> =
-  { ok: true; data: T } | { ok: false; errors: { field: string; message: string }[] }
-
-interface SqliteError extends Error {
-  code: string
-}
-
-function isSqliteError(err: unknown): err is SqliteError {
-  return err instanceof Error && 'code' in err && typeof err.code === 'string'
-}
+import { UseCaseResult, isSqliteError } from '../useCaseUtils'
 
 function isRealDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
