@@ -50,7 +50,11 @@ async function seed() {
   const contractor = requireCreated(createContractor({ name: displayName }), 'contractor')
   const driver = requireCreated(createDriver({ name: displayDriverName }), 'driver')
   const client = requireCreated(
-    createClient({ name: displayClientName, initialPrice: 12 }),
+    createClient({
+      name: displayClientName,
+      initialPrice: 12,
+      ...(mode === 'golden' ? { openingBalance: 500, openingBalanceDate: currentDate() } : {})
+    }),
     'client'
   )
   const crusher = requireCreated(
@@ -104,15 +108,21 @@ async function seed() {
       'shift'
     )
 
-    if (mode === 'with-trip' || mode === 'layout' || mode === 'two-shifts') {
+    if (
+      mode === 'with-trip' ||
+      mode === 'layout' ||
+      mode === 'two-shifts' ||
+      mode === 'accounts' ||
+      mode === 'golden'
+    ) {
       data.trip = requireCreated(
         createTrip({
           shiftId: data.shift.id,
           tripDate: currentDate(),
-          crusherCubic: 1,
-          clientCubicReported: 1,
-          fineAmount: 0,
-          fineReason: '',
+          crusherCubic: mode === 'golden' ? 20 : 1,
+          clientCubicReported: mode === 'golden' ? 20 : 1,
+          fineAmount: mode === 'golden' ? 200 : 0,
+          fineReason: mode === 'golden' ? 'E2E golden fine' : '',
           location: '',
           crusherId: crusher.id,
           stonePrice: 12,
@@ -120,7 +130,7 @@ async function seed() {
           crusherReceiptNo: 7001,
           clientId: client.id,
           transportPrice: 8,
-          clientPrice: 15,
+          clientPrice: mode === 'golden' ? 100 : 15,
           materialTypeId: materialType.id,
           recipientNameStatus: 'PROVIDED',
           recipientName: `E2E Receiver ${suffix}`,
@@ -201,7 +211,7 @@ async function seed() {
     }
   }
 
-  if (mode === 'two-shifts') {
+  if (mode === 'two-shifts' || mode === 'accounts') {
     const secondDriver = requireCreated(
       createDriver({ name: `E2E Closed Driver ${suffix}` }),
       'second driver'
@@ -259,10 +269,62 @@ async function seed() {
       "INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
     ).run('SHIFT', closedShift.id, 'CLOSING_SHEET', closedClosingPath)
 
+    let ledger
+    if (mode === 'accounts') {
+      const open = requireCreated(
+        createLedgerEntry({
+          entryDate: currentDate(),
+          driverId: driver.id,
+          movementType: 'ADVANCE',
+          amount: 100,
+          shiftId: data.shift.id,
+          contractorId: contractor.id,
+          notes: `E2E open movement ${suffix}`
+        }),
+        'open-linked ledger entry'
+      )
+      const closed = requireCreated(
+        createLedgerEntry({
+          entryDate: currentDate(),
+          driverId: secondDriver.id,
+          movementType: 'ADVANCE',
+          amount: 200,
+          shiftId: closedShift.id,
+          contractorId: contractor.id,
+          notes: `E2E closed movement ${suffix}`
+        }),
+        'closed-linked ledger entry'
+      )
+      const free = requireCreated(
+        createLedgerEntry({
+          entryDate: currentDate(),
+          movementType: 'PAYMENT',
+          amount: 50,
+          contractorId: contractor.id,
+          notes: `E2E free movement ${suffix}`
+        }),
+        'free ledger entry'
+      )
+      ledger = { open, closed, free }
+    }
+
     db.prepare(
       "UPDATE Shift SET status = 'CLOSED', end_date = ?, reported_trip_count = 1 WHERE id = ?"
     ).run(currentDate(), closedShift.id)
     Object.assign(data, { secondDriver, closedShift, closedTrip })
+    if (ledger) data.ledger = ledger
+  }
+
+  if (mode === 'golden') {
+    data.clientPayment = requireCreated(
+      createClientPayment({
+        entryDate: currentDate(),
+        clientId: client.id,
+        amount: 1000,
+        notes: 'E2E golden payment'
+      }),
+      'golden client payment'
+    )
   }
 
   db.close()

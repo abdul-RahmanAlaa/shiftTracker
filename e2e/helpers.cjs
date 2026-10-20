@@ -203,6 +203,33 @@ async function openShiftDetails(page, shiftId) {
   await expect(page.getByRole('heading', { name: shiftId, exact: true })).toBeVisible()
 }
 
+async function callApi(page, method, input) {
+  return page.evaluate(([apiMethod, apiInput]) => window.api[apiMethod](apiInput), [method, input])
+}
+
+async function relaunchApp(session) {
+  await session.application.close()
+  const application = await electron.launch({
+    executablePath: electronPath,
+    args: ['--user-data-dir=' + session.tempDirectory, root],
+    cwd: root,
+    env: process.env,
+    timeout: 30_000
+  })
+  const page = await application.firstWindow()
+  page.on('pageerror', (error) => session.browserErrors.push(error.message))
+  page.on('console', (message) => {
+    if (message.type() === 'error') session.browserErrors.push(message.text())
+  })
+  await page.waitForLoadState('domcontentloaded')
+  await page.context().tracing.start({ screenshots: true, snapshots: true, sources: true })
+
+  session.application = application
+  session.page = page
+  session.traceStarted = true
+  return session
+}
+
 function allTripsRow(page, driverName) {
   return page.getByRole('row').filter({ hasText: driverName })
 }
@@ -352,6 +379,8 @@ module.exports = {
   expectNotice,
   closeShiftViaApi,
   openShiftDetails,
+  callApi,
+  relaunchApp,
   allTripsRow,
   routes,
   testWithApp
