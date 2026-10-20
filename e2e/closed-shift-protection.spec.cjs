@@ -141,6 +141,7 @@ testWithApp('SD-5 deletes a trip in Shift Details', async ({ launchApp }) => {
   await openShiftDetails(page, seedData.shift.id)
 
   const tripRow = page.getByRole('row').filter({ hasText: seedData.trip.id })
+  await tripRow.scrollIntoViewIfNeeded()
   const actionsCell = tripRow.locator('[data-slot="table-cell"]').last()
   const dialogPromise = nextDialog(page, 'accept')
   await actionsCell.getByRole('button', { name: text('common.delete'), exact: true }).click()
@@ -155,6 +156,7 @@ testWithApp('SD-6 cancel keeps the trip in Shift Details', async ({ launchApp })
   await openShiftDetails(page, seedData.shift.id)
 
   const tripRow = page.getByRole('row').filter({ hasText: seedData.trip.id })
+  await tripRow.scrollIntoViewIfNeeded()
   const actionsCell = tripRow.locator('[data-slot="table-cell"]').last()
   const dialogPromise = nextDialog(page, 'dismiss')
   await actionsCell.getByRole('button', { name: text('common.delete'), exact: true }).click()
@@ -171,6 +173,7 @@ testWithApp('SD-7 CLOSED shift locks edit and delete', async ({ launchApp }) => 
   await openShiftDetails(page, seedData.closedShift.id)
 
   const tripRow = page.getByRole('row').filter({ hasText: seedData.closedTrip.id })
+  await tripRow.scrollIntoViewIfNeeded()
   const actionsCell = tripRow.locator('[data-slot="table-cell"]').last()
   await expect(
     actionsCell.getByRole('button', { name: text('common.edit'), exact: true })
@@ -194,6 +197,7 @@ testWithApp('SD-8 server rejects a stale delete in Shift Details', async ({ laun
   await closeShiftViaApi(page, seedData.shift.id)
 
   const tripRow = page.getByRole('row').filter({ hasText: seedData.trip.id })
+  await tripRow.scrollIntoViewIfNeeded()
   const actionsCell = tripRow.locator('[data-slot="table-cell"]').last()
   const dialogPromise = nextDialog(page, 'accept')
   await actionsCell.getByRole('button', { name: text('common.delete'), exact: true }).click()

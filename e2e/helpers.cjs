@@ -195,6 +195,7 @@ async function closeShiftViaApi(page, shiftId) {
 }
 
 async function openShiftDetails(page, shiftId) {
+  await page.setViewportSize({ width: 1366, height: 768 })
   await navigate(page, '/shifts', 'shifts.title')
   const shiftRow = page.getByRole('row').filter({ hasText: shiftId })
   await shiftRow.locator('[data-slot="table-cell"]').nth(1).click()
