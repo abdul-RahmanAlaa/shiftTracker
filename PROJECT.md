@@ -24,6 +24,7 @@
 | `npm run verify:use-cases`              | Run the isolated use-case and SQLite verification harness    |
 | `npm run db:inspect -- <database-path>` | Inspect a database read-only through Electron as Node        |
 | `npm run test:e2e`                      | Build the app and run the Playwright Electron smoke suite    |
+| `build-installer.bat`                   | Double-click to build the Windows installer and open `dist`  |
 | `npm run review:gate`                   | Run checks and mechanical review rules; write `last-task.md` |
 | `npm run review:gate:e2e`               | Run the review gate including the E2E suite                  |
 
@@ -228,6 +229,7 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - **OI-008 — Medium, E2E coverage:** expand automated coverage according to `docs/e2e-coverage-plan.md`.
 - **OI-009 — Medium, E2E coverage:** expand E2E coverage per `docs/e2e-coverage-plan.md`.
 - **OI-010 — Low, table layout manual confirmation:** confirm two-line text wrapping, full-text hover titles, centered headers and cells, laptop fit, and unchanged sorting, filtering, and sums using `docs/manual-checklist.md`.
+- **OI-011 — Low, installer helper manual confirmation:** double-click `build-installer.bat` and confirm it builds the installer, opens `dist`, and leaves failures visible.
 
 Manual confirmation scenarios are listed unchecked by area in `docs/manual-checklist.md`.
 
