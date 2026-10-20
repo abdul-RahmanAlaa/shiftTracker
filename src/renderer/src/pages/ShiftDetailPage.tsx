@@ -271,6 +271,7 @@ export function ShiftDetailPage(): React.JSX.Element {
       ...trip,
       driverName: shift?.driverName ?? t('common.emptyCell'),
       vehicleNo: shift?.vehicleNo ?? 0,
+      shiftStatus: shift?.status ?? 'OPEN',
       crusherName:
         resources.crushers.find((crusher) => crusher.id === trip.crusherId)?.name ??
         t('common.emptyCell'),

@@ -71,6 +71,7 @@ export interface TripRow {
 export interface TripWithContextRow {
   id: string
   shiftId: string
+  shiftStatus: string
   driverName: string
   vehicleNo: number
   tripDate: string
@@ -253,6 +254,7 @@ export function listAllTrips(): TripWithContextRow[] {
       SELECT
         t.id,
         t.shift_id as shiftId,
+        s.status as shiftStatus,
         d.name as driverName,
         s.vehicle_no as vehicleNo,
         t.trip_date as tripDate,

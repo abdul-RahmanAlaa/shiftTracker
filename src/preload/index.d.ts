@@ -70,6 +70,7 @@ interface TripRow {
 interface TripWithContextRow {
   id: string
   shiftId: string
+  shiftStatus: string
   driverName: string
   vehicleNo: number
   tripDate: string

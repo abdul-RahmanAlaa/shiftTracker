@@ -66,14 +66,18 @@ export function AllTripsPage(): React.JSX.Element {
           >
             {t('common.details')}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void handleDeleteTrip(row.original.id)}
-          >
-            {t('common.delete')}
-          </Button>
+          {row.original.shiftStatus === 'CLOSED' ? (
+            <span className="text-sm text-muted-foreground">{t('common.lockedShift')}</span>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void handleDeleteTrip(row.original.id)}
+            >
+              {t('common.delete')}
+            </Button>
+          )}
         </div>
       )
     }
