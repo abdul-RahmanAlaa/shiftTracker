@@ -12,7 +12,7 @@
 | ------------ | -------------------------------------------------------------------------- |
 | Desktop      | Electron, `electron-vite`, React, TypeScript                               |
 | Database     | SQLite through `better-sqlite3`                                            |
-| UI           | React Router, React Hook Form, Zod, TanStack Table, Radix UI, Tailwind CSS |
+| UI           | React Router, React Hook Form, Zod, TanStack Table, TanStack Virtual, Radix UI, Tailwind CSS |
 | Localization | `react-i18next`; Arabic locale in `src/renderer/src/i18n/locales/ar.json`  |
 
 | Command                                 | Purpose                                                      |
@@ -21,9 +21,11 @@
 | `npm run build`                         | Type-check and build the app                                 |
 | `npm run typecheck`                     | Check node and web TypeScript projects                       |
 | `npm run lint`                          | Lint the repository with zero warnings allowed               |
+| `npm run check:i18n`                    | Check static/dynamic Arabic translation references and unused keys |
 | `npm run verify:use-cases`              | Run the isolated use-case and SQLite verification harness    |
 | `npm run db:inspect -- <database-path>` | Inspect a database read-only through Electron as Node        |
 | `npm run test:e2e`                      | Build the app and run the Playwright Electron smoke suite    |
+| `node scripts/benchmark-large-table.cjs` | Run the one-off large-table performance benchmark            |
 | `build-installer.bat`                   | Double-click to build the Windows installer and open `dist`  |
 | `npm run review:gate`                   | Run checks and mechanical review rules; write `last-task.md` |
 | `npm run review:gate:e2e`               | Run the review gate including the E2E suite                  |
@@ -37,13 +39,16 @@
 - `src/main/index.ts` registers IPC handlers; `src/preload/index.ts` exposes `window.api`, and `src/preload/index.d.ts` types it.
 - `trip:suggestPrices` validates the client, crusher, optional material type, and optional location, then reads independent price suggestions without writing data. Stone and client prices use material-specific history or their entity's initial price; transport uses client history with an exact-location preference.
 - Electron requests a single-instance lock for the current `userData` path before startup opens the database. A second launch exits silently; the first window is restored, shown, and focused when available.
+- The renderer window uses context isolation and sandboxing without Node integration. Popup requests are denied, and main-frame navigation and redirects are limited to the renderer entry URL.
 - `src/main/ipcWrapper.ts` converts thrown or rejected IPC handlers into the standard `_form` error result and logs the original error. Preload invocation rejections use the same failure result.
 - The renderer shell fills the window; the navigation bar stays visible while table pages scroll inside their table viewport.
 - `DataTable` provides internal scrolling with a sticky header. Headers and cells are centered. Text columns wrap, break long words, clamp to two lines, and expose their full displayed text in a hover title; columns without metadata use this behavior.
-- Numeric, identifier, date, and action columns set `meta: { nowrap: true }` to stay on one line with tabular numerals. Sorting, filtering, selection, and sums continue to use the original row values.
+- Tables with more than 200 filtered rows virtualize mounted rows. Sorting and distinct-value filtering still cover all loaded rows, while selection and sums cover all filtered selected rows, not only mounted rows.
+- Numeric, identifier, date, and action columns set `meta: { nowrap: true }` to stay on one line with tabular numerals.
+- `AttachmentManager` fetches an image data URI only when its thumbnail enters view. A shared three-request limit bounds attachment-photo IPC reads, and stale component requests cannot update replaced views.
 - The 1366×768 layout keeps all tables within their containers. Shift details moves location, stone price, and transport price into `TripDetailsContent`; All Trips moves shift into that details window; All Movements moves shift into `LedgerEntryDetailsContent`. Other table columns remain visible, including every statement, settings, and client-payment column.
 - `src/renderer/src/lib/numberFormat.ts` formats displayed money to two decimals and quantities to at most three decimals with en-US grouping and Latin digits.
-- `src/renderer/src/lib/ipcErrors.ts` exports the shared `ipcApi`, translates unexpected IPC failures, and shows non-blocking notices for unhandled errors and failed deletes. Identical notices are suppressed for three seconds and parallel bursts are coalesced; field-level validation remains with each form. Successful trip creation and update use the same notice mechanism; success notices dismiss after three seconds.
+- `src/renderer/src/lib/ipcErrors.ts` exports the shared `ipcApi`, converts rejected IPC invocations to the standard `_form` failure result, translates unexpected IPC failures, and shows non-blocking notices for unhandled errors and failed deletes. Identical notices are suppressed for three seconds and parallel bursts are coalesced; field-level validation remains with each form. Successful trip creation and update use the same notice mechanism; success notices dismiss after three seconds.
 - Use cases return `{ ok: true, data }` or `{ ok: false, errors }`, where each error has a `field` and `message`.
 - Runtime validation is in main-process use cases and shared schemas/helpers in `src/main/validation.ts`; renderer forms also use Zod for immediate field feedback.
 - Every user-visible renderer string comes from `src/renderer/src/i18n/locales/ar.json`. Do not hardcode user-visible text in renderer code.
@@ -75,16 +80,35 @@
 | `src/renderer/src/App.tsx`                      | HashRouter routes and active navigation                        |
 | `src/renderer/src/pages/`                       | Main pages and settings/account subpages                       |
 | `src/renderer/src/components/`                  | Shared forms, scrollable tables, dialogs, details, attachments |
-| `src/renderer/src/components/TripEntryGrid.tsx` | In-memory multi-trip entry grid for one shift                  |
+| `src/renderer/src/components/TripEntryGrid.tsx` | In-memory multi-trip grid composition for one shift           |
+| `src/renderer/src/components/trip-entry-grid/` | Grid row/cell rendering, navigation, validation, suggestions, and save hooks |
+| `src/renderer/src/components/ConfirmDialog.tsx` | Shared promise-based, RTL confirmation dialog and hook |
+| `src/renderer/src/pages/TripForm.tsx` | Add Trip form and typed field rendering |
+| `src/renderer/src/pages/tripFormSchema.ts` | Add Trip form schema and typed values |
+| `src/renderer/src/pages/NumberField.tsx` | Shared numeric input for Add Trip fields |
+| `src/renderer/src/pages/useAddTripPage.ts` | Add Trip selection, loading, and save orchestration |
+| `src/renderer/src/pages/ShiftsDialogs.tsx` | Shift create, edit, close, and reopen dialogs |
+| `src/renderer/src/pages/useShiftsPageData.ts` | Shift list loading and page data actions |
+| `src/renderer/src/pages/ShiftTripDialogs.tsx` | Shift Details add/edit trip dialogs |
+| `src/renderer/src/pages/useShiftDetailPage.ts` | Shift Details data loading and trip mutations |
+| `src/renderer/src/components/LedgerEntryDialog.tsx` | Shared ledger add/edit dialog and form                         |
+| `src/renderer/src/pages/accounts/useLedgerEntryMutations.ts` | Shared ledger create, update, delete, locking, and refresh logic |
+| `src/renderer/src/pages/settings/useSettingsCrud.ts` | Shared settings list loading, CRUD, confirmation, and form state |
+| `src/renderer/src/pages/settings/SettingsEntityPage.tsx` | Shared settings table, actions, and form dialog shell |
+| `src/renderer/src/pages/settings/settingsFormSchemas.ts` | Settings form schemas and entity types |
+| `src/renderer/src/pages/settings/*SettingsFields.tsx` | Entity-specific settings form fields |
 | `src/renderer/src/lib/enumLabels.ts`            | Shared labels for stored enum values                           |
 | `src/renderer/src/lib/ipcErrors.ts`             | Shared IPC API, error and success notices                      |
 | `src/renderer/src/lib/latestGuard.ts`           | Reject stale asynchronous selection-load results               |
 | `src/renderer/src/lib/numberFormat.ts`          | Shared display-only money and quantity formatting              |
 | `src/renderer/src/lib/tripGrid.ts`              | Pure trip-grid parsers, name resolution, payloads, and errors  |
 | `src/renderer/src/i18n/`                        | Arabic translation setup and locale                            |
-| `scripts/verify-closed-shift-use-cases.cjs`     | Isolated real-use-case verification harness                    |
+| `scripts/verify-closed-shift-use-cases.cjs`     | Electron-as-Node bootstrap for the isolated use-case harness   |
+| `scripts/verify/entry.ts`                       | Shared harness setup and ordered suite execution               |
+| `scripts/verify/`                               | Per-area shift, trip, ledger, accounting, statement, migration, backup, grid, and price suites |
 | `scripts/db-inspect.cjs`                        | Read-only database integrity and row-count inspection          |
 | `scripts/review-gate.cjs`                       | Automated checks, mechanical rules, and task report            |
+| `scripts/check-i18n.cjs`                         | Check translation references and unused Arabic locale keys     |
 | `docs/dev-reset-checklist.md`                   | One-time manual development database reset procedure           |
 | `docs/e2e-test-cases.md`                        | Concrete E2E test cases and expected results                   |
 | `docs/manual-checklist.md`                      | Unchecked manual confirmation scenarios                        |
@@ -162,6 +186,7 @@ Attachment rows store paths relative to user data. JPEG files are stored under `
 - Backups share the app data disk; copy them to external storage to protect against disk failure. See `docs/restore.md` for database and attachment recovery.
 - Only a CLOSED shift can be reopened; a non-empty reason is required and recorded in `ShiftReopenLog`. Reopened shifts can be edited and closed again with a newly entered count and the normal close checks.
 - CLOSED shifts are locked for trip, attachment, and ledger changes. Reopening is the correction path.
+- Contractor Account, Driver History, and All Movements use the same ledger dialog and mutation hook. Ledger shift selectors only offer shifts that are not CLOSED; errors for a missing or newly locked entry appear beside the shift selector.
 - Trips require positive finite cubic quantities and positive prices. Optional trip details are nullable in SQLite. Crusher and recipient status values have required matching receipt/name data.
 - The Add Trip page selects one driver's OPEN shift with latest-request protection and enters trips in an in-memory grid. Core columns are always visible; receipt number, recipient, location, and fine details are optional columns. New rows inherit only the prior row's date and the shift cubic defaults.
 - Unsaved grid rows exist only in renderer memory and are discarded when navigating away.
@@ -187,6 +212,7 @@ Trip history ordering uses the greatest trip date, then the greatest numeric tri
 - Opening balances are included in Accounts and Statements. `opening_balance_date` is informational and does not filter transactions.
 - Prices at IPC boundaries use decimal pounds; money is persisted and summed as integer piasters. Each derived trip line rounds half-up before totals are summed.
 - Contractor transport and material charges remain separate statement components. Material quantity is excluded from the contractor statement's total quantity.
+- Statements always place OPENING first. Remaining rows sort by date, then trip rows by numeric trip-ID suffix with client CHARGE before FINE and contractor TRANSPORT before MATERIAL for each trip. Payments follow trip rows and sort by description, signed amount, then notes, making same-date output independent of input order.
 - Ledger movements are `ADVANCE`, `PAYMENT`, and `OTHER`; signed non-zero amounts are allowed. A ledger row may be associated with a driver and shift; its contractor is required. Entries linked to a CLOSED shift cannot be created, changed, moved, or deleted.
 - Client payments are signed non-zero amounts. The statement formula subtracts payment amounts, so a negative payment increases the client balance.
 - Closing a shift creates no automatic ledger settlement.
@@ -204,27 +230,26 @@ Trip history ordering uses the greatest trip date, then the greatest numeric tri
 | `/statements`      | `StatementsPage` — client and contractor statements                                                                  |
 | `/settings`        | `SettingsPage` — vehicles, drivers, contractors, crushers, clients, material types                                   |
 
-The wildcard route redirects to `/`. Every page has a visible title; the active top-navigation link is highlighted and marked with `aria-current="page"`. Shared renderer components include `DataTable` (centered cells, text wrapping, nowrap column metadata, an internal scroll viewport, and a sticky header), `TripEntryGrid`, `AttachmentManager`, `CreateShiftForm`, `LedgerEntryForm`, `TripDetailsContent`, `LedgerEntryDetailsContent`, `ShiftBreadcrumb`, `SubmitButton`, and the floating-window provider/components.
+The wildcard route redirects to `/`. Every page has a visible title; the active top-navigation link is highlighted and marked with `aria-current="page"`. Shared renderer components include `DataTable` (centered cells, text wrapping, nowrap column metadata, an internal scroll viewport, and a sticky header), `TripEntryGrid`, `AttachmentManager`, `CreateShiftForm`, `LedgerEntryForm`, `LedgerEntryDialog`, `TripDetailsContent`, `LedgerEntryDetailsContent`, `ShiftBreadcrumb`, `SubmitButton`, and the floating-window provider/components.
 
 ## 7. Verification
 
 - `npm run verify:use-cases` bundles and invokes the real use cases under Electron-as-Node, uses an isolated temporary user-data directory, prints a result table and exits non-zero on failed cases.
-- The use-case harness verifies P1–P9 for trip-price suggestions and G1–G9 for pure trip-grid behavior, alongside the shift, trip, ledger, accounting, and migration cases.
-- The use-case harness includes M1–M9 migration checks and BK-1–BK-8 backup checks for snapshot verification, attachment mirroring, daily snapshots, retention, close warnings, and status persistence. All fixtures use temporary directories.
+- The use-case harness is assembled from per-area suites under `scripts/verify/` and verifies P1–P9 for trip-price suggestions and G1–G13 for pure trip-grid behavior, alongside shift, trip, ledger, accounting, and deterministic statement-ordering cases.
+- The use-case harness includes M1–M11 migration checks and BK-1–BK-8 backup checks for snapshot verification, attachment mirroring, daily snapshots, retention, close warnings, and status persistence. All fixtures use temporary directories.
+- Destructive actions use the shared in-app `ConfirmDialog`; its promise resolves to confirm or cancel, Escape cancels, and focus returns to the triggering element.
+- `npm run check:i18n` rejects missing or unreferenced Arabic translation keys and documents allow-listed dynamic key prefixes; `npm run review:gate` runs this check.
 - `npm run db:inspect -- <database-path>` opens a database read-only and reports its version, integrity, table row counts, and first/last Shift and Trip IDs. It never writes to the inspected database.
+- `node scripts/benchmark-large-table.cjs` seeds an isolated temporary database with 8,000 trips across 50 shifts and measures All Trips in Electron through Playwright; it is a one-off measurement, not a gate test.
 - `npm run test:e2e` builds the app and drives the real Electron app through seven Playwright smoke flows: all routes and runtime/translation-key health; shift creation and duplicate-vehicle rejection; trip-grid validation and detail labels; partial grid save with a server-rejected row; shift close/count/attachments; contractor-versus-client statement note; and refusal of a second instance while the first remains responsive.
 - E2E fixtures and each app launch use temporary user-data directories.
-- `npm run review:gate` runs diff check, typecheck, lint, and the use-case harness, then checks added diff lines for selected mechanical rules. `npm run review:gate:e2e` also runs Playwright. The gate does not use AI and writes `last-task.md`; the complete harness result table goes to ignored `scripts/last-harness-output.txt`.
+- `npm run review:gate` runs diff check, typecheck, lint, the i18n check, and the use-case harness, then checks added diff lines for selected mechanical rules. `npm run review:gate:e2e` also runs Playwright. The gate does not use AI and writes `last-task.md`; the complete harness result table goes to ignored `scripts/last-harness-output.txt`.
 - Automated checks do not replace user confirmation in Electron. Only checklist items explicitly marked `[x]` were confirmed by the user; unchecked scenarios remain pending.
 - Human testing is required for pending manual checklist scenarios, visual usability, workflows outside the smoke flows, and real-device filesystem/backup behavior.
 
 ## 8. Open items
 
-- **OI-001 — High, ledger edit forms:** contractor and driver account pages retain separate manual edit forms rather than applying the shared locking rules consistently. Review `src/renderer/src/pages/accounts/ContractorAccountPage.tsx` and `src/renderer/src/pages/accounts/DriverHistoryPage.tsx`.
 - **OI-002 — Medium, account and statement details:** filtered-table empty-state handling and duplicated client-payment notes need attention. Review `src/renderer/src/components/DataTable.tsx`, `src/renderer/src/pages/accounts/AccountTables.tsx`, and `src/main/repository/statementRepository.ts`.
-- **OI-003 — Medium, attachment throughput:** shift details can request many full attachment data URIs. Review `src/renderer/src/pages/ShiftDetailPage.tsx` and `src/renderer/src/components/AttachmentManager.tsx`.
-- **OI-004 — Medium, same-date ordering:** statement ordering for movements on one date needs an explicit, stable business order. Review `src/main/use-cases/getStatement.ts`.
-- **OI-005 — Low, locale maintenance:** unused locale entries remain, and there is no automated missing-translation-key check. Review `src/renderer/src/i18n/locales/ar.json` and `src/renderer/src/i18n/`.
 - **OI-006 — Low, app packaging metadata:** boilerplate app metadata, window title, HTML language/direction, and app ID alignment need review. Review `package.json`, `src/renderer/index.html`, and `src/main/index.ts`.
 - **OI-007 — Low, Add Trip grid manual confirmation:** typing, paste, suggestions, keyboard behavior, server-error retention, driver switching, and laptop fit remain unchecked; scenarios are listed in `docs/manual-checklist.md`.
 - **OI-008 — Medium, E2E coverage:** expand automated coverage according to `docs/e2e-coverage-plan.md`.
@@ -233,6 +258,14 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - **OI-011 — Low, installer helper manual confirmation:** double-click `build-installer.bat` and confirm it builds the installer, opens `dist`, and leaves failures visible.
 - **OI-012 — Low, trip deletion manual confirmation:** delete a trip from Shift Details and All Trips; confirm the success notice and that the deleted trip disappears from the list. In All Trips, confirm Delete is hidden for trips in CLOSED shifts and the locked label is shown.
 - **OI-013 — Low, closed-shift attachment manual confirmation:** attachments of trips in CLOSED shifts show no upload or delete controls in Shift Details, the trip details window, and the All Trips details window; REOPENED and OPEN shifts keep them.
+- **OI-014 — Low, renderer navigation manual confirmation:** confirm popup requests are denied and navigation or redirects outside the app renderer are blocked in development and packaged runs.
+- **OI-015 — Low, ledger form manual confirmation:** confirm add, edit, and delete behavior on Contractor Account, Driver History, and All Movements for OPEN-shift, CLOSED-shift, and unlinked entries using `docs/manual-checklist.md`.
+- **OI-016 — Low, statement ordering manual confirmation:** confirm same-date statements show OPENING first, numeric trip-ID order, the correct per-trip component order, and canonical payment order using `docs/manual-checklist.md`.
+- **OI-017 — Low, renderer IPC failure manual confirmation:** simulate a rejected IPC invocation and confirm the loading state resets, a non-blocking error notice appears, and the page remains usable using `docs/manual-checklist.md`.
+- **OI-018 — Low, settings CRUD manual confirmation:** confirm add, edit, delete, field errors, blank Add after Edit, and delete-failure notices remain consistent on all six settings pages using `docs/manual-checklist.md`.
+- **OI-019 — Low, extracted trip and shift workflows manual confirmation:** confirm Add Trip grid/form interactions and shift/detail dialogs preserve validation, save, cancel, attachment, and refresh behavior using `docs/manual-checklist.md`.
+- **OI-020 — Low, in-app confirmation manual confirmation:** confirm destructive prompts use RTL text and styling, Escape cancels, focus returns to the trigger, and no native dialog appears across delete workflows using `docs/manual-checklist.md`.
+- **OI-021 — Low, large-table and lazy-attachment manual confirmation:** confirm large All Trips tables keep scrolling, sorting, filtering, and sums correct, and attachment previews load on display while upload, delete, preview, and CLOSED-shift read-only behavior remain intact using `docs/manual-checklist.md`.
 
 Manual confirmation scenarios are listed unchecked by area in `docs/manual-checklist.md`.
 

@@ -172,12 +172,46 @@ async function expectTablesFit(page, label, measurements) {
 }
 
 function nextDialog(page, action) {
-  return new Promise((resolve, reject) => {
-    page.once('dialog', (dialog) => {
-      const message = dialog.message()
-      void dialog[action]().then(() => resolve(message), reject)
-    })
+  let nativeDialogFired = false
+  let resolveNativeDialog
+  const nativeDialogPromise = new Promise((resolve) => {
+    resolveNativeDialog = resolve
   })
+  const onNativeDialog = (dialog) => {
+    nativeDialogFired = true
+    void dialog.dismiss()
+    resolveNativeDialog()
+  }
+  page.on('dialog', onNativeDialog)
+
+  return (async () => {
+    try {
+      const dialog = page.getByRole('dialog')
+      const appDialogAppeared = expect(dialog)
+        .toBeVisible()
+        .then(() => true)
+      const openedInApp = await Promise.race([
+        appDialogAppeared,
+        nativeDialogPromise.then(() => false)
+      ])
+      expect(nativeDialogFired, 'Delete confirmation must not open a native dialog').toBe(false)
+      expect(openedInApp).toBe(true)
+      await expect(dialog).toHaveAttribute('dir', 'rtl')
+
+      const message = await dialog.getByTestId('confirm-dialog-message').innerText()
+      if (action === 'escape') {
+        await page.keyboard.press('Escape')
+      } else {
+        const key = action === 'accept' ? 'common.confirm' : 'common.cancel'
+        await dialog.getByRole('button', { name: text(key), exact: true }).click()
+      }
+
+      expect(nativeDialogFired, 'Delete confirmation must not open a native dialog').toBe(false)
+      return message
+    } finally {
+      page.off('dialog', onNativeDialog)
+    }
+  })()
 }
 
 async function expectNotice(page, key) {

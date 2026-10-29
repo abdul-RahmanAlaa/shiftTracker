@@ -48,17 +48,39 @@ testWithApp('AT-6 cancel keeps the trip in All Trips', async ({ launchApp }) => 
   await navigate(page, '/all-trips', 'allTrips.title')
 
   const row = allTripsRow(page, seedData.driver.name)
+  const deleteButton = row.getByRole('button', { name: text('common.delete'), exact: true })
   const dialogPromise = nextDialog(page, 'dismiss')
-  await row.getByRole('button', { name: text('common.delete'), exact: true }).click()
+  await deleteButton.click()
   expect(await dialogPromise).toBe(
     text('allTrips.deleteTripConfirmation', { id: seedData.trip.id })
   )
 
   await expect(row).toBeVisible()
+  await expect(deleteButton).toBeFocused()
   await expect(
     page.getByRole('status').filter({ hasText: text('ipcErrors.tripDeleted') })
   ).toHaveCount(0)
 })
+
+testWithApp(
+  'AT-6 Escape cancels an in-app delete confirmation and restores focus',
+  async ({ launchApp }) => {
+    const app = await launchApp('two-shifts')
+    const { page, seedData } = app
+    await navigate(page, '/all-trips', 'allTrips.title')
+
+    const row = allTripsRow(page, seedData.driver.name)
+    const deleteButton = row.getByRole('button', { name: text('common.delete'), exact: true })
+    const dialogPromise = nextDialog(page, 'escape')
+    await deleteButton.click()
+    expect(await dialogPromise).toBe(
+      text('allTrips.deleteTripConfirmation', { id: seedData.trip.id })
+    )
+
+    await expect(deleteButton).toBeFocused()
+    await expect(row).toBeVisible()
+  }
+)
 
 testWithApp('AT-7/AT-8 only OPEN-shift trips show Delete', async ({ launchApp }) => {
   const app = await launchApp('two-shifts')

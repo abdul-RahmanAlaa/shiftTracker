@@ -1,143 +1,71 @@
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@/components/ui/button'
-import { SubmitButton } from '@/components/SubmitButton'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DataTable } from '@/components/DataTable'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { hasAtMostTwoDecimals } from '@/lib/money'
 import { formatMoney } from '@/lib/numberFormat'
-
-const crusherSchema = z.object({
-  name: z.string().min(1, i18n.t('crushersSettings.validation.nameRequired')),
-  initialPrice: z
-    .string()
-    .optional()
-    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine((val) => val === undefined || val > 0, i18n.t('common.validation.positivePrice'))
-    .refine(
-      (val) => val === undefined || hasAtMostTwoDecimals(val),
-      i18n.t('common.validation.moneyDecimals')
-    )
-})
-
-type CrusherFormValues = z.infer<typeof crusherSchema>
-type CrusherFormInput = z.input<typeof crusherSchema>
-type Crusher = { id: number; name: string; initialPrice: number | null }
+import { SettingsEntityPage } from '@/pages/settings/SettingsEntityPage'
+import { useSettingsCrud } from '@/pages/settings/useSettingsCrud'
+import { CrusherSettingsFields } from './CrusherSettingsFields'
+import {
+  crusherSchema,
+  type Crusher,
+  type CrusherFormInput,
+  type CrusherFormValues
+} from './settingsFormSchemas'
 
 export function CrushersSettings(): React.JSX.Element {
   const { t } = useTranslation()
-  const [crushers, setCrushers] = useState<Crusher[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingCrusherId, setEditingCrusherId] = useState<number | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const crusherForm = useForm<CrusherFormInput>({
     resolver: zodResolver(crusherSchema, undefined, { raw: true }) as Resolver<CrusherFormInput>,
     defaultValues: { name: '', initialPrice: '' }
   })
+  const crud = useSettingsCrud<Crusher, CrusherFormInput>({
+    list: () => ipcApi.listCrushers(),
+    save: async (editingCrusher, values) => {
+      let parsedValues: CrusherFormValues
+      try {
+        parsedValues = crusherSchema.parse(values)
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          error.issues.forEach((issue) => {
+            const field = issue.path[0]
+            if (field === 'name' || field === 'initialPrice') {
+              crusherForm.setError(field, { message: issue.message })
+            }
+          })
+          return undefined
+        }
+        throw error
+      }
 
-  async function loadCrushers(): Promise<void> {
-    setLoading(true)
-    const result = await ipcApi.listCrushers()
-    if (result.ok) setCrushers(result.data)
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    void ipcApi.listCrushers().then((result) => {
-      if (result.ok) setCrushers(result.data)
-      setLoading(false)
-    })
-  }, [])
-
-  async function handleSaveCrusher(values: CrusherFormInput): Promise<void> {
-    let parsedValues: CrusherFormValues
-    try {
-      parsedValues = crusherSchema.parse(values)
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        error.issues.forEach((issue) => {
-          const field = issue.path[0]
-          if (typeof field === 'string') {
-            crusherForm.setError(field as keyof CrusherFormInput, { message: issue.message })
+      const result = editingCrusher
+        ? await ipcApi.updateCrusher({ id: editingCrusher.id, ...parsedValues })
+        : await ipcApi.createCrusher(parsedValues)
+      if (!result.ok) {
+        result.errors.forEach((error) => {
+          if (error.field === 'name' || error.field === 'initialPrice') {
+            crusherForm.setError(error.field, { message: error.message })
           }
         })
-        return
       }
-      throw error
-    }
-
-    const result = editingCrusherId
-      ? await ipcApi.updateCrusher({ id: editingCrusherId, ...parsedValues })
-      : await ipcApi.createCrusher(parsedValues)
-    if (result.ok) {
-      setIsDialogOpen(false)
-      crusherForm.reset()
-      setEditingCrusherId(null)
-      await loadCrushers()
-    } else {
-      result.errors.forEach((error) => {
-        if (error.field === 'name' || error.field === 'initialPrice') {
-          crusherForm.setError(error.field, { message: error.message })
-        }
-      })
-    }
-  }
-
-  function startEditingCrusher(crusher: Crusher): void {
-    setEditingCrusherId(crusher.id)
-    crusherForm.reset({
-      name: crusher.name,
-      initialPrice: crusher.initialPrice === null ? '' : String(crusher.initialPrice)
-    })
-    setIsDialogOpen(true)
-  }
-
-  function cancelEditingCrusher(): void {
-    setEditingCrusherId(null)
-    crusherForm.reset()
-    setIsDialogOpen(false)
-  }
-
-  async function handleDeleteCrusher(crusher: Crusher): Promise<void> {
-    if (!confirm(t('crushersSettings.deleteConfirmation', { name: crusher.name }))) return
-    const result = await ipcApi.deleteCrusher({ id: crusher.id })
-    if (result.ok) {
-      if (editingCrusherId === crusher.id) cancelEditingCrusher()
-      await loadCrushers()
-    }
-  }
-
-  function handleDialogChange(open: boolean): void {
-    setIsDialogOpen(open)
-    if (!open) {
-      setEditingCrusherId(null)
-      crusherForm.reset()
-    }
-  }
+      return result
+    },
+    remove: (crusher) => ipcApi.deleteCrusher({ id: crusher.id }),
+    getRowId: (crusher) => crusher.id,
+    getDeleteConfirmation: (crusher) =>
+      t('crushersSettings.deleteConfirmation', { name: crusher.name }),
+    resetForm: (crusher) =>
+      crusherForm.reset(
+        crusher
+          ? {
+              name: crusher.name,
+              initialPrice: crusher.initialPrice === null ? '' : String(crusher.initialPrice)
+            }
+          : { name: '', initialPrice: '' }
+      )
+  })
 
   const columns: ColumnDef<Crusher, unknown>[] = [
     { accessorKey: 'name', header: t('common.columns.name') },
@@ -149,131 +77,37 @@ export function CrushersSettings(): React.JSX.Element {
         const value = getValue<number | null>()
         return value === null ? t('common.emptyCell') : formatMoney(value)
       }
-    },
-    {
-      id: 'actions',
-      header: t('common.columns.actions'),
-      meta: { nowrap: true },
-      enableSorting: false,
-      enableColumnFilter: false,
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => startEditingCrusher(row.original)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => void handleDeleteCrusher(row.original)}
-          >
-            {t('common.delete')}
-          </Button>
-        </div>
-      )
     }
   ]
 
   return (
-    <Card className="flex h-full min-h-0 flex-col">
-      <CardHeader>
-        <CardTitle>{t('crushersSettings.title')}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col">
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              onClick={() => {
-                setEditingCrusherId(null)
-                crusherForm.reset()
-              }}
-            >
-              {t('crushersSettings.addButton')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent closeDisabled={crusherForm.formState.isSubmitting}>
-            <DialogHeader>
-              <DialogTitle>
-                {editingCrusherId
-                  ? t('crushersSettings.editTitle')
-                  : t('crushersSettings.addTitle')}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...crusherForm}>
-              <form
-                noValidate
-                onSubmit={crusherForm.handleSubmit(handleSaveCrusher)}
-                className="grid gap-4"
-              >
-                <FormField
-                  control={crusherForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('crushersSettings.fields.name')}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t('crushersSettings.fields.name')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={crusherForm.control}
-                  name="initialPrice"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.defaultPrice')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder={t('common.defaultPrice')}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <SubmitButton isSubmitting={crusherForm.formState.isSubmitting}>
-                    {editingCrusherId
-                      ? t('contractorsSettings.saveEdit')
-                      : t('contractorsSettings.addSubmit')}
-                  </SubmitButton>
-                  <DialogClose asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={crusherForm.formState.isSubmitting}
-                      onClick={cancelEditingCrusher}
-                    >
-                      {t('common.cancel')}
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-        <div className="mt-6 flex min-h-0 flex-1 flex-col">
-          <DataTable
-            columns={columns}
-            data={crushers}
-            loading={loading}
-            getRowId={(crusher) => String(crusher.id)}
-            enableRowSelection
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <SettingsEntityPage
+      title={t('crushersSettings.title')}
+      addButtonText={t('crushersSettings.addButton')}
+      addTitle={t('crushersSettings.addTitle')}
+      editTitle={t('crushersSettings.editTitle')}
+      actionsText={t('common.columns.actions')}
+      editText={t('common.edit')}
+      deleteText={t('common.delete')}
+      addSubmitText={t('contractorsSettings.addSubmit')}
+      saveEditText={t('contractorsSettings.saveEdit')}
+      cancelText={t('common.cancel')}
+      rows={crud.rows}
+      loading={crud.loading}
+      columns={columns}
+      getRowId={(crusher) => String(crusher.id)}
+      isEditing={crud.isEditing}
+      dialogOpen={crud.dialogOpen}
+      closeDisabled={crusherForm.formState.isSubmitting}
+      onAdd={crud.openForCreate}
+      onEdit={crud.openForEdit}
+      onDelete={crud.deleteRow}
+      onDialogOpenChange={crud.handleDialogOpenChange}
+      onCancel={crud.closeDialog}
+      onSubmit={crusherForm.handleSubmit(crud.save)}
+      noValidate
+    >
+      <CrusherSettingsFields form={crusherForm} />
+    </SettingsEntityPage>
   )
 }

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -60,6 +61,7 @@ type PaymentFormValues = z.infer<typeof paymentSchema>
 
 export function ClientAccountPage(): React.JSX.Element {
   const { t } = useTranslation()
+  const requestConfirmation = useConfirm()
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClientId, setSelectedClientId] = useState<number>()
   const [accountReloadVersion, setAccountReloadVersion] = useState(0)
@@ -157,7 +159,12 @@ export function ClientAccountPage(): React.JSX.Element {
   }
 
   async function handleDeletePayment(payment: { id: number }): Promise<void> {
-    if (!confirm(t('clientAccount.deleteConfirmation', { id: payment.id }))) return
+    if (
+      !(await requestConfirmation({
+        message: t('clientAccount.deleteConfirmation', { id: payment.id })
+      }))
+    )
+      return
     const result = await ipcApi.deleteClientPayment({ id: payment.id })
     if (result.ok) {
       if (editingPaymentId === payment.id) {

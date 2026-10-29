@@ -1,24 +1,10 @@
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@/components/ui/button'
-import { SubmitButton } from '@/components/SubmitButton'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DataTable } from '@/components/DataTable'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
 import {
   Form,
   FormControl,
@@ -28,6 +14,8 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { SettingsEntityPage } from '@/pages/settings/SettingsEntityPage'
+import { useSettingsCrud } from '@/pages/settings/useSettingsCrud'
 
 const materialTypeSchema = z.object({
   name: z.string().min(1, i18n.t('materialTypesSettings.validation.nameRequired'))
@@ -38,184 +26,76 @@ type MaterialType = { id: number; name: string }
 
 export function MaterialTypesSettings(): React.JSX.Element {
   const { t } = useTranslation()
-  const [materialTypes, setMaterialTypes] = useState<MaterialType[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingMaterialTypeId, setEditingMaterialTypeId] = useState<number | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const materialTypeForm = useForm<MaterialTypeFormInput>({
     resolver: zodResolver(materialTypeSchema),
     defaultValues: { name: '' }
   })
-
-  async function loadMaterialTypes(): Promise<void> {
-    setLoading(true)
-    const result = await ipcApi.listMaterialTypes()
-    if (result.ok) setMaterialTypes(result.data)
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    void ipcApi.listMaterialTypes().then((result) => {
-      if (result.ok) setMaterialTypes(result.data)
-      setLoading(false)
-    })
-  }, [])
-
-  async function handleSaveMaterialType(values: MaterialTypeFormInput): Promise<void> {
-    const result = editingMaterialTypeId
-      ? await ipcApi.updateMaterialType({ id: editingMaterialTypeId, ...values })
-      : await ipcApi.createMaterialType(values)
-
-    if (result.ok) {
-      setIsDialogOpen(false)
-      materialTypeForm.reset({ name: '' })
-      setEditingMaterialTypeId(null)
-      await loadMaterialTypes()
-    } else {
-      result.errors.forEach((error) => {
-        if (error.field === 'name') {
-          materialTypeForm.setError('name', { message: error.message })
-        }
-      })
-    }
-  }
-
-  function startEditingMaterialType(materialType: MaterialType): void {
-    setEditingMaterialTypeId(materialType.id)
-    materialTypeForm.reset({ name: materialType.name })
-    setIsDialogOpen(true)
-  }
-
-  function cancelEditingMaterialType(): void {
-    setEditingMaterialTypeId(null)
-    materialTypeForm.reset({ name: '' })
-    setIsDialogOpen(false)
-  }
-
-  async function handleDeleteMaterialType(materialType: MaterialType): Promise<void> {
-    if (!confirm(t('materialTypesSettings.deleteConfirmation', { name: materialType.name }))) return
-    const result = await ipcApi.deleteMaterialType({ id: materialType.id })
-    if (result.ok) {
-      if (editingMaterialTypeId === materialType.id) cancelEditingMaterialType()
-      await loadMaterialTypes()
-    }
-  }
-
-  function handleDialogChange(open: boolean): void {
-    setIsDialogOpen(open)
-    if (!open) {
-      setEditingMaterialTypeId(null)
-      materialTypeForm.reset({ name: '' })
-    }
-  }
+  const crud = useSettingsCrud<MaterialType, MaterialTypeFormInput>({
+    list: () => ipcApi.listMaterialTypes(),
+    save: async (editingMaterialType, values) => {
+      const result = editingMaterialType
+        ? await ipcApi.updateMaterialType({ id: editingMaterialType.id, ...values })
+        : await ipcApi.createMaterialType(values)
+      if (!result.ok && result.errors.some((error) => error.field === 'name')) {
+        const error = result.errors.find((item) => item.field === 'name')
+        if (error) materialTypeForm.setError('name', { message: error.message })
+      }
+      return result
+    },
+    remove: (materialType) => ipcApi.deleteMaterialType({ id: materialType.id }),
+    getRowId: (materialType) => materialType.id,
+    getDeleteConfirmation: (materialType) =>
+      t('materialTypesSettings.deleteConfirmation', { name: materialType.name }),
+    resetForm: (materialType) =>
+      materialTypeForm.reset(materialType ? { name: materialType.name } : { name: '' })
+  })
 
   const columns: ColumnDef<MaterialType, unknown>[] = [
-    { accessorKey: 'name', header: t('common.columns.name') },
-    {
-      id: 'actions',
-      header: t('common.columns.actions'),
-      meta: { nowrap: true },
-      enableSorting: false,
-      enableColumnFilter: false,
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => startEditingMaterialType(row.original)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => void handleDeleteMaterialType(row.original)}
-          >
-            {t('common.delete')}
-          </Button>
-        </div>
-      )
-    }
+    { accessorKey: 'name', header: t('common.columns.name') }
   ]
 
   return (
-    <Card className="flex h-full min-h-0 flex-col">
-      <CardHeader>
-        <CardTitle>{t('materialTypesSettings.title')}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col">
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              onClick={() => {
-                setEditingMaterialTypeId(null)
-                materialTypeForm.reset({ name: '' })
-              }}
-            >
-              {t('materialTypesSettings.addButton')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent closeDisabled={materialTypeForm.formState.isSubmitting}>
-            <DialogHeader>
-              <DialogTitle>
-                {editingMaterialTypeId
-                  ? t('materialTypesSettings.editTitle')
-                  : t('materialTypesSettings.addTitle')}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...materialTypeForm}>
-              <form
-                noValidate
-                onSubmit={materialTypeForm.handleSubmit(handleSaveMaterialType)}
-                className="grid gap-4"
-              >
-                <FormField
-                  control={materialTypeForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('materialTypesSettings.fields.name')}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t('materialTypesSettings.fields.name')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <SubmitButton isSubmitting={materialTypeForm.formState.isSubmitting}>
-                    {editingMaterialTypeId
-                      ? t('contractorsSettings.saveEdit')
-                      : t('contractorsSettings.addSubmit')}
-                  </SubmitButton>
-                  <DialogClose asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={materialTypeForm.formState.isSubmitting}
-                      onClick={cancelEditingMaterialType}
-                    >
-                      {t('common.cancel')}
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-        <div className="mt-6 flex min-h-0 flex-1 flex-col">
-          <DataTable
-            columns={columns}
-            data={materialTypes}
-            loading={loading}
-            getRowId={(materialType) => String(materialType.id)}
-            enableRowSelection
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <SettingsEntityPage
+      title={t('materialTypesSettings.title')}
+      addButtonText={t('materialTypesSettings.addButton')}
+      addTitle={t('materialTypesSettings.addTitle')}
+      editTitle={t('materialTypesSettings.editTitle')}
+      actionsText={t('common.columns.actions')}
+      editText={t('common.edit')}
+      deleteText={t('common.delete')}
+      addSubmitText={t('contractorsSettings.addSubmit')}
+      saveEditText={t('contractorsSettings.saveEdit')}
+      cancelText={t('common.cancel')}
+      rows={crud.rows}
+      loading={crud.loading}
+      columns={columns}
+      getRowId={(materialType) => String(materialType.id)}
+      isEditing={crud.isEditing}
+      dialogOpen={crud.dialogOpen}
+      closeDisabled={materialTypeForm.formState.isSubmitting}
+      onAdd={crud.openForCreate}
+      onEdit={crud.openForEdit}
+      onDelete={crud.deleteRow}
+      onDialogOpenChange={crud.handleDialogOpenChange}
+      onCancel={crud.closeDialog}
+      onSubmit={materialTypeForm.handleSubmit(crud.save)}
+      noValidate
+    >
+      <Form {...materialTypeForm}>
+        <FormField
+          control={materialTypeForm.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('materialTypesSettings.fields.name')}</FormLabel>
+              <FormControl>
+                <Input placeholder={t('materialTypesSettings.fields.name')} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </Form>
+    </SettingsEntityPage>
   )
 }

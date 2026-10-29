@@ -1,154 +1,84 @@
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { useForm, type Resolver } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@/components/ui/button'
-import { SubmitButton } from '@/components/SubmitButton'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DataTable } from '@/components/DataTable'
+import { SettingsEntityPage } from '@/pages/settings/SettingsEntityPage'
+import { useSettingsCrud } from '@/pages/settings/useSettingsCrud'
+import { ContractorSettingsFields } from './ContractorSettingsFields'
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { hasAtMostTwoDecimals } from '@/lib/money'
-
-const contractorSchema = z.object({
-  name: z.string().min(1, i18n.t('contractorsSettings.validation.nameRequired')),
-  phone: z.string().optional(),
-  openingBalance: z
-    .string()
-    .optional()
-    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine(
-      (val) => val === undefined || hasAtMostTwoDecimals(val),
-      i18n.t('common.validation.moneyDecimals')
-    ),
-  openingBalanceDate: z.string().optional()
-})
-
-type ContractorFormValues = z.infer<typeof contractorSchema>
-type ContractorFormInput = z.input<typeof contractorSchema>
-type Contractor = {
-  id: number
-  name: string
-  phone: string | null
-  openingBalance: number
-  openingBalanceDate: string | null
-}
+  contractorSchema,
+  type Contractor,
+  type ContractorFormInput,
+  type ContractorFormValues
+} from './settingsFormSchemas'
 
 export function ContractorsSettings(): React.JSX.Element {
   const { t } = useTranslation()
-  const [contractors, setContractors] = useState<Contractor[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingContractorId, setEditingContractorId] = useState<number | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const contractorForm = useForm<ContractorFormInput>({
     resolver: zodResolver(contractorSchema, undefined, {
       raw: true
     }) as Resolver<ContractorFormInput>,
     defaultValues: { name: '', phone: '', openingBalance: '', openingBalanceDate: '' }
   })
+  const crud = useSettingsCrud<Contractor, ContractorFormInput>({
+    list: () => ipcApi.listContractors(),
+    save: async (editingContractor, values) => {
+      let parsedValues: ContractorFormValues
+      try {
+        parsedValues = contractorSchema.parse(values)
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          error.issues.forEach((issue) => {
+            const field = issue.path[0]
+            if (
+              field === 'name' ||
+              field === 'phone' ||
+              field === 'openingBalance' ||
+              field === 'openingBalanceDate'
+            ) {
+              contractorForm.setError(field, { message: issue.message })
+            }
+          })
+          return undefined
+        }
+        throw error
+      }
 
-  async function loadContractors(): Promise<void> {
-    setLoading(true)
-    const result = await ipcApi.listContractors()
-    if (result.ok) setContractors(result.data)
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    void ipcApi.listContractors().then((result) => {
-      if (result.ok) setContractors(result.data)
-      setLoading(false)
-    })
-  }, [])
-
-  async function handleSaveContractor(values: ContractorFormInput): Promise<void> {
-    let parsedValues: ContractorFormValues
-    try {
-      parsedValues = contractorSchema.parse(values)
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        error.issues.forEach((issue) => {
-          const field = issue.path[0]
-          if (typeof field === 'string') {
-            contractorForm.setError(field as keyof ContractorFormInput, { message: issue.message })
+      const result = editingContractor
+        ? await ipcApi.updateContractor({ id: editingContractor.id, ...parsedValues })
+        : await ipcApi.createContractor(parsedValues)
+      if (!result.ok) {
+        result.errors.forEach((error) => {
+          if (
+            error.field === 'name' ||
+            error.field === 'phone' ||
+            error.field === 'openingBalance' ||
+            error.field === 'openingBalanceDate'
+          ) {
+            contractorForm.setError(error.field, { message: error.message })
           }
         })
-        return
       }
-      throw error
-    }
-    const result = editingContractorId
-      ? await ipcApi.updateContractor({ id: editingContractorId, ...parsedValues })
-      : await ipcApi.createContractor(parsedValues)
-    if (result.ok) {
-      setIsDialogOpen(false)
-      contractorForm.reset({ name: '', phone: '', openingBalance: '', openingBalanceDate: '' })
-      setEditingContractorId(null)
-      await loadContractors()
-    } else {
-      result.errors.forEach((error) => {
-        if (error.field in contractorForm.getValues()) {
-          contractorForm.setError(error.field as keyof ContractorFormInput, {
-            message: error.message
-          })
-        }
-      })
-    }
-  }
-
-  function startEditingContractor(contractor: Contractor): void {
-    setEditingContractorId(contractor.id)
-    contractorForm.reset({
-      name: contractor.name,
-      phone: contractor.phone ?? '',
-      openingBalance: String(contractor.openingBalance ?? 0),
-      openingBalanceDate: contractor.openingBalanceDate ?? ''
-    })
-    setIsDialogOpen(true)
-  }
-
-  function cancelEditingContractor(): void {
-    setEditingContractorId(null)
-    contractorForm.reset({ name: '', phone: '', openingBalance: '', openingBalanceDate: '' })
-    setIsDialogOpen(false)
-  }
-
-  async function handleDeleteContractor(contractor: Contractor): Promise<void> {
-    if (!confirm(t('contractorsSettings.deleteConfirmation', { name: contractor.name }))) return
-    const result = await ipcApi.deleteContractor({ id: contractor.id })
-    if (result.ok) {
-      if (editingContractorId === contractor.id) cancelEditingContractor()
-      await loadContractors()
-    }
-  }
-
-  function handleDialogChange(open: boolean): void {
-    setIsDialogOpen(open)
-    if (!open) {
-      setEditingContractorId(null)
-      contractorForm.reset({ name: '', phone: '', openingBalance: '', openingBalanceDate: '' })
-    }
-  }
+      return result
+    },
+    remove: (contractor) => ipcApi.deleteContractor({ id: contractor.id }),
+    getRowId: (contractor) => contractor.id,
+    getDeleteConfirmation: (contractor) =>
+      t('contractorsSettings.deleteConfirmation', { name: contractor.name }),
+    resetForm: (contractor) =>
+      contractorForm.reset(
+        contractor
+          ? {
+              name: contractor.name,
+              phone: contractor.phone ?? '',
+              openingBalance: String(contractor.openingBalance ?? 0),
+              openingBalanceDate: contractor.openingBalanceDate ?? ''
+            }
+          : { name: '', phone: '', openingBalance: '', openingBalanceDate: '' }
+      )
+  })
 
   const columns: ColumnDef<Contractor, unknown>[] = [
     { accessorKey: 'name', header: t('common.columns.name') },
@@ -157,159 +87,36 @@ export function ContractorsSettings(): React.JSX.Element {
       header: t('contractorsSettings.phoneNumber'),
       meta: { nowrap: true },
       cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
-    },
-    {
-      id: 'actions',
-      header: t('common.columns.actions'),
-      meta: { nowrap: true },
-      enableSorting: false,
-      enableColumnFilter: false,
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => startEditingContractor(row.original)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => void handleDeleteContractor(row.original)}
-          >
-            {t('common.delete')}
-          </Button>
-        </div>
-      )
     }
   ]
 
   return (
-    <Card className="flex h-full min-h-0 flex-col">
-      <CardHeader>
-        <CardTitle>{t('contractorsSettings.title')}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col">
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              onClick={() => {
-                setEditingContractorId(null)
-                contractorForm.reset({
-                  name: '',
-                  phone: '',
-                  openingBalance: '',
-                  openingBalanceDate: ''
-                })
-              }}
-            >
-              {t('contractorsSettings.addButton')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent closeDisabled={contractorForm.formState.isSubmitting}>
-            <DialogHeader>
-              <DialogTitle>
-                {editingContractorId
-                  ? t('contractorsSettings.editTitle')
-                  : t('contractorsSettings.addTitle')}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...contractorForm}>
-              <form
-                onSubmit={contractorForm.handleSubmit(handleSaveContractor)}
-                className="grid gap-4"
-              >
-                <FormField
-                  control={contractorForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('contractorsSettings.fields.name')}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t('contractorsSettings.fields.name')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={contractorForm.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('contractorsSettings.phoneNumber')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="text"
-                          placeholder={t('contractorsSettings.phoneNumber')}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={contractorForm.control}
-                  name="openingBalance"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.openingBalance')}</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={contractorForm.control}
-                  name="openingBalanceDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.openingBalanceDate')}</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <SubmitButton isSubmitting={contractorForm.formState.isSubmitting}>
-                    {editingContractorId
-                      ? t('contractorsSettings.saveEdit')
-                      : t('contractorsSettings.addSubmit')}
-                  </SubmitButton>
-                  <DialogClose asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={contractorForm.formState.isSubmitting}
-                      onClick={cancelEditingContractor}
-                    >
-                      {t('common.cancel')}
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-        <div className="mt-6 flex min-h-0 flex-1 flex-col">
-          <DataTable
-            columns={columns}
-            data={contractors}
-            loading={loading}
-            getRowId={(contractor) => String(contractor.id)}
-            enableRowSelection
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <SettingsEntityPage
+      title={t('contractorsSettings.title')}
+      addButtonText={t('contractorsSettings.addButton')}
+      addTitle={t('contractorsSettings.addTitle')}
+      editTitle={t('contractorsSettings.editTitle')}
+      actionsText={t('common.columns.actions')}
+      editText={t('common.edit')}
+      deleteText={t('common.delete')}
+      addSubmitText={t('contractorsSettings.addSubmit')}
+      saveEditText={t('contractorsSettings.saveEdit')}
+      cancelText={t('common.cancel')}
+      rows={crud.rows}
+      loading={crud.loading}
+      columns={columns}
+      getRowId={(contractor) => String(contractor.id)}
+      isEditing={crud.isEditing}
+      dialogOpen={crud.dialogOpen}
+      closeDisabled={contractorForm.formState.isSubmitting}
+      onAdd={crud.openForCreate}
+      onEdit={crud.openForEdit}
+      onDelete={crud.deleteRow}
+      onDialogOpenChange={crud.handleDialogOpenChange}
+      onCancel={crud.closeDialog}
+      onSubmit={contractorForm.handleSubmit(crud.save)}
+    >
+      <ContractorSettingsFields form={contractorForm} />
+    </SettingsEntityPage>
   )
 }

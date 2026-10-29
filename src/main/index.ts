@@ -1,5 +1,6 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+import { pathToFileURL } from 'node:url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { initDatabase } from './db'
@@ -33,13 +34,12 @@ import {
   deleteLedgerEntry
 } from './use-cases/createLedgerEntry'
 import { listLedgerEntries } from './use-cases/listLedgerData'
-import { getContractorAccount, getDriverHistory } from './use-cases/getAccounts'
+import { getClientAccount, getContractorAccount, getDriverHistory } from './use-cases/getAccounts'
 import {
   createClientPayment,
   updateClientPayment,
   deleteClientPayment
 } from './use-cases/createClientPayment'
-import { getClientAccount } from './use-cases/getAccounts'
 import {
   addAttachment,
   removeAttachment,
@@ -57,12 +57,29 @@ import { getSuggestedTripPrices } from './use-cases/suggestTripPrices'
 
 let mainWindow: BrowserWindow | null = null
 
+function isRendererUrl(target: string, rendererUrl: URL): boolean {
+  try {
+    const targetUrl = new URL(target)
+    return (
+      targetUrl.protocol === rendererUrl.protocol &&
+      targetUrl.host === rendererUrl.host &&
+      targetUrl.pathname === rendererUrl.pathname
+    )
+  } catch {
+    return false
+  }
+}
+
 function registerIpcHandler(channel: string, handler: Parameters<typeof ipcMain.handle>[1]): void {
   ipcMain.handle(channel, wrapHandler(handler))
 }
 
 function createWindow(): void {
-  // Create the browser window.
+  const rendererUrl =
+    is.dev && process.env['ELECTRON_RENDERER_URL']
+      ? new URL(process.env['ELECTRON_RENDERER_URL'])
+      : pathToFileURL(join(__dirname, '../renderer/index.html'))
+
   const window = new BrowserWindow({
     width: 900,
     height: 670,
@@ -71,7 +88,9 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
     }
   })
 
@@ -81,9 +100,14 @@ function createWindow(): void {
     window.show()
   })
 
-  window.webContents.setWindowOpenHandler((details) => {
-    shell.openExternal(details.url)
-    return { action: 'deny' }
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+
+  window.webContents.on('will-navigate', (event, url) => {
+    if (!isRendererUrl(url, rendererUrl)) event.preventDefault()
+  })
+
+  window.webContents.on('will-redirect', (event, url, _isInPlace, isMainFrame) => {
+    if (isMainFrame && !isRendererUrl(url, rendererUrl)) event.preventDefault()
   })
 
   window.on('closed', () => {
@@ -93,7 +117,7 @@ function createWindow(): void {
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    window.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    window.loadURL(rendererUrl.href)
   } else {
     window.loadFile(join(__dirname, '../renderer/index.html'))
   }
@@ -128,9 +152,6 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
-
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
 
   registerIpcHandler('driver:create', (_event, input) => createDriver(input))
   registerIpcHandler('client:create', (_event, input) => createClient(input))

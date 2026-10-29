@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   flexRender,
   getCoreRowModel,
@@ -10,6 +11,7 @@ import {
   type ColumnDef,
   type ColumnFiltersState,
   type FilterFn,
+  type Row,
   type RowSelectionState,
   type SortingState
 } from '@tanstack/react-table'
@@ -43,6 +45,7 @@ declare module '@tanstack/react-table' {
 }
 
 const emptyFilterValue = '-'
+const virtualizationThreshold = 200
 
 interface DataTableProps<T> {
   columns: ColumnDef<T, unknown>[]
@@ -91,6 +94,7 @@ function DataTable<T>({
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [openFilterId, setOpenFilterId] = useState<string | null>(null)
+  const tableContainerRef = useRef<HTMLDivElement>(null)
 
   const includesSome: FilterFn<T> = (row, columnId, filterValue) => {
     const selectedValues = Array.isArray(filterValue) ? filterValue.map(String) : []
@@ -140,11 +144,29 @@ function DataTable<T>({
     getFilteredRowModel: getFilteredRowModel()
   })
 
+  const rows = table.getRowModel().rows
+  const shouldVirtualize = rows.length > virtualizationThreshold
+  const rowVirtualizer = useVirtualizer<HTMLDivElement, HTMLTableRowElement>({
+    count: rows.length,
+    getScrollElement: () => tableContainerRef.current,
+    estimateSize: () => 58,
+    getItemKey: (index) => rows[index]?.id ?? index,
+    overscan: 10
+  })
+  const virtualRows = shouldVirtualize ? rowVirtualizer.getVirtualItems() : []
+  const rowsToRender: { row: Row<T>; index: number | undefined }[] = shouldVirtualize
+    ? virtualRows.map(({ index }) => ({ row: rows[index]!, index }))
+    : rows.map((row) => ({ row, index: undefined }))
+  const topPadding = virtualRows[0]?.start ?? 0
+  const bottomPadding = virtualRows.length
+    ? rowVirtualizer.getTotalSize() - virtualRows[virtualRows.length - 1].end
+    : 0
+
   if (!loading && data.length === 0) {
     return <p className="min-h-0 flex-1 text-sm text-muted-foreground">{resolvedEmptyMessage}</p>
   }
 
-  const selectedRows = enableRowSelection ? table.getSelectedRowModel().rows : []
+  const selectedRows = enableRowSelection ? table.getFilteredSelectedRowModel().rows : []
   const selectedSum = sumColumnId
     ? selectedRows.reduce((sum, row) => sum + Number(row.getValue(sumColumnId) ?? 0), 0)
     : 0
@@ -165,7 +187,7 @@ function DataTable<T>({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <Table containerClassName="min-h-0 flex-1 overflow-auto">
+      <Table containerClassName="min-h-0 flex-1 overflow-auto" containerRef={tableContainerRef}>
         <TableHeader className="sticky top-0 z-10 bg-card">
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -326,64 +348,86 @@ function DataTable<T>({
                 })}
               </TableRow>
             ))
-          ) : table.getRowModel().rows.length === 0 ? (
+          ) : rows.length === 0 ? (
             <TableRow>
               <TableCell colSpan={columns.length + (enableRowSelection ? 1 : 0)}>
                 <p className="text-sm text-muted-foreground">{emptyMessage}</p>
               </TableCell>
             </TableRow>
           ) : (
-            table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() ? 'selected' : undefined}
-                className={onRowClick ? 'cursor-pointer' : undefined}
-                onClick={() => onRowClick?.(row.original)}
-                tabIndex={onRowClick ? 0 : undefined}
-                onKeyDown={(event) => {
-                  if (!onRowClick || (event.key !== 'Enter' && event.key !== ' ')) return
-                  event.preventDefault()
-                  onRowClick(row.original)
-                }}
-              >
-                {enableRowSelection && (
-                  <TableCell onClick={(event) => event.stopPropagation()}>
-                    <Checkbox
-                      aria-label={t('dataTable.selectRow')}
-                      checked={row.getIsSelected()}
-                      onCheckedChange={(value) => row.toggleSelected(!!value)}
-                    />
-                  </TableCell>
-                )}
-                {row.getVisibleCells().map((cell) => {
-                  const value = cell.getValue()
-                  const content = flexRender(cell.column.columnDef.cell, cell.getContext())
-                  const title =
-                    cell.column.columnDef.meta?.title?.(row.original, value) ??
-                    (typeof content === 'string' || typeof content === 'number'
-                      ? String(content)
-                      : value === null || value === undefined
-                        ? undefined
-                        : String(value)) ??
-                    ''
-
-                  return (
-                    <TableCell key={cell.id}>
-                      <div
-                        className={
-                          cell.column.columnDef.meta?.nowrap
-                            ? 'inline-block max-w-full whitespace-nowrap tabular-nums'
-                            : 'max-w-full overflow-hidden whitespace-normal break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]'
-                        }
-                        title={title}
-                      >
-                        {content}
-                      </div>
+            <>
+              {topPadding > 0 && (
+                <TableRow key="top-spacer" aria-hidden="true" className="border-0">
+                  <TableCell
+                    colSpan={table.getVisibleLeafColumns().length + (enableRowSelection ? 1 : 0)}
+                    className="h-0 border-0 p-0"
+                    style={{ height: topPadding }}
+                  />
+                </TableRow>
+              )}
+              {rowsToRender.map(({ row, index }) => (
+                <TableRow
+                  key={row.id}
+                  data-index={index}
+                  ref={index === undefined ? undefined : rowVirtualizer.measureElement}
+                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                  className={onRowClick ? 'cursor-pointer' : undefined}
+                  onClick={() => onRowClick?.(row.original)}
+                  tabIndex={onRowClick ? 0 : undefined}
+                  onKeyDown={(event) => {
+                    if (!onRowClick || (event.key !== 'Enter' && event.key !== ' ')) return
+                    event.preventDefault()
+                    onRowClick(row.original)
+                  }}
+                >
+                  {enableRowSelection && (
+                    <TableCell onClick={(event) => event.stopPropagation()}>
+                      <Checkbox
+                        aria-label={t('dataTable.selectRow')}
+                        checked={row.getIsSelected()}
+                        onCheckedChange={(value) => row.toggleSelected(!!value)}
+                      />
                     </TableCell>
-                  )
-                })}
-              </TableRow>
-            ))
+                  )}
+                  {row.getVisibleCells().map((cell) => {
+                    const value = cell.getValue()
+                    const content = flexRender(cell.column.columnDef.cell, cell.getContext())
+                    const title =
+                      cell.column.columnDef.meta?.title?.(row.original, value) ??
+                      (typeof content === 'string' || typeof content === 'number'
+                        ? String(content)
+                        : value === null || value === undefined
+                          ? undefined
+                          : String(value)) ??
+                      ''
+
+                    return (
+                      <TableCell key={cell.id}>
+                        <div
+                          className={
+                            cell.column.columnDef.meta?.nowrap
+                              ? 'inline-block max-w-full whitespace-nowrap tabular-nums'
+                              : 'max-w-full overflow-hidden whitespace-normal break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]'
+                          }
+                          title={title}
+                        >
+                          {content}
+                        </div>
+                      </TableCell>
+                    )
+                  })}
+                </TableRow>
+              ))}
+              {bottomPadding > 0 && (
+                <TableRow key="bottom-spacer" aria-hidden="true" className="border-0">
+                  <TableCell
+                    colSpan={table.getVisibleLeafColumns().length + (enableRowSelection ? 1 : 0)}
+                    className="h-0 border-0 p-0"
+                    style={{ height: bottomPadding }}
+                  />
+                </TableRow>
+              )}
+            </>
           )}
         </TableBody>
       </Table>

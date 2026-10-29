@@ -1,69 +1,23 @@
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { formatQuantity } from '@/lib/numberFormat'
-import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
-import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@/components/ui/button'
-import { SubmitButton } from '@/components/SubmitButton'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DataTable } from '@/components/DataTable'
+import { SettingsEntityPage } from '@/pages/settings/SettingsEntityPage'
+import { useSettingsCrud } from '@/pages/settings/useSettingsCrud'
+import { VehicleSettingsFields } from '@/pages/settings/VehicleSettingsFields'
 import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
-
-const vehicleSchema = z.object({
-  vehicleNo: z.number().int().positive(i18n.t('vehiclesSettings.validation.vehicleNoRequired')),
-  trailerNo: z.number().int().positive(i18n.t('vehiclesSettings.validation.trailerNoRequired')),
-  contractorId: z.number().int().positive(i18n.t('vehiclesSettings.validation.contractorRequired')),
-  defaultCubic: z
-    .number()
-    .nonnegative(i18n.t('vehiclesSettings.validation.defaultCubicRequired'))
-    .optional(),
-  ownerName: z.string().optional()
-})
-
-type VehicleFormValues = z.infer<typeof vehicleSchema>
-type Vehicle = {
-  vehicleNo: number
-  trailerNo: number
-  contractorId: number
-  defaultCubic: number | null
-  ownerName: string | null
-}
+  vehicleSchema,
+  type ContractorOption,
+  type Vehicle,
+  type VehicleFormValues
+} from './settingsFormSchemas'
 
 export function VehiclesSettings(): React.JSX.Element {
   const { t } = useTranslation()
-  const [contractors, setContractors] = useState<{ id: number; name: string }[]>([])
-  const [vehicles, setVehicles] = useState<Vehicle[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingVehicleNo, setEditingVehicleNo] = useState<number | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [contractors, setContractors] = useState<ContractorOption[]>([])
   const vehicleForm = useForm<VehicleFormValues>({
     resolver: zodResolver(vehicleSchema),
     defaultValues: {
@@ -74,86 +28,51 @@ export function VehiclesSettings(): React.JSX.Element {
       ownerName: ''
     }
   })
-
-  async function loadVehicles(): Promise<void> {
-    setLoading(true)
-    const [contractorsResult, vehiclesResult] = await Promise.all([
-      ipcApi.listContractors(),
-      ipcApi.listVehicles()
-    ])
-    if (contractorsResult.ok) setContractors(contractorsResult.data)
-    if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    void Promise.all([ipcApi.listContractors(), ipcApi.listVehicles()]).then(
-      ([contractorsResult, vehiclesResult]) => {
-        if (contractorsResult.ok) setContractors(contractorsResult.data)
-        if (vehiclesResult.ok) setVehicles(vehiclesResult.data)
-        setLoading(false)
+  const crud = useSettingsCrud<Vehicle, VehicleFormValues>({
+    list: async () => {
+      const [contractorsResult, vehiclesResult] = await Promise.all([
+        ipcApi.listContractors(),
+        ipcApi.listVehicles()
+      ])
+      if (contractorsResult.ok) setContractors(contractorsResult.data)
+      return vehiclesResult
+    },
+    save: async (editingVehicle, values) => {
+      const result = editingVehicle
+        ? await ipcApi.updateVehicle(values)
+        : await ipcApi.createVehicle(values)
+      if (!result.ok) {
+        result.errors.forEach((error) => {
+          if (
+            error.field === 'vehicleNo' ||
+            error.field === 'trailerNo' ||
+            error.field === 'contractorId' ||
+            error.field === 'defaultCubic' ||
+            error.field === 'ownerName'
+          ) {
+            vehicleForm.setError(error.field, { message: error.message })
+          }
+        })
       }
-    )
-  }, [])
-
-  async function handleSaveVehicle(values: VehicleFormValues): Promise<void> {
-    const result = editingVehicleNo
-      ? await ipcApi.updateVehicle(values)
-      : await ipcApi.createVehicle(values)
-    if (result.ok) {
-      setIsDialogOpen(false)
-      vehicleForm.reset()
-      setEditingVehicleNo(null)
-      await loadVehicles()
-    } else {
-      result.errors.forEach((error) => {
-        if (
-          error.field === 'vehicleNo' ||
-          error.field === 'trailerNo' ||
-          error.field === 'contractorId' ||
-          error.field === 'defaultCubic' ||
-          error.field === 'ownerName'
-        ) {
-          vehicleForm.setError(error.field, { message: error.message })
-        }
-      })
-    }
-  }
-
-  function startEditingVehicle(vehicle: Vehicle): void {
-    setEditingVehicleNo(vehicle.vehicleNo)
-    vehicleForm.reset({
-      vehicleNo: vehicle.vehicleNo,
-      trailerNo: vehicle.trailerNo,
-      contractorId: vehicle.contractorId,
-      defaultCubic: vehicle.defaultCubic ?? undefined,
-      ownerName: vehicle.ownerName ?? ''
-    })
-    setIsDialogOpen(true)
-  }
-
-  function cancelEditingVehicle(): void {
-    setEditingVehicleNo(null)
-    vehicleForm.reset()
-    setIsDialogOpen(false)
-  }
-
-  async function handleDeleteVehicle(vehicleNo: number): Promise<void> {
-    if (!confirm(t('vehiclesSettings.deleteConfirmation', { vehicleNo }))) return
-    const result = await ipcApi.deleteVehicle({ vehicleNo })
-    if (result.ok) {
-      if (editingVehicleNo === vehicleNo) cancelEditingVehicle()
-      await loadVehicles()
-    }
-  }
-
-  function handleDialogChange(open: boolean): void {
-    setIsDialogOpen(open)
-    if (!open) {
-      setEditingVehicleNo(null)
-      vehicleForm.reset()
-    }
-  }
+      return result
+    },
+    remove: (vehicle) => ipcApi.deleteVehicle({ vehicleNo: vehicle.vehicleNo }),
+    getRowId: (vehicle) => vehicle.vehicleNo,
+    getDeleteConfirmation: (vehicle) =>
+      t('vehiclesSettings.deleteConfirmation', { vehicleNo: vehicle.vehicleNo }),
+    resetForm: (vehicle) =>
+      vehicleForm.reset(
+        vehicle
+          ? {
+              vehicleNo: vehicle.vehicleNo,
+              trailerNo: vehicle.trailerNo,
+              contractorId: vehicle.contractorId,
+              defaultCubic: vehicle.defaultCubic ?? undefined,
+              ownerName: vehicle.ownerName ?? ''
+            }
+          : undefined
+      )
+  })
 
   const columns: ColumnDef<Vehicle, unknown>[] = [
     {
@@ -186,210 +105,46 @@ export function VehiclesSettings(): React.JSX.Element {
       accessorKey: 'ownerName',
       header: t('vehiclesSettings.fields.ownerName'),
       cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
-    },
-    {
-      id: 'actions',
-      header: t('common.columns.actions'),
-      meta: { nowrap: true },
-      enableSorting: false,
-      enableColumnFilter: false,
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => startEditingVehicle(row.original)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => void handleDeleteVehicle(row.original.vehicleNo)}
-          >
-            {t('common.delete')}
-          </Button>
-        </div>
-      )
     }
   ]
 
   return (
-    <Card className="flex h-full min-h-0 flex-col">
-      <CardHeader>
-        <CardTitle>{t('vehiclesSettings.title')}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col">
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              onClick={() => {
-                setEditingVehicleNo(null)
-                vehicleForm.reset()
-              }}
-            >
-              {t('vehiclesSettings.addButton')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent closeDisabled={vehicleForm.formState.isSubmitting}>
-            <DialogHeader>
-              <DialogTitle>
-                {editingVehicleNo !== null
-                  ? t('vehiclesSettings.editTitle')
-                  : t('vehiclesSettings.addTitle')}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...vehicleForm}>
-              <form
-                noValidate
-                onSubmit={vehicleForm.handleSubmit(handleSaveVehicle)}
-                className="grid gap-4 md:grid-cols-2"
-              >
-                <FormField
-                  control={vehicleForm.control}
-                  name="vehicleNo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('vehiclesSettings.fields.vehicleNo')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder={t('vehiclesSettings.fields.vehicleNo')}
-                          disabled={editingVehicleNo !== null}
-                          value={field.value ?? ''}
-                          onChange={(event) =>
-                            field.onChange(
-                              event.target.value === '' ? undefined : Number(event.target.value)
-                            )
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={vehicleForm.control}
-                  name="trailerNo"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('vehiclesSettings.fields.trailerNo')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder={t('vehiclesSettings.fields.trailerNo')}
-                          value={field.value ?? ''}
-                          onChange={(event) =>
-                            field.onChange(
-                              event.target.value === '' ? undefined : Number(event.target.value)
-                            )
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={vehicleForm.control}
-                  name="contractorId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('ledgerEntryForm.fields.contractor')}</FormLabel>
-                      <Select
-                        value={field.value ? String(field.value) : ''}
-                        onValueChange={(value) => field.onChange(Number(value))}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue
-                              placeholder={t('ledgerEntryForm.placeholders.contractor')}
-                            />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {contractors.map((contractor) => (
-                            <SelectItem key={contractor.id} value={String(contractor.id)}>
-                              {contractor.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={vehicleForm.control}
-                  name="defaultCubic"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('vehiclesSettings.fields.defaultCubic')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          placeholder={t('vehiclesSettings.fields.defaultCubic')}
-                          value={field.value ?? ''}
-                          onChange={(event) =>
-                            field.onChange(
-                              event.target.value === '' ? undefined : Number(event.target.value)
-                            )
-                          }
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={vehicleForm.control}
-                  name="ownerName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('vehiclesSettings.fields.ownerName')}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t('vehiclesSettings.fields.ownerName')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter className="md:col-span-2">
-                  <SubmitButton isSubmitting={vehicleForm.formState.isSubmitting}>
-                    {editingVehicleNo !== null
-                      ? t('contractorsSettings.saveEdit')
-                      : t('contractorsSettings.addSubmit')}
-                  </SubmitButton>
-                  <DialogClose asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={vehicleForm.formState.isSubmitting}
-                      onClick={cancelEditingVehicle}
-                    >
-                      {t('common.cancel')}
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-        <div className="mt-6">
-          <DataTable
-            columns={columns}
-            data={vehicles}
-            loading={loading}
-            getRowId={(vehicle) => String(vehicle.vehicleNo)}
-            enableRowSelection
-            sumColumnId="defaultCubic"
-            formatSum={formatQuantity}
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <SettingsEntityPage
+      title={t('vehiclesSettings.title')}
+      addButtonText={t('vehiclesSettings.addButton')}
+      addTitle={t('vehiclesSettings.addTitle')}
+      editTitle={t('vehiclesSettings.editTitle')}
+      actionsText={t('common.columns.actions')}
+      editText={t('common.edit')}
+      deleteText={t('common.delete')}
+      addSubmitText={t('contractorsSettings.addSubmit')}
+      saveEditText={t('contractorsSettings.saveEdit')}
+      cancelText={t('common.cancel')}
+      rows={crud.rows}
+      loading={crud.loading}
+      columns={columns}
+      getRowId={(vehicle) => String(vehicle.vehicleNo)}
+      isEditing={crud.isEditing}
+      dialogOpen={crud.dialogOpen}
+      closeDisabled={vehicleForm.formState.isSubmitting}
+      onAdd={crud.openForCreate}
+      onEdit={crud.openForEdit}
+      onDelete={crud.deleteRow}
+      onDialogOpenChange={crud.handleDialogOpenChange}
+      onCancel={crud.closeDialog}
+      onSubmit={vehicleForm.handleSubmit(crud.save)}
+      noValidate
+      formClassName="grid gap-4 md:grid-cols-2"
+      footerClassName="md:col-span-2"
+      tableClassName="mt-6"
+      sumColumnId="defaultCubic"
+      formatSum={formatQuantity}
+    >
+      <VehicleSettingsFields
+        form={vehicleForm}
+        contractors={contractors}
+        isEditing={crud.isEditing}
+      />
+    </SettingsEntityPage>
   )
 }

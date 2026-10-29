@@ -1,76 +1,22 @@
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { useForm, type Resolver } from 'react-hook-form'
-import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@/components/ui/button'
-import { SubmitButton } from '@/components/SubmitButton'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DataTable } from '@/components/DataTable'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { hasAtMostTwoDecimals } from '@/lib/money'
+import { z } from 'zod'
 import { formatMoney } from '@/lib/numberFormat'
-
-const clientSchema = z.object({
-  name: z.string().min(1, i18n.t('clientsSettings.validation.nameRequired')),
-  location: z.string().optional(),
-  initialPrice: z
-    .string()
-    .optional()
-    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine((val) => val === undefined || val > 0, i18n.t('common.validation.positivePrice'))
-    .refine(
-      (val) => val === undefined || hasAtMostTwoDecimals(val),
-      i18n.t('common.validation.moneyDecimals')
-    ),
-  openingBalance: z
-    .string()
-    .optional()
-    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine(
-      (val) => val === undefined || hasAtMostTwoDecimals(val),
-      i18n.t('common.validation.moneyDecimals')
-    ),
-  openingBalanceDate: z.string().optional()
-})
-
-type ClientFormValues = z.infer<typeof clientSchema>
-type ClientFormInput = z.input<typeof clientSchema>
-type Client = {
-  id: number
-  name: string
-  initialPrice: number | null
-  location: string | null
-  openingBalance: number
-  openingBalanceDate: string | null
-}
+import { SettingsEntityPage } from '@/pages/settings/SettingsEntityPage'
+import { useSettingsCrud } from '@/pages/settings/useSettingsCrud'
+import { ClientSettingsFields } from './ClientSettingsFields'
+import {
+  clientSchema,
+  type Client,
+  type ClientFormInput,
+  type ClientFormValues
+} from './settingsFormSchemas'
 
 export function ClientsSettings(): React.JSX.Element {
   const { t } = useTranslation()
-  const [clients, setClients] = useState<Client[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingClientId, setEditingClientId] = useState<number | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const clientForm = useForm<ClientFormInput>({
     resolver: zodResolver(clientSchema, undefined, { raw: true }) as Resolver<ClientFormInput>,
     defaultValues: {
@@ -81,89 +27,72 @@ export function ClientsSettings(): React.JSX.Element {
       openingBalanceDate: ''
     }
   })
+  const crud = useSettingsCrud<Client, ClientFormInput>({
+    list: () => ipcApi.listClients(),
+    save: async (editingClient, values) => {
+      let parsedValues: ClientFormValues
+      try {
+        parsedValues = clientSchema.parse(values)
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          error.issues.forEach((issue) => {
+            const field = issue.path[0]
+            if (
+              field === 'name' ||
+              field === 'location' ||
+              field === 'initialPrice' ||
+              field === 'openingBalance' ||
+              field === 'openingBalanceDate'
+            ) {
+              clientForm.setError(field, { message: issue.message })
+            }
+          })
+          return undefined
+        }
+        throw error
+      }
 
-  async function loadClients(): Promise<void> {
-    setLoading(true)
-    const result = await ipcApi.listClients()
-    if (result.ok) setClients(result.data)
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    void ipcApi.listClients().then((result) => {
-      if (result.ok) setClients(result.data)
-      setLoading(false)
-    })
-  }, [])
-
-  async function handleSaveClient(values: ClientFormInput): Promise<void> {
-    let parsedValues: ClientFormValues
-    try {
-      parsedValues = clientSchema.parse(values)
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        error.issues.forEach((issue) => {
-          const field = issue.path[0]
-          if (typeof field === 'string') {
-            clientForm.setError(field as keyof ClientFormInput, { message: issue.message })
+      const result = editingClient
+        ? await ipcApi.updateClient({ id: editingClient.id, ...parsedValues })
+        : await ipcApi.createClient(parsedValues)
+      if (!result.ok) {
+        result.errors.forEach((error) => {
+          if (
+            error.field === 'name' ||
+            error.field === 'location' ||
+            error.field === 'initialPrice' ||
+            error.field === 'openingBalance' ||
+            error.field === 'openingBalanceDate'
+          ) {
+            clientForm.setError(error.field, { message: error.message })
           }
         })
-        return
       }
-      throw error
-    }
-
-    const result = editingClientId
-      ? await ipcApi.updateClient({ id: editingClientId, ...parsedValues })
-      : await ipcApi.createClient(parsedValues)
-    if (result.ok) {
-      setIsDialogOpen(false)
-      clientForm.reset()
-      setEditingClientId(null)
-      await loadClients()
-    } else {
-      result.errors.forEach((error) => {
-        if (error.field in clientForm.getValues()) {
-          clientForm.setError(error.field as keyof ClientFormInput, { message: error.message })
-        }
-      })
-    }
-  }
-
-  function startEditingClient(client: Client): void {
-    setEditingClientId(client.id)
-    clientForm.reset({
-      name: client.name,
-      location: client.location ?? '',
-      initialPrice: client.initialPrice === null ? '' : String(client.initialPrice),
-      openingBalance: String(client.openingBalance ?? 0),
-      openingBalanceDate: client.openingBalanceDate ?? ''
-    })
-    setIsDialogOpen(true)
-  }
-
-  function cancelEditingClient(): void {
-    setEditingClientId(null)
-    clientForm.reset()
-    setIsDialogOpen(false)
-  }
-
-  async function handleDeleteClient(client: Client): Promise<void> {
-    if (!confirm(t('clientsSettings.deleteConfirmation', { name: client.name }))) return
-    const result = await ipcApi.deleteClient({ id: client.id })
-    if (result.ok) {
-      if (editingClientId === client.id) cancelEditingClient()
-      await loadClients()
-    }
-  }
-
-  function handleDialogChange(open: boolean): void {
-    setIsDialogOpen(open)
-    if (!open) {
-      setEditingClientId(null)
-      clientForm.reset()
-    }
-  }
+      return result
+    },
+    remove: (client) => ipcApi.deleteClient({ id: client.id }),
+    getRowId: (client) => client.id,
+    getDeleteConfirmation: (client) =>
+      t('clientsSettings.deleteConfirmation', { name: client.name }),
+    resetForm: (client) =>
+      clientForm.reset(
+        client
+          ? {
+              name: client.name,
+              location: client.location ?? '',
+              initialPrice: client.initialPrice === null ? '' : String(client.initialPrice),
+              openingBalance: String(client.openingBalance ?? 0),
+              openingBalanceDate: client.openingBalanceDate ?? ''
+            }
+          : {
+              name: '',
+              location: '',
+              initialPrice: '',
+              openingBalance: '',
+              openingBalanceDate: ''
+            }
+      )
+  })
 
   const columns: ColumnDef<Client, unknown>[] = [
     { accessorKey: 'name', header: t('common.columns.name') },
@@ -192,168 +121,37 @@ export function ClientsSettings(): React.JSX.Element {
       header: t('common.openingBalanceDate'),
       meta: { nowrap: true },
       cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
-    },
-    {
-      id: 'actions',
-      header: t('common.columns.actions'),
-      meta: { nowrap: true },
-      enableSorting: false,
-      enableColumnFilter: false,
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => startEditingClient(row.original)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => void handleDeleteClient(row.original)}
-          >
-            {t('common.delete')}
-          </Button>
-        </div>
-      )
     }
   ]
 
   return (
-    <Card className="flex h-full min-h-0 flex-col">
-      <CardHeader>
-        <CardTitle>{t('clientsSettings.title')}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col">
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              onClick={() => {
-                setEditingClientId(null)
-                clientForm.reset()
-              }}
-            >
-              {t('clientsSettings.addButton')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent closeDisabled={clientForm.formState.isSubmitting}>
-            <DialogHeader>
-              <DialogTitle>
-                {editingClientId ? t('clientsSettings.editTitle') : t('clientsSettings.addTitle')}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...clientForm}>
-              <form
-                noValidate
-                onSubmit={clientForm.handleSubmit(handleSaveClient)}
-                className="grid gap-4"
-              >
-                <FormField
-                  control={clientForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('clientsSettings.fields.name')}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t('clientsSettings.fields.name')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={clientForm.control}
-                  name="initialPrice"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.defaultPrice')}</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder={t('common.defaultPrice')}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={clientForm.control}
-                  name="location"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('clientsSettings.fields.location')}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t('clientsSettings.fields.location')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={clientForm.control}
-                  name="openingBalance"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.openingBalance')}</FormLabel>
-                      <FormControl>
-                        <Input type="number" step="0.01" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={clientForm.control}
-                  name="openingBalanceDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('common.openingBalanceDate')}</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <SubmitButton isSubmitting={clientForm.formState.isSubmitting}>
-                    {editingClientId
-                      ? t('contractorsSettings.saveEdit')
-                      : t('contractorsSettings.addSubmit')}
-                  </SubmitButton>
-                  <DialogClose asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={clientForm.formState.isSubmitting}
-                      onClick={cancelEditingClient}
-                    >
-                      {t('common.cancel')}
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-        <div className="mt-6 flex min-h-0 flex-1 flex-col">
-          <DataTable
-            columns={columns}
-            data={clients}
-            loading={loading}
-            getRowId={(client) => String(client.id)}
-            enableRowSelection
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <SettingsEntityPage
+      title={t('clientsSettings.title')}
+      addButtonText={t('clientsSettings.addButton')}
+      addTitle={t('clientsSettings.addTitle')}
+      editTitle={t('clientsSettings.editTitle')}
+      actionsText={t('common.columns.actions')}
+      editText={t('common.edit')}
+      deleteText={t('common.delete')}
+      addSubmitText={t('contractorsSettings.addSubmit')}
+      saveEditText={t('contractorsSettings.saveEdit')}
+      cancelText={t('common.cancel')}
+      rows={crud.rows}
+      loading={crud.loading}
+      columns={columns}
+      getRowId={(client) => String(client.id)}
+      isEditing={crud.isEditing}
+      dialogOpen={crud.dialogOpen}
+      closeDisabled={clientForm.formState.isSubmitting}
+      onAdd={crud.openForCreate}
+      onEdit={crud.openForEdit}
+      onDelete={crud.deleteRow}
+      onDialogOpenChange={crud.handleDialogOpenChange}
+      onCancel={crud.closeDialog}
+      onSubmit={clientForm.handleSubmit(crud.save)}
+      noValidate
+    >
+      <ClientSettingsFields form={clientForm} />
+    </SettingsEntityPage>
   )
 }

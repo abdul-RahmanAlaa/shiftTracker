@@ -1,5 +1,4 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
 import type { CreateShiftInput } from '../main/use-cases/createShift'
 import type { CloseShiftInput, CloseShiftResult } from '../main/use-cases/closeShift'
 interface FailedUseCaseResult {
@@ -193,16 +192,4 @@ const api = {
   getAttachmentPhoto: (input: { attachmentId: number }) => invoke('attachment:getPhoto', input)
 }
 
-if (process.contextIsolated) {
-  try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('api', api)
-  } catch (error) {
-    console.error(error)
-  }
-} else {
-  // @ts-ignore (define in dts)
-  window.electron = electronAPI
-  // @ts-ignore (define in dts)
-  window.api = api
-}
+contextBridge.exposeInMainWorld('api', api)

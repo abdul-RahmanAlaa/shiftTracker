@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { BookOpen, Calculator, ClipboardList, List, Settings, Truck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FloatingWindowsProvider } from '@/components/FloatingWindowsProvider'
+import { ConfirmProvider } from '@/components/ConfirmDialog'
 import { cn } from '@/lib/utils'
 import { AddTripPage } from '@/pages/AddTripPage'
 import { AccountsPage } from '@/pages/AccountsPage'
@@ -87,21 +88,23 @@ function BackupStatusCheck(): null {
 function App(): React.JSX.Element {
   return (
     <HashRouter>
-      <FloatingWindowsProvider>
-        <BackupStatusCheck />
-        <Routes>
-          <Route element={<AppLayout />}>
-            <Route index element={<AddTripPage />} />
-            <Route path="shifts" element={<ShiftsPage />} />
-            <Route path="shifts/:shiftId" element={<ShiftDetailPage />} />
-            <Route path="all-trips" element={<AllTripsPage />} />
-            <Route path="accounts" element={<AccountsPage />} />
-            <Route path="statements" element={<StatementsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Route>
-        </Routes>
-      </FloatingWindowsProvider>
+      <ConfirmProvider>
+        <FloatingWindowsProvider>
+          <BackupStatusCheck />
+          <Routes>
+            <Route element={<AppLayout />}>
+              <Route index element={<AddTripPage />} />
+              <Route path="shifts" element={<ShiftsPage />} />
+              <Route path="shifts/:shiftId" element={<ShiftDetailPage />} />
+              <Route path="all-trips" element={<AllTripsPage />} />
+              <Route path="accounts" element={<AccountsPage />} />
+              <Route path="statements" element={<StatementsPage />} />
+              <Route path="settings" element={<SettingsPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Route>
+          </Routes>
+        </FloatingWindowsProvider>
+      </ConfirmProvider>
     </HashRouter>
   )
 }

@@ -4,6 +4,16 @@ All scenarios remain unchecked until confirmed by the user.
 
 ## Accounts and ledger
 
+- [ ] Confirm add, edit, delete, field errors, blank Add after Edit, and delete-failure notices on Vehicles, Drivers, Contractors, Crushers, Clients, and Material Types settings.
+- [ ] Contractor Account: edit and delete an entry linked to an OPEN shift.
+- [ ] Contractor Account: confirm an entry linked to a CLOSED shift shows `common.lockedShift` and cannot be edited or deleted; confirm an unlinked entry can be edited and deleted.
+- [ ] Contractor Account: edit and delete an unlinked entry.
+- [ ] Driver History: edit and delete an entry linked to an OPEN shift.
+- [ ] Driver History: confirm an entry linked to a CLOSED shift shows `common.lockedShift` and cannot be edited or deleted; confirm an unlinked entry can be edited and deleted.
+- [ ] Driver History: edit and delete an unlinked entry.
+- [ ] All Movements: edit and delete an entry linked to an OPEN shift.
+- [ ] All Movements: confirm an entry linked to a CLOSED shift shows `common.lockedShift` and cannot be edited or deleted; confirm an unlinked entry can be edited and deleted.
+- [ ] All Movements: edit and delete an unlinked entry.
 - [ ] Edit a shift-linked ledger row to have no shift; save and confirm the shift is empty after reopening.
 - [ ] Clear an allowed driver and ledger notes; save and confirm both remain empty after reopening.
 - [ ] Edit only a ledger amount and confirm its shift, driver, contractor, and notes are preserved.
@@ -22,6 +32,7 @@ All scenarios remain unchecked until confirmed by the user.
 
 ## Shifts and trip workflows
 
+- [ ] Confirm delete prompts use the RTL in-app dialog, Escape cancels, focus returns to the delete button, and no native dialog appears in All Trips, Shift Details, settings, account, and attachment workflows.
 - [ ] Type one trip row in the Add Trip grid and confirm every displayed field is saved correctly.
 - [ ] Paste five tab-separated trip rows from Excel and confirm each parsed row is correct.
 - [ ] Resolve a client and crusher with previous trips and confirm suggested prices appear and remain editable.
@@ -32,6 +43,9 @@ All scenarios remain unchecked until confirmed by the user.
 - [ ] Save a grid containing a server-rejected row and confirm the failed row remains with its error.
 - [ ] Use Ctrl+D in the grid and confirm the cell copies from the row above.
 - [ ] Confirm the Add Trip grid fits a 1366x768 laptop without page scrolling.
+- [ ] Confirm Add Trip form validation, shift-selection loading, grid save/cancel behavior, and field values remain consistent after the page responsibilities were split.
+- [ ] Confirm shift create/edit/close/reopen dialogs and Shift Details add/edit trip dialogs preserve validation, cancel behavior, attachment handling, and refreshed page data.
+- [ ] With a large All Trips dataset, confirm virtualized scrolling keeps the sticky header and cell alignment, sorting and filtering include all rows, and select-all totals cover all filtered rows; confirm attachment images load when visible and previews, upload/delete, and CLOSED-shift read-only controls remain intact.
 - [ ] Switch drivers quickly while the shift lookup is pending and confirm only the latest driver's shift appears.
 - [ ] Reopen a CLOSED shift with a reason and confirm its badge and editability.
 - [ ] Confirm reopen `shiftId` and `reason` errors appear beneath their controls.
@@ -75,6 +89,7 @@ All scenarios remain unchecked until confirmed by the user.
 - [ ] Reassign a vehicle's contractor and confirm old shift charges stay with its creation-time contractor snapshot.
 - [ ] Confirm money inputs reject more than two decimals, accept 5.25 exactly, and renderer steps are 0.01.
 - [ ] Confirm contractor statement total quantity excludes MATERIAL row quantity.
+- [ ] Confirm same-date statements show OPENING first, trips in numeric ID order, client CHARGE before FINE and contractor TRANSPORT before MATERIAL within each trip, and payments afterward in description/amount/notes order.
 - [ ] Confirm all seven schema date columns reject impossible dates and nullable dates accept NULL.
 - [ ] Confirm query plans use Trip(client_id), Shift(contractor_id), Ledger(driver_id), and Ledger(shift_id) indexes.
 - [ ] Run the one-time development reset only after manual tests pass, following `docs/dev-reset-checklist.md`, and confirm the archived database with `npm run db:inspect`.
@@ -83,6 +98,8 @@ All scenarios remain unchecked until confirmed by the user.
 
 ## App and renderer
 
+- [ ] Simulate a rejected IPC invocation and confirm loading resets, one non-blocking error notice appears, and the page remains usable.
+- [ ] Confirm popup requests are denied and navigation or redirects outside the app renderer are blocked in development and packaged runs.
 - [ ] Simulate a failed delete and confirm one visible non-blocking notice.
 - [ ] Open AddTrip with the database unavailable and confirm one notice appears, not six.
 - [ ] Confirm a failing save whose page already shows the error does not show a second notice.

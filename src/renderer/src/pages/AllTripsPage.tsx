@@ -1,4 +1,5 @@
 import { ipcApi, showSuccessNotice } from '@/lib/ipcErrors'
+import { useConfirm } from '@/components/ConfirmDialog'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ColumnDef } from '@tanstack/react-table'
@@ -17,10 +18,16 @@ export function AllTripsPage(): React.JSX.Element {
   const [trips, setTrips] = useState<AllTripsRow[]>([])
   const [loading, setLoading] = useState(true)
   const { openWindow } = useFloatingWindows()
+  const requestConfirmation = useConfirm()
   const { t } = useTranslation()
 
   async function handleDeleteTrip(tripId: string): Promise<void> {
-    if (!confirm(t('allTrips.deleteTripConfirmation', { id: tripId }))) return
+    if (
+      !(await requestConfirmation({
+        message: t('allTrips.deleteTripConfirmation', { id: tripId })
+      }))
+    )
+      return
     const result = await ipcApi.deleteTrip({ id: tripId })
     if (result.ok) {
       showSuccessNotice(t('ipcErrors.tripDeleted'))
@@ -84,10 +91,12 @@ export function AllTripsPage(): React.JSX.Element {
   ]
 
   useEffect(() => {
-    void ipcApi.listAllTrips().then((result) => {
-      if (result.ok) setTrips(result.data)
-      setLoading(false)
-    })
+    void ipcApi
+      .listAllTrips()
+      .then((result) => {
+        if (result.ok) setTrips(result.data)
+      })
+      .finally(() => setLoading(false))
   }, [])
 
   return (

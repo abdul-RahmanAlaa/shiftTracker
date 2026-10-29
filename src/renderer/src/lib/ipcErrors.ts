@@ -10,6 +10,11 @@ export interface IpcFieldError {
   message: string
 }
 
+interface FailedUseCaseResult {
+  ok: false
+  errors: IpcFieldError[]
+}
+
 type ApiMethod = keyof Window['api']
 type ApiInput<Method extends ApiMethod> = Parameters<Window['api'][Method]>[0]
 type ApiFieldRecord<Method extends ApiMethod> = Record<keyof ApiInput<Method>, true>
@@ -323,19 +328,36 @@ export function withIpcErrorHandling<T extends object>(
       if (typeof method !== 'function') return method
 
       return (...args: unknown[]) => {
-        const result: unknown = Reflect.apply(method, target, args)
+        const methodName = String(property)
+        let result: unknown
+        try {
+          result = Reflect.apply(method, target, args)
+        } catch (error) {
+          return Promise.resolve(handleIpcInvocationFailure(methodName, error))
+        }
         if (!(result instanceof Promise)) return result
 
-        return result.then((response: unknown) => {
-          const methodName = String(property)
-          const knownFields = getKnownFormFields(methodName)
-          const errors = getUnhandledIpcErrors(response, knownFields, translate)
-          if (errors.length > 0) notifyErrors(methodName, errors)
-          return response
-        })
+        return result
+          .then((response: unknown) => {
+            const knownFields = getKnownFormFields(methodName)
+            const errors = getUnhandledIpcErrors(response, knownFields, translate)
+            if (errors.length > 0) notifyErrors(methodName, errors)
+            return response
+          })
+          .catch((error: unknown) => handleIpcInvocationFailure(methodName, error))
       }
     }
   })
+}
+
+function handleIpcInvocationFailure(methodName: string, error: unknown): FailedUseCaseResult {
+  console.error(`IPC invocation failed: ${methodName}`, error)
+  const failure: FailedUseCaseResult = {
+    ok: false,
+    errors: [{ field: '_form', message: 'UNEXPECTED_ERROR' }]
+  }
+  notifyErrors(methodName, failure.errors)
+  return failure
 }
 
 export function getKnownFormFields(methodName: string): readonly string[] {

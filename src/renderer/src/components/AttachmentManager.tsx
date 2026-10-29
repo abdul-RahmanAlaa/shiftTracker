@@ -1,10 +1,12 @@
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useRef, useState } from 'react'
+import { useConfirm } from '@/components/ConfirmDialog'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
 import Cropper, { type Area } from 'react-easy-crop'
 import { RotateCcw, RotateCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
   DialogClose,
@@ -20,6 +22,49 @@ type AttachmentRow = Extract<
   { ok: true }
 >['data'][number]
 type AttachmentKind = AttachmentRow['kind']
+type AttachmentPhotoResult = Awaited<ReturnType<typeof ipcApi.getAttachmentPhoto>>
+type ScheduledPhotoResult =
+  { cancelled: true } | { cancelled: false; result: AttachmentPhotoResult }
+
+const maxConcurrentPhotoRequests = 3
+const photoRequestQueue: Array<() => void> = []
+let activePhotoRequests = 0
+
+function scheduleAttachmentPhotoRequest(attachmentId: number): {
+  promise: Promise<ScheduledPhotoResult>
+  cancel: () => void
+} {
+  let cancelQueuedRequest: () => void = () => {}
+  const promise = new Promise<ScheduledPhotoResult>((resolve, reject) => {
+    let queuedStart: (() => void) | null = null
+    const start = (): void => {
+      queuedStart = null
+      activePhotoRequests += 1
+      void ipcApi
+        .getAttachmentPhoto({ attachmentId })
+        .then((result) => resolve({ cancelled: false, result }), reject)
+        .finally(() => {
+          activePhotoRequests -= 1
+          photoRequestQueue.shift()?.()
+        })
+    }
+
+    cancelQueuedRequest = (): void => {
+      if (!queuedStart) return
+      const queueIndex = photoRequestQueue.indexOf(queuedStart)
+      if (queueIndex < 0) return
+      photoRequestQueue.splice(queueIndex, 1)
+      queuedStart = null
+      resolve({ cancelled: true })
+    }
+
+    queuedStart = start
+    if (activePhotoRequests < maxConcurrentPhotoRequests) start()
+    else photoRequestQueue.push(start)
+  })
+
+  return { promise, cancel: cancelQueuedRequest }
+}
 
 interface AttachmentManagerProps {
   entityType: AttachmentEntityType
@@ -50,6 +95,91 @@ function getRotatedSize(
     width: Math.abs(Math.cos(radians) * width) + Math.abs(Math.sin(radians) * height),
     height: Math.abs(Math.sin(radians) * width) + Math.abs(Math.cos(radians) * height)
   }
+}
+
+function AttachmentThumbnail({
+  attachment,
+  label,
+  photoDataUri,
+  requestKey,
+  onPhotoLoaded,
+  onPhotoError,
+  onPreview
+}: {
+  attachment: AttachmentRow
+  label: string
+  photoDataUri: string | null | undefined
+  requestKey: string
+  onPhotoLoaded: (id: number, dataUri: string | null) => void
+  onPhotoError: (message: string) => void
+  onPreview: () => void
+}): React.JSX.Element {
+  const { t } = useTranslation()
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [isVisible, setIsVisible] = useState(() => typeof IntersectionObserver === 'undefined')
+
+  useEffect(() => {
+    const element = containerRef.current
+    if (!element || typeof IntersectionObserver === 'undefined') return
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setIsVisible(true)
+        observer.disconnect()
+      }
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    if (!isVisible || photoDataUri !== undefined) return
+
+    let cancelled = false
+    const request = scheduleAttachmentPhotoRequest(attachment.id)
+    void request.promise
+      .then((scheduled) => {
+        if (cancelled || scheduled.cancelled) return
+        const { result } = scheduled
+        if (!result.ok) {
+          onPhotoError(result.errors.map((error) => error.message).join(', '))
+          onPhotoLoaded(attachment.id, null)
+          return
+        }
+        onPhotoLoaded(attachment.id, result.data.dataUri)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        onPhotoError(
+          error instanceof Error ? error.message : i18n.t('receiptPhoto.errors.loadImage')
+        )
+        onPhotoLoaded(attachment.id, null)
+      })
+
+    return () => {
+      cancelled = true
+      request.cancel()
+    }
+  }, [attachment.id, isVisible, onPhotoError, onPhotoLoaded, photoDataUri, requestKey])
+
+  return (
+    <div ref={containerRef} className="flex h-16 w-16 shrink-0 items-center justify-center">
+      {photoDataUri ? (
+        <button
+          type="button"
+          className="overflow-hidden rounded-md border"
+          onClick={onPreview}
+          aria-label={t('receiptPhoto.preview', { label })}
+        >
+          <img src={photoDataUri} alt={label} className="h-16 w-16 object-cover" />
+        </button>
+      ) : photoDataUri === null ? (
+        <span className="text-sm text-muted-foreground">{t('receiptPhoto.unavailable')}</span>
+      ) : (
+        <Skeleton className="h-16 w-16 rounded-md" aria-label={t('common.loading')} />
+      )}
+    </div>
+  )
 }
 
 async function createCroppedImage(
@@ -114,6 +244,7 @@ export function AttachmentManager({
   readOnly = false,
   onAttachmentsChange
 }: AttachmentManagerProps): React.JSX.Element {
+  const requestConfirmation = useConfirm()
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [attachments, setAttachments] = useState<AttachmentRow[]>([])
@@ -135,6 +266,10 @@ export function AttachmentManager({
   const tripKinds: AttachmentKind[] = ['CRUSHER_RECEIPT', 'CLIENT_RECEIPT']
   const requestKey = `${entityType}:${entityId}:${refreshToken}`
   const isLoading = loadedRequestKey !== requestKey
+  const handlePhotoLoaded = useCallback((id: number, dataUri: string | null) => {
+    setAttachmentPhotos((previous) => ({ ...previous, [id]: dataUri }))
+  }, [])
+  const handlePhotoError = useCallback((message: string) => setOperationError(message), [])
 
   function kindLabel(kind: AttachmentKind): string {
     switch (kind) {
@@ -152,18 +287,16 @@ export function AttachmentManager({
     async function loadAttachments(): Promise<void> {
       const result = await ipcApi.listEntityAttachments({ entityType, entityId })
       if (cancelled) return
-      const nextAttachments = result.ok ? result.data : []
-      setAttachments(nextAttachments)
-      const photoResults = await Promise.all(
-        nextAttachments.map(async (attachment) => {
-          const photoResult = await ipcApi.getAttachmentPhoto({
-            attachmentId: attachment.id
-          })
-          return [attachment.id, photoResult.ok ? photoResult.data.dataUri : null] as const
-        })
-      )
-      if (cancelled) return
-      setAttachmentPhotos(Object.fromEntries(photoResults))
+      if (!result.ok) {
+        setOperationError(result.errors.map((error) => error.message).join(', '))
+        setAttachments([])
+        setAttachmentPhotos({})
+        setLoadedRequestKey(requestKey)
+        return
+      }
+      setOperationError(null)
+      setAttachments(result.data)
+      setAttachmentPhotos({})
       setLoadedRequestKey(requestKey)
     }
 
@@ -238,7 +371,12 @@ export function AttachmentManager({
 
   async function handleDelete(attachment: AttachmentRow): Promise<void> {
     const label = kindLabel(attachment.kind)
-    if (!confirm(t('receiptPhoto.confirmDelete', { label }))) return
+    if (
+      !(await requestConfirmation({
+        message: t('receiptPhoto.confirmDelete', { label })
+      }))
+    )
+      return
     setOperationError(null)
     const result = await ipcApi.removeAttachment({ id: attachment.id })
     if (!result.ok) {
@@ -254,18 +392,15 @@ export function AttachmentManager({
     const photoDataUri = attachmentPhotos[attachment.id]
     return (
       <div key={attachment.id} className="flex items-center gap-2">
-        {photoDataUri ? (
-          <button
-            type="button"
-            className="overflow-hidden rounded-md border"
-            onClick={() => setPreviewAttachment(attachment)}
-            aria-label={t('receiptPhoto.preview', { label })}
-          >
-            <img src={photoDataUri} alt={label} className="h-16 w-16 object-cover" />
-          </button>
-        ) : (
-          <span className="text-sm text-muted-foreground">{t('receiptPhoto.unavailable')}</span>
-        )}
+        <AttachmentThumbnail
+          attachment={attachment}
+          label={label}
+          photoDataUri={photoDataUri}
+          requestKey={requestKey}
+          onPhotoLoaded={handlePhotoLoaded}
+          onPhotoError={handlePhotoError}
+          onPreview={() => setPreviewAttachment(attachment)}
+        />
         {!readOnly && (
           <Button
             type="button"

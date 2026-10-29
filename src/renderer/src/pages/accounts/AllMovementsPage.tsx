@@ -10,19 +10,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import { useFloatingWindows } from '@/components/FloatingWindowsContext'
 import { LedgerEntryDetailsContent } from '@/components/LedgerEntryDetailsContent'
+import { LedgerEntryDialog } from '@/components/LedgerEntryDialog'
 import { formatMoney } from '@/lib/numberFormat'
-import {
-  LedgerEntryForm,
-  ledgerEntrySchema,
-  type LedgerEntryFormValues
-} from '@/components/LedgerEntryForm'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
+import { ledgerEntrySchema, type LedgerEntryFormValues } from '@/components/LedgerEntryForm'
+import { useLedgerEntryMutations } from './useLedgerEntryMutations'
 
 type LedgerRow = Extract<
   Awaited<ReturnType<typeof ipcApi.listLedgerEntries>>,
@@ -40,8 +31,6 @@ export function AllMovementsPage(): React.JSX.Element {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [entries, setEntries] = useState<LedgerRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [editingEntryId, setEditingEntryId] = useState<number | null>(null)
   const ledgerForm = useForm<LedgerEntryFormValues>({
     resolver: zodResolver(ledgerEntrySchema),
     defaultValues: {
@@ -57,25 +46,13 @@ export function AllMovementsPage(): React.JSX.Element {
 
   async function loadEntries(): Promise<void> {
     setLoading(true)
-    const result = await ipcApi.listLedgerEntries()
-    if (result.ok) setEntries(result.data)
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    void Promise.all([
-      ipcApi.listDrivers(),
-      ipcApi.listContractors(),
-      ipcApi.listShifts(),
-      ipcApi.listLedgerEntries()
-    ]).then(([driversResult, contractorsResult, shiftsResult, entriesResult]) => {
-      if (driversResult.ok) setDrivers(driversResult.data)
-      if (contractorsResult.ok) setContractors(contractorsResult.data)
-      if (shiftsResult.ok) setShifts(shiftsResult.data)
-      if (entriesResult.ok) setEntries(entriesResult.data)
+    try {
+      const result = await ipcApi.listLedgerEntries()
+      if (result.ok) setEntries(result.data)
+    } finally {
       setLoading(false)
-    })
-  }, [])
+    }
+  }
 
   function getDefaultLedgerValues(): LedgerEntryFormValues {
     return {
@@ -89,74 +66,29 @@ export function AllMovementsPage(): React.JSX.Element {
     } as LedgerEntryFormValues
   }
 
-  function isEntryLocked(entry: LedgerRow): boolean {
-    return Boolean(
-      entry.shiftId &&
-      shifts.some((shift) => shift.id === entry.shiftId && shift.status === 'CLOSED')
-    )
-  }
+  const ledgerMutations = useLedgerEntryMutations({
+    form: ledgerForm,
+    getDefaultValues: getDefaultLedgerValues,
+    getCreateValues: getDefaultLedgerValues,
+    onRefresh: loadEntries,
+    shifts
+  })
 
-  function openCreateEntryDialog(): void {
-    setEditingEntryId(null)
-    ledgerForm.reset(getDefaultLedgerValues())
-    setIsCreateDialogOpen(true)
-  }
-
-  function openEditEntryDialog(entry: LedgerRow): void {
-    setEditingEntryId(entry.id)
-    ledgerForm.reset({
-      entryDate: entry.entryDate,
-      driverId: entry.driverId ?? undefined,
-      movementType: entry.movementType as 'ADVANCE' | 'PAYMENT' | 'OTHER',
-      amount: Number(entry.amount),
-      shiftId: entry.shiftId ?? undefined,
-      contractorId: entry.contractorId ?? undefined,
-      notes: entry.notes ?? ''
-    } as LedgerEntryFormValues)
-    setIsCreateDialogOpen(true)
-  }
-
-  async function handleSaveEntry(values: LedgerEntryFormValues): Promise<void> {
-    const result = editingEntryId
-      ? await ipcApi.updateLedgerEntry({
-          id: editingEntryId,
-          ...values,
-          driverId: values.driverId ?? null,
-          shiftId: values.shiftId ?? null,
-          contractorId: values.contractorId ?? null,
-          notes: values.notes?.trim() || null
-        } satisfies Parameters<typeof ipcApi.updateLedgerEntry>[0])
-      : await ipcApi.createLedgerEntry(
-          values satisfies Parameters<typeof ipcApi.createLedgerEntry>[0]
-        )
-
-    if (result.ok) {
-      ledgerForm.reset(getDefaultLedgerValues())
-      setEditingEntryId(null)
-      setIsCreateDialogOpen(false)
-      await loadEntries()
-    } else {
-      result.errors.forEach((error) => {
-        if (error.field in values) {
-          ledgerForm.setError(error.field as keyof LedgerEntryFormValues, {
-            message: error.message
-          })
-        }
+  useEffect(() => {
+    void Promise.all([
+      ipcApi.listDrivers(),
+      ipcApi.listContractors(),
+      ipcApi.listShifts(),
+      ipcApi.listLedgerEntries()
+    ])
+      .then(([driversResult, contractorsResult, shiftsResult, entriesResult]) => {
+        if (driversResult.ok) setDrivers(driversResult.data)
+        if (contractorsResult.ok) setContractors(contractorsResult.data)
+        if (shiftsResult.ok) setShifts(shiftsResult.data)
+        if (entriesResult.ok) setEntries(entriesResult.data)
       })
-    }
-  }
-
-  async function handleDeleteEntry(entry: LedgerRow): Promise<void> {
-    if (!confirm(t('allMovements.deleteConfirmation', { id: entry.id }))) return
-    const result = await ipcApi.deleteLedgerEntry({ id: entry.id })
-    if (result.ok) {
-      if (editingEntryId === entry.id) {
-        setEditingEntryId(null)
-        ledgerForm.reset(getDefaultLedgerValues())
-      }
-      await loadEntries()
-    }
-  }
+      .finally(() => setLoading(false))
+  }, [])
 
   const columns: ColumnDef<LedgerRow, unknown>[] = [
     { accessorKey: 'id', header: t('common.columns.id'), meta: { nowrap: true } },
@@ -198,7 +130,7 @@ export function AllMovementsPage(): React.JSX.Element {
       enableColumnFilter: false,
       cell: ({ row }) => {
         const entry = row.original
-        const locked = isEntryLocked(entry)
+        const locked = ledgerMutations.isEntryLocked(entry)
 
         return (
           <div className="flex justify-center gap-1">
@@ -236,7 +168,7 @@ export function AllMovementsPage(): React.JSX.Element {
               disabled={locked}
               aria-label={t('common.edit')}
               title={locked ? t('common.lockedShift') : t('common.edit')}
-              onClick={() => openEditEntryDialog(entry)}
+              onClick={() => ledgerMutations.openEditEntryDialog(entry)}
             >
               <Pencil className="h-3.5 w-3.5" />
             </Button>
@@ -248,7 +180,7 @@ export function AllMovementsPage(): React.JSX.Element {
               disabled={locked}
               aria-label={t('common.delete')}
               title={locked ? t('common.lockedShift') : t('common.delete')}
-              onClick={() => void handleDeleteEntry(entry)}
+              onClick={() => void ledgerMutations.handleDeleteEntry(entry)}
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
@@ -262,44 +194,21 @@ export function AllMovementsPage(): React.JSX.Element {
     <div className="flex h-full min-h-0 flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t('allMovements.title')}</h1>
-        <Dialog
-          open={isCreateDialogOpen}
-          onOpenChange={(open) => {
-            setIsCreateDialogOpen(open)
-            if (!open) {
-              setEditingEntryId(null)
-              ledgerForm.reset(getDefaultLedgerValues())
-            }
-          }}
-        >
-          <DialogTrigger asChild>
-            <Button type="button" onClick={openCreateEntryDialog}>
+        <LedgerEntryDialog
+          trigger={
+            <Button type="button" onClick={ledgerMutations.openCreateEntryDialog}>
               {t('allMovements.addMovement')}
             </Button>
-          </DialogTrigger>
-          <DialogContent
-            className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
-            closeDisabled={ledgerForm.formState.isSubmitting}
-          >
-            <DialogHeader>
-              <DialogTitle>
-                {editingEntryId ? t('allMovements.editTitle') : t('allMovements.addMovement')}
-              </DialogTitle>
-            </DialogHeader>
-            <LedgerEntryForm
-              form={ledgerForm}
-              onSubmit={handleSaveEntry}
-              drivers={drivers}
-              contractors={contractors}
-              shifts={shifts}
-              submitLabel={
-                editingEntryId
-                  ? t('contractorsSettings.saveEdit')
-                  : t('contractorsSettings.addSubmit')
-              }
-            />
-          </DialogContent>
-        </Dialog>
+          }
+          open={ledgerMutations.isDialogOpen}
+          onOpenChange={ledgerMutations.onDialogOpenChange}
+          editingEntry={ledgerMutations.editingEntry}
+          form={ledgerForm}
+          onSubmit={ledgerMutations.handleSaveEntry}
+          drivers={drivers}
+          contractors={contractors}
+          shifts={shifts}
+        />
       </div>
 
       <Card className="flex min-h-0 flex-1 flex-col">

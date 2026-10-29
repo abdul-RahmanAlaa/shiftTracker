@@ -1,4 +1,4 @@
-import { ElectronAPI } from '@electron-toolkit/preload'
+export {}
 
 interface UseCaseResult<T> {
   ok: true
@@ -109,7 +109,7 @@ interface LedgerRow {
   id: number
   entryDate: string
   driverId: number | null
-  movementType: string
+  movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
   amount: number
   shiftId: string | null
   contractorId: number
@@ -382,27 +382,9 @@ interface Api {
   deleteVehicle: (input: {
     vehicleNo: number
   }) => Promise<UseCaseResult<{ vehicleNo: number }> | FailedUseCaseResult>
-  createTrip: (input: {
-    shiftId: string
-    tripDate: string
-    crusherCubic: number
-    clientCubicReported: number
-    fineAmount?: number
-    fineReason?: string
-    location?: string
-    crusherId: number
-    stonePrice: number
-    crusherReceiptStatus: 'PROVIDED' | 'CONFIRMED_MISSING' | 'UNKNOWN'
-    crusherReceiptNo?: number
-    clientId: number
-    transportPrice: number
-    clientPrice: number
-    materialTypeId: number
-    recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
-    recipientName?: string
-    clientReceiptNo?: string
-    notes?: string
-  }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
+  createTrip: (
+    input: CreateTripInput
+  ) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
   getSuggestedTripPrices: (input: {
     clientId: number
     crusherId: number
@@ -533,7 +515,6 @@ interface Api {
 
 declare global {
   interface Window {
-    electron: ElectronAPI
     api: Api
   }
 }

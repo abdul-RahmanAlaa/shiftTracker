@@ -378,6 +378,7 @@ function main() {
   checks.push(executeCheck('git diff --check', 'git', ['diff', '--check', 'HEAD']))
   checks.push(executeNpmCheck('npm run typecheck', 'typecheck'))
   checks.push(executeNpmCheck('npm run lint', 'lint'))
+  checks.push(executeNpmCheck('npm run check:i18n', 'check:i18n'))
 
   const harnessCheck = executeNpmCheck('npm run verify:use-cases', 'verify:use-cases', {
     env: {

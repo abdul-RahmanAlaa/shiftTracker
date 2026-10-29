@@ -9,12 +9,13 @@
     "close": "إغلاق",
     "details": "تفاصيل",
     "cancel": "إلغاء",
+    "confirm": "تأكيد",
+    "confirmationTitle": "تأكيد الإجراء",
     "edit": "تعديل",
     "delete": "مسح",
     "loading": "جاري التحميل...",
     "datePickerDefault": "اختر تاريخًا",
     "emptyCell": "-",
-    "notAvailable": "-",
     "emDash": "—",
     "emDash": "—",
     "defaultPrice": "السعر الافتراضي",
@@ -56,8 +57,7 @@
       "crusherCubic": "تكعيب الكسارة",
       "clientCubic": "تكعيب العميل",
       "startDate": "تاريخ البداية *",
-      "destination": "الوجهة",
-      "tripCount": "عدد النقلات"
+      "destination": "الوجهة"
     },
     "placeholders": {
       "driver": "اختار السائق",
@@ -69,8 +69,7 @@
       "vehicleRequired": "السيارة مطلوبة",
       "crusherCubicRequired": "تكعيب الكسارة مطلوب",
       "clientCubicRequired": "تكعيب العميل مطلوب",
-      "startDateRequired": "تاريخ البداية مطلوب",
-      "startDateInvalid": "تاريخ البداية غير صحيح"
+      "startDateRequired": "تاريخ البداية مطلوب"
     }
   },
   "contractorsSettings": {
@@ -205,7 +204,6 @@
     "confirmDelete": "متأكد إنك عايز تمسح {{label}}؟",
     "preview": "معاينة {{label}}",
     "unavailable": "الصورة غير متاحة",
-    "change": "تغيير",
     "editTitle": "تعديل {{label}}",
     "fullImageAlt": "{{label}} بالحجم الكامل",
     "zoom": "التكبير",
@@ -217,6 +215,7 @@
       "prepareImage": "تعذر تجهيز الصورة",
       "cropImage": "تعذر قص الصورة",
       "exportImage": "تعذر تصدير الصورة",
+      "loadImage": "تعذر تحميل الصورة",
       "saveImage": "تعذر حفظ الصورة",
       "readImage": "تعذر قراءة الصورة"
     }
@@ -285,15 +284,10 @@
     "addTripError": "تعذر إضافة النقلة",
     "emptyTrips": "لا توجد نقلات في الوردية",
     "deleteTripConfirmation": "متأكد إنك عايز تمسح النقلة {{id}}؟",
-    "selectDriver": "اختار السائق",
     "closeCardTitle": "قفل وردية",
     "reopenCardTitle": "إعادة فتح للتصحيح",
     "selectShift": "اختار الوردية",
     "closeDatePlaceholder": "اختر تاريخ القفل",
-    "validation": {
-      "endDateRequired": "تاريخ النهاية مطلوب",
-      "endDateInvalid": "تاريخ النهاية غير صحيح"
-    },
     "reportedTripCount": "عدد النقلات المُبلَّغ به",
     "reopenReasonPlaceholder": "اكتب سبب إعادة الفتح",
     "closingPhotoRequired": "لازم تضيف مستند تقفيل للوردية الأول",
@@ -301,18 +295,15 @@
     "closeBackupWarning": "تم قفل الوردية، لكن تعذر إنشاء النسخة الاحتياطية.",
     "reopenSubmit": "إعادة فتح الوردية",
     "reason": "السبب",
-    "checkingAttachments": "جاري التحقق من المستندات...",
     "tripsMissingAttachments": "النقلات دي تحتاج إيصالًا واحدًا على الأقل: {{tripIds}}",
     "columns": {
       "status": "الحالة",
       "startDate": "تاريخ البداية",
       "endDate": "تاريخ النهاية",
-      "tripCount": "عدد النقلات",
-      "receiptPhoto": "صورة الإيصال"
+      "tripCount": "عدد النقلات"
     },
     "shiftInfo": {
-      "number": "رقم الوردية",
-      "startDate": "تاريخ البداية"
+      "number": "رقم الوردية"
     }
   },
   "tripForm": {
@@ -356,7 +347,6 @@
     "submit": "إضافة النقلة",
     "validation": {
       "tripDateRequired": "تاريخ النقلة مطلوب",
-      "tripDateInvalid": "تاريخ النقلة غير صحيح",
       "crusherCubicRequired": "تكعيب الكسارة مطلوب",
       "clientCubicRequired": "تكعيب العميل مطلوب",
       "crusherRequired": "الكسارة مطلوبة",
@@ -375,16 +365,8 @@
     "subtitle": "اختار السائق ثم أدخل بيانات النقلة",
     "selectDriver": "اختار السائق",
     "noOpenShift": "مفيش وردية مفتوحة لهذا السائق",
-    "tripLogTitle": "سجل النقلات",
-    "attachmentsTitle": "مرفقات النقلة {{id}}",
     "steps": {
-      "selectDriver": "الخطوة 1: اختيار السائق",
-      "shiftStatus": "الخطوة 2: حالة الوردية",
       "tripDetails": "الخطوة 3: بيانات النقلة"
-    },
-    "logs": {
-      "created": "✅ نقلة اتضافت: {{id}}",
-      "failed": "❌ نقلة: {{errors}}"
     }
   },
   "ledgerEntryDetails": {
@@ -426,7 +408,6 @@
     "fineDescription": "غرامة مالية",
     "transportComponent": "تكلفة النقل",
     "materialComponent": "تكلفة مواد الكسارة",
-    "accountingMismatch": "تعذر مطابقة إجمالي كشف الحساب مع رصيد الحساب",
     "columns": {
       "date": "التاريخ",
       "description": "البيان",
@@ -491,8 +472,6 @@
   },
   "tripGrid": {
     "clearDriver": "مسح الاختيار",
-    "stepDriver": "١. السائق والوردية",
-    "stepTrips": "٢. النقلات",
     "shiftTripCount": "نقلات الوردية: {{count}}",
     "addRow": "إضافة صف",
     "duplicateRow": "تكرار الصف",

@@ -1,24 +1,10 @@
 import { ipcApi } from '@/lib/ipcErrors'
-import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import i18n from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
-import { Button } from '@/components/ui/button'
-import { SubmitButton } from '@/components/SubmitButton'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DataTable } from '@/components/DataTable'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
 import {
   Form,
   FormControl,
@@ -28,6 +14,8 @@ import {
   FormMessage
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
+import { SettingsEntityPage } from '@/pages/settings/SettingsEntityPage'
+import { useSettingsCrud } from '@/pages/settings/useSettingsCrud'
 
 const driverSchema = z.object({
   name: z.string().min(1, i18n.t('driversSettings.validation.nameRequired')),
@@ -40,79 +28,36 @@ type Driver = { id: number; name: string; phone1: string | null; phone2: string 
 
 export function DriversSettings(): React.JSX.Element {
   const { t } = useTranslation()
-  const [drivers, setDrivers] = useState<Driver[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingDriverId, setEditingDriverId] = useState<number | null>(null)
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
   const driverForm = useForm<DriverFormValues>({
     resolver: zodResolver(driverSchema),
     defaultValues: { name: '', phone1: '', phone2: '' }
   })
-
-  async function loadDrivers(): Promise<void> {
-    setLoading(true)
-    const result = await ipcApi.listDrivers()
-    if (result.ok) setDrivers(result.data)
-    setLoading(false)
-  }
-
-  useEffect(() => {
-    void ipcApi.listDrivers().then((result) => {
-      if (result.ok) setDrivers(result.data)
-      setLoading(false)
-    })
-  }, [])
-
-  async function handleSaveDriver(values: DriverFormValues): Promise<void> {
-    const result = editingDriverId
-      ? await ipcApi.updateDriver({ id: editingDriverId, ...values })
-      : await ipcApi.createDriver(values)
-    if (result.ok) {
-      setIsDialogOpen(false)
-      driverForm.reset()
-      setEditingDriverId(null)
-      await loadDrivers()
-    } else {
-      result.errors.forEach((error) => {
-        if (error.field === 'name' || error.field === 'phone1' || error.field === 'phone2') {
-          driverForm.setError(error.field, { message: error.message })
-        }
-      })
-    }
-  }
-
-  function startEditingDriver(driver: Driver): void {
-    setEditingDriverId(driver.id)
-    driverForm.reset({
-      name: driver.name,
-      phone1: driver.phone1 ?? '',
-      phone2: driver.phone2 ?? ''
-    })
-    setIsDialogOpen(true)
-  }
-
-  function cancelEditingDriver(): void {
-    setEditingDriverId(null)
-    driverForm.reset()
-    setIsDialogOpen(false)
-  }
-
-  async function handleDeleteDriver(driver: Driver): Promise<void> {
-    if (!confirm(t('driversSettings.deleteConfirmation', { name: driver.name }))) return
-    const result = await ipcApi.deleteDriver({ id: driver.id })
-    if (result.ok) {
-      if (editingDriverId === driver.id) cancelEditingDriver()
-      await loadDrivers()
-    }
-  }
-
-  function handleDialogChange(open: boolean): void {
-    setIsDialogOpen(open)
-    if (!open) {
-      setEditingDriverId(null)
-      driverForm.reset()
-    }
-  }
+  const crud = useSettingsCrud<Driver, DriverFormValues>({
+    list: () => ipcApi.listDrivers(),
+    save: async (editingDriver, values) => {
+      const result = editingDriver
+        ? await ipcApi.updateDriver({ id: editingDriver.id, ...values })
+        : await ipcApi.createDriver(values)
+      if (!result.ok) {
+        result.errors.forEach((error) => {
+          if (error.field === 'name' || error.field === 'phone1' || error.field === 'phone2') {
+            driverForm.setError(error.field, { message: error.message })
+          }
+        })
+      }
+      return result
+    },
+    remove: (driver) => ipcApi.deleteDriver({ id: driver.id }),
+    getRowId: (driver) => driver.id,
+    getDeleteConfirmation: (driver) =>
+      t('driversSettings.deleteConfirmation', { name: driver.name }),
+    resetForm: (driver) =>
+      driverForm.reset(
+        driver
+          ? { name: driver.name, phone1: driver.phone1 ?? '', phone2: driver.phone2 ?? '' }
+          : undefined
+      )
+  })
 
   const columns: ColumnDef<Driver, unknown>[] = [
     { accessorKey: 'name', header: t('common.columns.name') },
@@ -127,132 +72,76 @@ export function DriversSettings(): React.JSX.Element {
       header: t('driversSettings.phone2'),
       meta: { nowrap: true },
       cell: ({ getValue }) => getValue() ?? t('common.emptyCell')
-    },
-    {
-      id: 'actions',
-      header: t('common.columns.actions'),
-      meta: { nowrap: true },
-      enableSorting: false,
-      enableColumnFilter: false,
-      cell: ({ row }) => (
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => startEditingDriver(row.original)}
-          >
-            {t('common.edit')}
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={() => void handleDeleteDriver(row.original)}
-          >
-            {t('common.delete')}
-          </Button>
-        </div>
-      )
     }
   ]
 
   return (
-    <Card className="flex h-full min-h-0 flex-col">
-      <CardHeader>
-        <CardTitle>{t('driversSettings.title')}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex min-h-0 flex-1 flex-col">
-        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
-          <DialogTrigger asChild>
-            <Button
-              type="button"
-              onClick={() => {
-                setEditingDriverId(null)
-                driverForm.reset()
-              }}
-            >
-              {t('driversSettings.addButton')}
-            </Button>
-          </DialogTrigger>
-          <DialogContent closeDisabled={driverForm.formState.isSubmitting}>
-            <DialogHeader>
-              <DialogTitle>
-                {editingDriverId ? t('driversSettings.editTitle') : t('driversSettings.addTitle')}
-              </DialogTitle>
-            </DialogHeader>
-            <Form {...driverForm}>
-              <form onSubmit={driverForm.handleSubmit(handleSaveDriver)} className="grid gap-4">
-                <FormField
-                  control={driverForm.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('driversSettings.fields.name')}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t('driversSettings.fields.name')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={driverForm.control}
-                  name="phone1"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('driversSettings.phone1')}</FormLabel>
-                      <FormControl>
-                        <Input type="text" placeholder={t('driversSettings.phone1')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={driverForm.control}
-                  name="phone2"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('driversSettings.phone2')}</FormLabel>
-                      <FormControl>
-                        <Input type="text" placeholder={t('driversSettings.phone2')} {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <DialogFooter>
-                  <SubmitButton isSubmitting={driverForm.formState.isSubmitting}>
-                    {editingDriverId
-                      ? t('contractorsSettings.saveEdit')
-                      : t('contractorsSettings.addSubmit')}
-                  </SubmitButton>
-                  <DialogClose asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={driverForm.formState.isSubmitting}
-                      onClick={cancelEditingDriver}
-                    >
-                      {t('common.cancel')}
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-        <div className="mt-6 flex min-h-0 flex-1 flex-col">
-          <DataTable
-            columns={columns}
-            data={drivers}
-            loading={loading}
-            getRowId={(driver) => String(driver.id)}
-            enableRowSelection
-          />
-        </div>
-      </CardContent>
-    </Card>
+    <SettingsEntityPage
+      title={t('driversSettings.title')}
+      addButtonText={t('driversSettings.addButton')}
+      addTitle={t('driversSettings.addTitle')}
+      editTitle={t('driversSettings.editTitle')}
+      actionsText={t('common.columns.actions')}
+      editText={t('common.edit')}
+      deleteText={t('common.delete')}
+      addSubmitText={t('contractorsSettings.addSubmit')}
+      saveEditText={t('contractorsSettings.saveEdit')}
+      cancelText={t('common.cancel')}
+      rows={crud.rows}
+      loading={crud.loading}
+      columns={columns}
+      getRowId={(driver) => String(driver.id)}
+      isEditing={crud.isEditing}
+      dialogOpen={crud.dialogOpen}
+      closeDisabled={driverForm.formState.isSubmitting}
+      onAdd={crud.openForCreate}
+      onEdit={crud.openForEdit}
+      onDelete={crud.deleteRow}
+      onDialogOpenChange={crud.handleDialogOpenChange}
+      onCancel={crud.closeDialog}
+      onSubmit={driverForm.handleSubmit(crud.save)}
+    >
+      <Form {...driverForm}>
+        <FormField
+          control={driverForm.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('driversSettings.fields.name')}</FormLabel>
+              <FormControl>
+                <Input placeholder={t('driversSettings.fields.name')} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={driverForm.control}
+          name="phone1"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('driversSettings.phone1')}</FormLabel>
+              <FormControl>
+                <Input type="text" placeholder={t('driversSettings.phone1')} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={driverForm.control}
+          name="phone2"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('driversSettings.phone2')}</FormLabel>
+              <FormControl>
+                <Input type="text" placeholder={t('driversSettings.phone2')} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </Form>
+    </SettingsEntityPage>
   )
 }

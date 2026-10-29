@@ -12,14 +12,6 @@ export function wrapHandler<Args extends unknown[], Result>(
   return async (...args: Args) => {
     try {
       const result = await fn(...args)
-      if (
-        typeof result === 'object' &&
-        result !== null &&
-        'ok' in result &&
-        (result.ok === true || result.ok === false)
-      ) {
-        return result
-      }
       return result
     } catch (error) {
       log(error)

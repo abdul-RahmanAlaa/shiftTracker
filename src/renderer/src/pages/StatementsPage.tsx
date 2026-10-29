@@ -64,12 +64,13 @@ export function StatementsPage(): React.JSX.Element {
         if (clientsResult.ok) setClients(clientsResult.data)
         if (contractorsResult.ok) setContractors(contractorsResult.data)
         setEntitiesError(!clientsResult.ok || !contractorsResult.ok)
-        setEntitiesLoading(false)
       })
       .catch(() => {
         if (cancelled) return
         setEntitiesError(true)
-        setEntitiesLoading(false)
+      })
+      .finally(() => {
+        if (!cancelled) setEntitiesLoading(false)
       })
     return () => {
       cancelled = true
@@ -91,12 +92,13 @@ export function StatementsPage(): React.JSX.Element {
         if (cancelled) return
         if (result.ok) setStatement(result.data)
         else setStatementError(true)
-        setStatementLoading(false)
       })
       .catch(() => {
         if (cancelled) return
         setStatementError(true)
-        setStatementLoading(false)
+      })
+      .finally(() => {
+        if (!cancelled) setStatementLoading(false)
       })
 
     return () => {

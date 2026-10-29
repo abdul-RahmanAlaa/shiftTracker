@@ -43,6 +43,24 @@ interface DraftRow extends Omit<StatementRow, 'runningBalance' | 'value' | 'paym
   sortComponent: number
 }
 
+function compareText(left: string, right: string): number {
+  if (left < right) return -1
+  if (left > right) return 1
+  return 0
+}
+
+function compareSortIds(left: string, right: string): number {
+  const leftTripId = /^TRP-(?:\d+-)?(\d+)$/.exec(left)
+  const rightTripId = /^TRP-(?:\d+-)?(\d+)$/.exec(right)
+  if (leftTripId && rightTripId) {
+    const leftNumber = BigInt(leftTripId[1])
+    const rightNumber = BigInt(rightTripId[1])
+    if (leftNumber < rightNumber) return -1
+    if (leftNumber > rightNumber) return 1
+  }
+  return compareText(left, right)
+}
+
 function buildStatement(
   entityName: string,
   openingBalanceMinor: number,
@@ -73,7 +91,7 @@ function buildStatement(
     return (
       a.date.localeCompare(b.date) ||
       a.sortGroup - b.sortGroup ||
-      a.sortId.localeCompare(b.sortId) ||
+      compareSortIds(a.sortId, b.sortId) ||
       a.sortComponent - b.sortComponent
     )
   })
@@ -102,20 +120,28 @@ function buildStatement(
 }
 
 function paymentRows(rows: StatementPaymentRow[], sortGroup: number): DraftRow[] {
-  return rows.map((row, index) => ({
-    date: row.date,
-    kind: 'PAYMENT',
-    component: null,
-    description: row.description,
-    quantity: null,
-    price: null,
-    valueMinor: null,
-    paymentMinor: row.amountMinor,
-    notes: row.notes,
-    sortGroup,
-    sortId: String(index).padStart(10, '0'),
-    sortComponent: 0
-  }))
+  return [...rows]
+    .sort(
+      (left, right) =>
+        compareText(left.date, right.date) ||
+        compareText(left.description ?? '', right.description ?? '') ||
+        left.amountMinor - right.amountMinor ||
+        compareText(left.notes ?? '', right.notes ?? '')
+    )
+    .map((row, index) => ({
+      date: row.date,
+      kind: 'PAYMENT',
+      component: null,
+      description: row.description,
+      quantity: null,
+      price: null,
+      valueMinor: null,
+      paymentMinor: row.amountMinor,
+      notes: row.notes,
+      sortGroup,
+      sortId: String(index).padStart(10, '0'),
+      sortComponent: 0
+    }))
 }
 
 export function getClientStatement(input: { clientId: number }): UseCaseResult<Statement> {

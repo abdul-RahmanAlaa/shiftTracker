@@ -121,16 +121,16 @@ Closing a shift or reopening it inside a test goes through the UI. Seeds only bu
 
 ## 6. Attachments (shared component)
 
-| ID    | Scenario                                          | Steps                                                                                   | Expected                                                     | Seed           | Pri | Cov |
-| ----- | ------------------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------ | -------------- | --- | --- |
-| ATT-1 | Upload, crop, save a JPEG                         | Upload a generated JPEG, crop, save                                                     | Thumbnail listed, preview opens                              | `with-trip`    | P1  | NEW |
-| ATT-2 | Delete an attachment                              | Delete it, confirm                                                                      | Removed from the list and the file system                    | `with-trip`    | P1  | NEW |
-| ATT-3 | Reject non-JPEG                                   | Pick a PNG or PDF                                                                       | Visible error, nothing stored                                | `with-trip`    | P1  | NEW |
-| ATT-4 | Corrupt image                                     | Upload a truncated JPEG                                                                 | Visible error, no crash                                      | `with-trip`    | P2  | NEW |
-| ATT-5 | Crop, rotate, zoom controls                       | Use each control                                                                        | Output differs; controls respond                             | `with-trip`    | P2  | NEW |
-| ATT-6 | CLOSED trip attachments are read-only             | Open a trip from a CLOSED shift (Shift Details, All Trips details window, trip details) | Add and delete controls are unavailable; preview still works | `closed-shift` | P0  | NEW |
-| ATT-7 | CLOSED shift closing sheet is read-only           | Open the shifts list for a CLOSED shift                                                 | Closing-sheet upload and delete are unavailable              | `closed-shift` | P0  | NEW |
-| ATT-8 | Server rejects attachment changes on CLOSED shift | Close the shift while the view is open, then try to add                                 | Error notice, nothing stored                                 | `with-trip`    | P0  | NEW |
+| ID    | Scenario                                          | Steps                                                                                             | Expected                                                                                            | Seed           | Pri | Cov                     |
+| ----- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------- | --- | ----------------------- |
+| ATT-1 | Upload, crop, save a JPEG                         | Upload a generated JPEG, crop, save                                                               | Thumbnail listed, preview opens                                                                     | `with-trip`    | P1  | NEW                     |
+| ATT-2 | Delete an attachment                              | Delete it, confirm                                                                                | Removed from the list and the file system                                                           | `with-trip`    | P1  | NEW                     |
+| ATT-3 | Reject non-JPEG                                   | Pick a PNG or PDF                                                                                 | Visible error, nothing stored                                                                       | `with-trip`    | P1  | NEW                     |
+| ATT-4 | Corrupt image                                     | Upload a truncated JPEG                                                                           | Visible error, no crash                                                                             | `with-trip`    | P2  | NEW                     |
+| ATT-5 | Crop, rotate, zoom controls                       | Use each control                                                                                  | Output differs; controls respond                                                                    | `with-trip`    | P2  | NEW                     |
+| ATT-6 | CLOSED trip attachments are read-only             | Open a trip from a CLOSED shift (Shift Details, All Trips details window, trip details)           | Add and delete controls are unavailable; preview still works                                        | `closed-shift` | P0  | NEW                     |
+| ATT-7 | A closing sheet cannot be added to a CLOSED shift | Open the close dialog and its shift select; call addAttachment for a CLOSED shift through the API | CLOSED shifts are not offered in the dialog; the server rejects the call; attachments are unchanged | `two-shifts`   | P0  | PART closed-shift-locks |
+| ATT-8 | Server rejects attachment changes on CLOSED shift | Close the shift while the view is open, then try to add                                           | Error notice, nothing stored                                                                        | `with-trip`    | P0  | NEW                     |
 
 ## 7. Settings (`/settings`)
 
@@ -220,7 +220,7 @@ Run SET-1 through SET-6 once per entity (6 parametrized cases): vehicle, driver,
 | Runtime       | 3                                       |
 | **Total**     | **101**                                 |
 
-The 8 existing tests (S1–S7, F4) fully or partly cover 25 of these cases (marked in the Cov column); the other 76 are new. Build the `P0` cases first.
+The 8 existing tests (S1–S7, F4) fully or partly cover 26 of these cases (marked in the Cov column); the other 75 are new. Build the `P0` cases first.
 
 ## Suggested build order
 
