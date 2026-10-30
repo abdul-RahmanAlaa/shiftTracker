@@ -26,6 +26,7 @@
 | `npm run db:inspect -- <database-path>` | Inspect a database read-only through Electron as Node        |
 | `npm run test:e2e`                      | Build the app and run the Playwright Electron smoke suite    |
 | `node scripts/benchmark-large-table.cjs` | Run the one-off large-table performance benchmark            |
+| `npm run build:unpack`                  | Build an unpacked Windows app for packaging checks           |
 | `build-installer.bat`                   | Double-click to build the Windows installer and open `dist`  |
 | `npm run review:gate`                   | Run checks and mechanical review rules; write `last-task.md` |
 | `npm run review:gate:e2e`               | Run the review gate including the E2E suite                  |
@@ -40,6 +41,8 @@
 - `trip:suggestPrices` validates the client, crusher, optional material type, and optional location, then reads independent price suggestions without writing data. Stone and client prices use material-specific history or their entity's initial price; transport uses client history with an exact-location preference.
 - Electron requests a single-instance lock for the current `userData` path before startup opens the database. A second launch exits silently; the first window is restored, shown, and focused when available.
 - The renderer window uses context isolation and sandboxing without Node integration. Popup requests are denied, and main-frame navigation and redirects are limited to the renderer entry URL.
+- The window opens at 1366×768 with a 1024×640 minimum, stays hidden until `ready-to-show`, and uses the existing installer app ID `com.electron.app` as its Windows App User Model ID.
+- The HTML document declares Arabic RTL metadata and receives its title from the Arabic app subtitle at build time. Windows/NSIS is the configured installer target; `appId` remains `com.electron.app`.
 - `src/main/ipcWrapper.ts` converts thrown or rejected IPC handlers into the standard `_form` error result and logs the original error. Preload invocation rejections use the same failure result.
 - The renderer shell fills the window; the navigation bar stays visible while table pages scroll inside their table viewport.
 - `DataTable` provides internal scrolling with a sticky header. Headers and cells are centered. Text columns wrap, break long words, clamp to two lines, and expose their full displayed text in a hover title; columns without metadata use this behavior.
@@ -241,8 +244,9 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - `npm run check:i18n` rejects missing or unreferenced Arabic translation keys and documents allow-listed dynamic key prefixes; `npm run review:gate` runs this check.
 - `npm run db:inspect -- <database-path>` opens a database read-only and reports its version, integrity, table row counts, and first/last Shift and Trip IDs. It never writes to the inspected database.
 - `node scripts/benchmark-large-table.cjs` seeds an isolated temporary database with 8,000 trips across 50 shifts and measures All Trips in Electron through Playwright; it is a one-off measurement, not a gate test.
-- `npm run test:e2e` builds the app and drives the real Electron app through seven Playwright smoke flows: all routes and runtime/translation-key health; shift creation and duplicate-vehicle rejection; trip-grid validation and detail labels; partial grid save with a server-rejected row; shift close/count/attachments; contractor-versus-client statement note; and refusal of a second instance while the first remains responsive.
-- E2E fixtures and each app launch use temporary user-data directories.
+- `npm run test:e2e` builds the app and runs eight Playwright test declarations in `e2e/smoke.spec.cjs`, covering routes and runtime/translation-key health, shift creation, trip-grid behavior, shift closing, statement notes, second-instance handling, and table layout.
+- `npm run test:e2e:full` runs 19 test declarations across the three E2E specs: the eight smoke tests plus closed-shift protection and attachment-lock cases.
+- E2E fixtures and app launches use temporary user-data directories; the harness checks the launched app's `userData` path before opening its first window.
 - `npm run review:gate` runs diff check, typecheck, lint, the i18n check, and the use-case harness, then checks added diff lines for selected mechanical rules. `npm run review:gate:e2e` also runs Playwright. The gate does not use AI and writes `last-task.md`; the complete harness result table goes to ignored `scripts/last-harness-output.txt`.
 - Automated checks do not replace user confirmation in Electron. Only checklist items explicitly marked `[x]` were confirmed by the user; unchecked scenarios remain pending.
 - Human testing is required for pending manual checklist scenarios, visual usability, workflows outside the smoke flows, and real-device filesystem/backup behavior.
@@ -250,12 +254,10 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 ## 8. Open items
 
 - **OI-002 — Medium, account and statement details:** filtered-table empty-state handling and duplicated client-payment notes need attention. Review `src/renderer/src/components/DataTable.tsx`, `src/renderer/src/pages/accounts/AccountTables.tsx`, and `src/main/repository/statementRepository.ts`.
-- **OI-006 — Low, app packaging metadata:** boilerplate app metadata, window title, HTML language/direction, and app ID alignment need review. Review `package.json`, `src/renderer/index.html`, and `src/main/index.ts`.
 - **OI-007 — Low, Add Trip grid manual confirmation:** typing, paste, suggestions, keyboard behavior, server-error retention, driver switching, and laptop fit remain unchecked; scenarios are listed in `docs/manual-checklist.md`.
-- **OI-008 — Medium, E2E coverage:** expand automated coverage according to `docs/e2e-coverage-plan.md`.
-- **OI-009 — Medium, E2E coverage:** expand E2E coverage per `docs/e2e-coverage-plan.md`.
+- **OI-008 — Medium, E2E coverage:** expand automated coverage for unimplemented cases in `docs/e2e-test-cases.md`, following `docs/e2e-coverage-plan.md`.
 - **OI-010 — Low, table layout manual confirmation:** confirm two-line text wrapping, full-text hover titles, centered headers and cells, laptop fit, and unchanged sorting, filtering, and sums using `docs/manual-checklist.md`.
-- **OI-011 — Low, installer helper manual confirmation:** double-click `build-installer.bat` and confirm it builds the installer, opens `dist`, and leaves failures visible.
+- **OI-011 — Low, Windows installer manual confirmation:** build and install the Windows installer, launch Shift Tracker, and confirm the Arabic title, default window size, and one-instance behavior using `docs/manual-checklist.md`.
 - **OI-012 — Low, trip deletion manual confirmation:** delete a trip from Shift Details and All Trips; confirm the success notice and that the deleted trip disappears from the list. In All Trips, confirm Delete is hidden for trips in CLOSED shifts and the locked label is shown.
 - **OI-013 — Low, closed-shift attachment manual confirmation:** attachments of trips in CLOSED shifts show no upload or delete controls in Shift Details, the trip details window, and the All Trips details window; REOPENED and OPEN shifts keep them.
 - **OI-014 — Low, renderer navigation manual confirmation:** confirm popup requests are denied and navigation or redirects outside the app renderer are blocked in development and packaged runs.

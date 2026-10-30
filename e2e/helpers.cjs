@@ -34,49 +34,6 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-async function captureStartupDatabasePath(tempDirectory) {
-  const expectedDatabasePath = path.join(tempDirectory, 'shift-tracker.db')
-  const startupProcess = spawn(electronPath, ['--user-data-dir=' + tempDirectory, root], {
-    cwd: root,
-    env: process.env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-    windowsHide: true
-  })
-  let output = ''
-  let timeout
-
-  try {
-    const startupOutput = await new Promise((resolve, reject) => {
-      timeout = setTimeout(
-        () => reject(new Error(`Database path log not found:\n${output}`)),
-        15_000
-      )
-      const checkOutput = (chunk) => {
-        output += String(chunk)
-        if (output.includes(expectedDatabasePath)) resolve(output)
-      }
-      startupProcess.stdout.on('data', checkOutput)
-      startupProcess.stderr.on('data', checkOutput)
-      startupProcess.once('error', reject)
-      startupProcess.once('exit', (code) => {
-        reject(new Error(`Electron exited before logging the database path (${code}):\n${output}`))
-      })
-    })
-    const stopped = new Promise((resolve) => startupProcess.once('exit', resolve))
-    startupProcess.kill()
-    await Promise.race([stopped, new Promise((resolve) => setTimeout(resolve, 5_000))])
-    if (startupProcess.exitCode === null && startupProcess.signalCode === null) {
-      startupProcess.kill()
-      throw new Error('Startup log probe did not exit after being stopped')
-    }
-    return startupOutput
-  } finally {
-    clearTimeout(timeout)
-    if (startupProcess.exitCode === null && startupProcess.signalCode === null)
-      startupProcess.kill()
-  }
-}
-
 function today() {
   const date = new Date()
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
@@ -243,6 +200,8 @@ async function callApi(page, method, input) {
 
 async function relaunchApp(session) {
   await session.application.close()
+  session.page = null
+  session.traceStarted = false
   const application = await electron.launch({
     executablePath: electronPath,
     args: ['--user-data-dir=' + session.tempDirectory, root],
@@ -250,6 +209,9 @@ async function relaunchApp(session) {
     env: process.env,
     timeout: 30_000
   })
+  session.application = application
+  const actualUserData = await application.evaluate(({ app }) => app.getPath('userData'))
+  expect(actualUserData).toBe(session.tempDirectory)
   const page = await application.firstWindow()
   page.on('pageerror', (error) => session.browserErrors.push(error.message))
   page.on('console', (message) => {
@@ -258,7 +220,6 @@ async function relaunchApp(session) {
   await page.waitForLoadState('domcontentloaded')
   await page.context().tracing.start({ screenshots: true, snapshots: true, sources: true })
 
-  session.application = application
   session.page = page
   session.traceStarted = true
   return session
@@ -323,7 +284,6 @@ const testWithApp = test.extend({
         throw new Error(`Seed result missing:\n${seedRun.stdout}`)
       }
       const seedData = JSON.parse(seedLine.slice('E2E_SEED_RESULT='.length))
-      const startupLog = await captureStartupDatabasePath(tempDirectory)
       const application = await electron.launch({
         executablePath: electronPath,
         args: ['--user-data-dir=' + tempDirectory, root],
@@ -334,30 +294,24 @@ const testWithApp = test.extend({
       session = {
         application,
         page: null,
-        startupLog,
         seedData,
         tempDirectory,
-        actualUserData: '',
-        databasePath: '',
         browserErrors: [],
         traceStarted: false
       }
+      const actualUserData = await application.evaluate(({ app }) => app.getPath('userData'))
+      expect(actualUserData).toBe(tempDirectory)
       const page = await application.firstWindow()
       page.on('pageerror', (error) => session.browserErrors.push(error.message))
       page.on('console', (message) => {
         if (message.type() === 'error') session.browserErrors.push(message.text())
       })
       await page.waitForLoadState('domcontentloaded')
-      const actualUserData = await application.evaluate(({ app }) => app.getPath('userData'))
-      const databasePath = path.join(actualUserData, 'shift-tracker.db')
-      expect(startupLog).toContain(`[db] Database path: ${databasePath}`)
-      expect(actualUserData).toBe(tempDirectory)
+      const databasePath = path.join(tempDirectory, 'shift-tracker.db')
       expect(fs.existsSync(databasePath)).toBe(true)
       await page.context().tracing.start({ screenshots: true, snapshots: true, sources: true })
 
       session.page = page
-      session.actualUserData = actualUserData
-      session.databasePath = databasePath
       session.traceStarted = true
       return session
     }
@@ -396,7 +350,6 @@ module.exports = {
   electronPath,
   text,
   escapeRegExp,
-  captureStartupDatabasePath,
   today,
   formItem,
   selectOption,

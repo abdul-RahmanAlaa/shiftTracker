@@ -1,34 +1,28 @@
-# shift-tracker
+# Shift Tracker
 
-An Electron application with React and TypeScript
+Shift Tracker is an offline Windows desktop app for managing transport shifts, trips, accounts, and statements. Its interface is Arabic and right-to-left.
 
-## Recommended IDE Setup
+## Prerequisites
 
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+- Windows
+- Node.js and npm
 
-## Project Setup
+## Set up and run
 
-### Install
-
-```bash
-$ npm install
+```powershell
+npm install
+npm run dev
 ```
 
-### Development
+## Build and test
 
-```bash
-$ npm run dev
+```powershell
+npm run build:win
+npm run build:unpack
+npm run test:e2e
+npm run test:e2e:full
+npm run typecheck
+npm run lint
 ```
 
-### Build
-
-```bash
-# For windows
-$ npm run build:win
-
-# For macOS
-$ npm run build:mac
-
-# For Linux
-$ npm run build:linux
-```
+See [PROJECT.md](./PROJECT.md) for architecture and commands, and [docs/](./docs/) for installation, testing, and operational guides.

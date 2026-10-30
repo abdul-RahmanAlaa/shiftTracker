@@ -81,8 +81,10 @@ function createWindow(): void {
       : pathToFileURL(join(__dirname, '../renderer/index.html'))
 
   const window = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1366,
+    height: 768,
+    minWidth: 1024,
+    minHeight: 640,
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
@@ -144,7 +146,7 @@ app.whenReady().then(() => {
   const backupService = initializeBackupService(app.getPath('userData'), db)
 
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.electron.app')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

@@ -103,6 +103,7 @@ All scenarios remain unchecked until confirmed by the user.
 - [ ] Simulate a failed delete and confirm one visible non-blocking notice.
 - [ ] Open AddTrip with the database unavailable and confirm one notice appears, not six.
 - [ ] Confirm a failing save whose page already shows the error does not show a second notice.
+- [ ] Build and install the Windows installer; launch Shift Tracker and confirm the Arabic title, 1366×768 default window, and one-instance behavior.
 - [ ] Double-click the app icon and confirm one window opens and the first is focused.
 - [ ] Run `npm run dev` while the packaged app or another development instance is open and confirm the second instance exits.
 - [ ] Switch contractor, driver, or client selection rapidly and confirm the displayed account always matches the selected name.

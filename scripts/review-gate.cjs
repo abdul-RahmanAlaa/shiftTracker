@@ -35,6 +35,15 @@ function readHeadFile(filePath) {
   return result.code === 0 ? result.stdout : null
 }
 
+function getSourceFiles(directory) {
+  if (!fs.existsSync(directory)) return []
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name)
+    if (entry.isDirectory()) return getSourceFiles(entryPath)
+    return entry.isFile() && /\.(?:cjs|js|mjs|ts|tsx)$/.test(entry.name) ? [entryPath] : []
+  })
+}
+
 function summaryLine(output, fallback) {
   const lines = output
     .split(/\r?\n/)
@@ -292,12 +301,43 @@ function checkMechanicalRules(addedLines, changedPaths) {
     }
   }
 
-  const headHarness = readHeadFile('scripts/verify-closed-shift-use-cases.cjs')
-  const harnessPath = path.join(root, 'scripts', 'verify-closed-shift-use-cases.cjs')
-  if (headHarness !== null && fs.existsSync(harnessPath)) {
-    const countCalls = (text) => (text.match(/runCase\s*\(/g) ?? []).length
-    if (countCalls(fs.readFileSync(harnessPath, 'utf8')) < countCalls(headHarness)) {
-      recordWarn('runCase( occurrences in the use-case harness decreased compared with HEAD')
+  const harnessRunner = 'scripts/verify-closed-shift-use-cases.cjs'
+  const sourcePattern = /\.(?:cjs|js|mjs|ts|tsx)$/
+  const caseCallPattern = /\b(?:runCase|runAsyncCase)\s*\(/g
+  const currentHarnessFiles = [
+    ...getSourceFiles(path.join(root, 'scripts', 'verify')).map((filePath) =>
+      path.relative(root, filePath)
+    ),
+    harnessRunner
+  ]
+  const headHarnessFiles = git([
+    'ls-tree',
+    '-r',
+    '--name-only',
+    'HEAD',
+    '--',
+    'scripts/verify',
+    harnessRunner
+  ])
+  if (headHarnessFiles.code === 0) {
+    const countCalls = (text) => (text.match(caseCallPattern) ?? []).length
+    const currentCount = currentHarnessFiles.reduce((total, filePath) => {
+      const absolutePath = path.join(root, filePath)
+      return sourcePattern.test(filePath) && fs.existsSync(absolutePath)
+        ? total + countCalls(fs.readFileSync(absolutePath, 'utf8'))
+        : total
+    }, 0)
+    const headCount = headHarnessFiles.stdout
+      .split(/\r?\n/)
+      .filter((filePath) => sourcePattern.test(filePath))
+      .reduce((total, filePath) => {
+        const headFile = readHeadFile(filePath)
+        return headFile === null ? total : total + countCalls(headFile)
+      }, 0)
+    if (currentCount < headCount) {
+      recordWarn(
+        `runCase( and runAsyncCase( occurrences in the use-case harness decreased compared with HEAD (${currentCount} < ${headCount})`
+      )
     }
   }
 }
