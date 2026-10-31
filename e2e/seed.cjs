@@ -153,7 +153,12 @@ async function seed() {
           recipientNameStatus: 'PROVIDED',
           recipientName: `E2E Receiver ${suffix}`,
           clientReceiptNo: '',
-          notes: mode === 'layout' ? layoutNote : ''
+          notes:
+            mode === 'layout'
+              ? layoutNote
+              : mode === 'golden'
+                ? `E2E golden trip note ${suffix}`
+                : ''
         }),
         'trip'
       )

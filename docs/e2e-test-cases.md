@@ -154,35 +154,35 @@ Run SET-1 through SET-6 once per entity (6 parametrized cases): vehicle, driver,
 
 | ID     | Scenario                                    | Steps                                                              | Expected                                                   | Seed       | Pri | Cov |
 | ------ | ------------------------------------------- | ------------------------------------------------------------------ | ---------------------------------------------------------- | ---------- | --- | --- |
-| ACC-1  | Contractor ledger add                       | Add ADVANCE, PAYMENT, and OTHER entries                            | Rows appear; balance recalculates after each               | `accounts` | P0  | NEW |
-| ACC-2  | Contractor ledger edit and delete           | Edit an amount, delete another row                                 | Table and balance refresh                                  | `accounts` | P0  | NEW |
-| ACC-3  | Driver history add, edit, delete            | Same as ACC-1 and ACC-2 on the driver page                         | Same expectations                                          | `accounts` | P0  | NEW |
-| ACC-4  | Movement linked to an OPEN shift            | Add a movement with an OPEN shift                                  | Saved; Edit and Delete available                           | `accounts` | P1  | NEW |
-| ACC-5  | Movement linked to a CLOSED shift is locked | Open a movement linked to a CLOSED shift on all three ledger pages | Edit and Delete hidden or locked with `common.lockedShift` | `accounts` | P0  | NEW |
-| ACC-6  | Server rejects a CLOSED-shift movement      | Create a movement and pick a CLOSED shift                          | Visible error, nothing saved                               | `accounts` | P0  | NEW |
-| ACC-7  | Client payment lifecycle                    | Add, edit, delete a payment, including a negative amount           | Each step changes the client balance by the signed amount  | `accounts` | P0  | NEW |
-| ACC-8  | All Movements list                          | Filter by driver, sort by amount, open details                     | Correct rows; details window shows notes and shift         | `accounts` | P1  | NEW |
-| ACC-9  | Ledger form validation                      | Empty amount, zero amount, missing date                            | Field errors; Add dialog is blank after cancel             | `accounts` | P1  | NEW |
-| ACC-10 | Account section switching                   | Switch between the four sections                                   | Each loads its own data, no stale rows                     | `accounts` | P2  | NEW |
+| ACC-1  | Contractor ledger add                       | Add ADVANCE, PAYMENT, and OTHER entries                            | Rows appear; balance recalculates after each               | `accounts` | P0  | `accounts.spec.cjs` |
+| ACC-2  | Contractor ledger edit and delete           | Edit an amount, delete another row                                 | Table and balance refresh                                  | `accounts` | P0  | `accounts.spec.cjs` |
+| ACC-3  | Driver history add, edit, delete            | Same as ACC-1 and ACC-2 on the driver page                         | Same expectations                                          | `accounts` | P0  | `accounts.spec.cjs` |
+| ACC-4  | Movement linked to an OPEN shift            | Add a movement with an OPEN shift                                  | Saved; Edit and Delete available                           | `accounts` | P1  | `accounts.spec.cjs` |
+| ACC-5  | Movement linked to a CLOSED shift is locked | Open a movement linked to a CLOSED shift on all three ledger pages | Edit and Delete hidden or locked with `common.lockedShift` | `accounts` | P0  | `accounts.spec.cjs` |
+| ACC-6  | Server rejects a CLOSED-shift movement      | Create a movement and pick a CLOSED shift                          | Visible error, nothing saved                               | `accounts` | P0  | `accounts.spec.cjs` |
+| ACC-7  | Client payment lifecycle                    | Add, edit, delete a payment, including a negative amount           | Each step changes the client balance by the signed amount  | `accounts` | P0  | `accounts.spec.cjs` |
+| ACC-8  | All Movements list                          | Filter by driver, sort by amount, open details                     | Correct rows; details window shows notes and shift         | `accounts` | P1  | `accounts.spec.cjs` |
+| ACC-9  | Ledger form validation                      | Empty amount, zero amount, missing date                            | Field errors; Add dialog is blank after cancel             | `accounts` | P1  | `accounts.spec.cjs` |
+| ACC-10 | Account section switching                   | Switch between the four sections                                   | Each loads its own data, no stale rows                     | `accounts` | P2  | `accounts.spec.cjs` |
 
 ## 9. Statements (`/statements`)
 
 | ID   | Scenario                                     | Steps                      | Expected                                                                                          | Seed         | Pri | Cov     |
 | ---- | -------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------- | ------------ | --- | ------- |
-| ST-1 | Client statement rows                        | Select the client          | Opening-balance row, trip rows with notes, fine row, and payment rows are all present and ordered | `golden`     | P0  | NEW     |
-| ST-2 | Contractor statement rows                    | Select the contractor      | Transport and material rows are separate; sign note is shown; quantity total excludes material    | `golden`     | P0  | PART S5 |
+| ST-1 | Client statement rows                        | Select the client          | Opening-balance row, trip rows with notes, fine row, and payment rows are all present and ordered | `golden`     | P0  | `statements.spec.cjs` |
+| ST-2 | Contractor statement rows                    | Select the contractor      | Transport and material rows are separate; sign note is shown; quantity total excludes material    | `golden`     | P0  | `statements.spec.cjs` |
 | ST-3 | Client statement has no contractor sign note | Select a client            | Contractor sign note is absent                                                                    | `with-trip`  | P1  | S5      |
-| ST-4 | Totals placement and formatting              | Open any statement         | Summary is above the table; amounts use grouped format (`100,500.25`)                             | `golden`     | P1  | NEW     |
-| ST-5 | Selector empty state                         | Open with nothing selected | Prompt shown, no table, no errors                                                                 | `no-shift`   | P2  | NEW |
-| ST-6 | Switching selection                          | Pick client A then B       | Only B's rows shown                                                                               | `two-shifts` | P1  | NEW     |
+| ST-4 | Totals placement and formatting              | Open any statement         | Summary is above the table; amounts use grouped format (`100,500.25`)                             | `golden`     | P1  | `statements.spec.cjs` |
+| ST-5 | Selector empty state                         | Open with nothing selected | Prompt shown, no table, no errors                                                                 | `no-shift`   | P2  | `statements.spec.cjs` |
+| ST-6 | Switching selection                          | Pick client A then B       | Only B's rows shown                                                                               | `two-shifts` | P1  | `statements.spec.cjs` |
 
 ## 10. Money golden scenario (UI-created data only)
 
 | ID     | Scenario                          | Steps                                                                                                                 | Expected                                                                                    | Seed     | Pri | Cov |
 | ------ | --------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- | -------- | --- | --- |
-| GOLD-1 | End-to-end balance                | Through the UI: set client opening balance 500, add a trip 20 × 100, add a 200 fine, record a client payment of 1,000 | Client balance is **1,300.00** on Accounts and on Statements. The two numbers match exactly | `no-shift` | P0  | NEW |
-| GOLD-2 | Delete the trip                   | Delete the trip from All Trips (open shift)                                                                           | Balance drops by the trip value, on both pages, after reload                                | `golden` | P0  | NEW |
-| GOLD-3 | Closed shift protects the numbers | Close the shift, try to delete the trip                                                                               | Delete is hidden; balance unchanged                                                         | `golden` | P0  | NEW |
+| GOLD-1 | End-to-end balance                | Through the UI: set client opening balance 500, add a trip 20 × 100, add a 200 fine, record a client payment of 1,000 | Client balance is **1,300.00** on Accounts and on Statements. The two numbers match exactly | `no-shift` | P0  | `money.spec.cjs` |
+| GOLD-2 | Delete the trip                   | Delete the trip from All Trips (open shift)                                                                           | Balance drops by the trip value, on both pages, after reload                                | `golden` | P0  | `money.spec.cjs` |
+| GOLD-3 | Closed shift protects the numbers | Close the shift, try to delete the trip                                                                               | Delete is hidden; balance unchanged                                                         | `golden` | P0  | `money.spec.cjs` |
 
 ## 11. Shared components
 
@@ -221,7 +221,7 @@ Run SET-1 through SET-6 once per entity (6 parametrized cases): vehicle, driver,
 | Runtime       | 3                                       |
 | **Total**     | **101**                                 |
 
-The 19 test declarations across the three current specs fully or partly cover 30 of these cases; 71 have no E2E coverage yet. Build the `P0` cases first.
+The current specs cover 60 cases fully or partly (54 covered and 6 partial); 41 cases have no E2E coverage yet. Build the `P0` cases first.
 
 ## Suggested build order
 
