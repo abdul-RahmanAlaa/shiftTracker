@@ -7,7 +7,7 @@ Companion to `docs/e2e-coverage-plan.md`. That plan says what each tier covers; 
 - **Cov** — `S1`–`S7` and `F4` name tests in `e2e/smoke.spec.cjs`; `closed-shift-protection` and `closed-shift-locks` name their spec files. `NEW`: no current E2E coverage. `PART`: the spec covers only part of the described case.
 - **Pri** — `P0`: money, data loss, or closed-shift protection. `P1`: normal CRUD and workflow. `P2`: UX polish.
 - **Tier** — Smoke cases run with `npm run test:e2e`; all current specs run with `npm run test:e2e:full`.
-- **Seed** — a seed mode from the "Seed modes" section. Modes marked `exists` are handled by `e2e/seed.cjs`; modes marked `not implemented` are planned only.
+- **Seed** — a seed mode from the "Seed modes" section. Every mode marked `exists` is handled by `e2e/seed.cjs`.
 
 ## Conventions (same as the coverage plan)
 
@@ -23,16 +23,16 @@ Companion to `docs/e2e-coverage-plan.md`. That plan says what each tier covers; 
 
 | Mode             | Contents                                                                                                                  | Status |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `no-shift`       | One contractor, one driver, two vehicles, one client, one crusher, and one material type; no shifts or trips.               | exists          |
+| `no-shift`       | The empty-reference-data mode: one contractor, one driver, two vehicles, one client, one crusher, and one material type; no shifts or trips. | exists |
 | `open-shift`     | Reference data plus one OPEN shift with no trips.                                                                           | exists          |
 | `with-trip`      | One OPEN shift and one trip, with a trip receipt and closing-sheet attachment.                                                | exists          |
 | `layout`         | Long names and notes, two trips, attachments, one ledger entry, and one client payment.                                      | exists          |
 | `two-shifts`     | One OPEN and one CLOSED shift with separate drivers and trips; both shifts have attachments.                                 | exists          |
 | `accounts`       | The two-shift setup plus OPEN-linked, CLOSED-linked, and unlinked ledger entries; no client payment is seeded.              | exists          |
-| `golden`         | Client opening balance 500, one 20-cubic trip at client price 100 with a 200 fine, and a client payment of 1,000.           | exists          |
-| `closed-shift`   | A standalone CLOSED-shift fixture.                                                                                           | not implemented |
-| `reopened-shift` | A standalone REOPENED-shift fixture.                                                                                          | not implemented |
-| `references`     | Settings entities referenced by shifts or trips for blocked-delete cases.                                                    | not implemented |
+| `golden`         | Client opening balance 500, one 20-cubic trip at client price 100 with a 200 fine, and a client payment of 1,000; expected balance 1,300.00. | exists |
+| `closed-shift`   | One CLOSED shift with two trips, a receipt attachment per trip, and a closing sheet.                                          | exists |
+| `reopened-shift` | One REOPENED shift with one trip and attachments; the seed closes then reopens it through use cases.                          | exists |
+| `references`     | One OPEN shift and trip referencing the vehicle, driver, contractor, crusher, client, and material type.                     | exists |
 
 Closing a shift or reopening it inside a test goes through the UI. Seeds only build the _starting_ state.
 
@@ -74,18 +74,18 @@ Closing a shift or reopening it inside a test goes through the UI. Seeds only bu
 | ----- | ------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------------------------- | -------------- | --- | ------- |
 | SH-1  | Create an OPEN shift                 | Fill the create dialog, submit                               | Shift listed with status OPEN and 0 trips; no count field                       | `no-shift`     | P1  | S2      |
 | SH-2  | Duplicate vehicle                    | Create a second shift on the same vehicle                    | Field error on vehicle                                                          | `with-trip`    | P0  | S2      |
-| SH-3  | Duplicate driver                     | Create a second shift for the same driver on another vehicle | Field error on driver                                                           | `with-trip`    | P0  | NEW     |
-| SH-4  | Create-form validation and reset     | Submit empty, then fill, cancel, reopen the dialog           | Required errors shown; the reopened dialog is blank                             | `no-shift`     | P1  | NEW     |
+| SH-3  | Duplicate driver                     | Create a second shift for the same driver on another vehicle | Field error on driver                                                           | `with-trip`    | P0  | `shift-lifecycle.spec.cjs` |
+| SH-4  | Create-form validation and reset     | Submit empty, then fill, close, reopen the dialog            | Required errors shown; the reopened dialog is blank                             | `no-shift`     | P1  | `shift-lifecycle.spec.cjs` |
 | SH-5  | Close dialog pre-fills actual count  | Open Close on a shift with N trips                           | Count field shows N                                                             | `with-trip`    | P0  | S4      |
 | SH-6  | Count mismatch rejected              | Enter N+1 and submit                                         | Error shown, shift stays OPEN                                                   | `with-trip`    | P0  | S4      |
 | SH-7  | Close succeeds with attachments      | Seeded attachments, enter correct N                          | Status becomes CLOSED                                                           | `with-trip`    | P0  | S4      |
-| SH-8  | Close blocked without closing sheet  | Try to close with no closing-sheet attachment                | Visible guidance, shift stays OPEN                                              | `with-trip`    | P0  | NEW     |
-| SH-9  | Close blocked without a trip receipt | Try to close with a trip missing its required attachment     | Visible guidance, shift stays OPEN                                              | `with-trip`    | P0  | NEW     |
-| SH-10 | Upload a closing sheet in the UI     | Upload a generated JPEG on the shift row                     | Attachment is listed and previewable                                            | `with-trip`    | P1  | NEW     |
-| SH-11 | Reopen requires a reason             | Reopen a CLOSED shift with empty reason, then with a reason  | Empty rejected; valid reason sets status REOPENED                               | `two-shifts`   | P0  | NEW     |
-| SH-12 | Re-close after reopen                | From SH-11, add a trip, close with the new count             | Shift returns to CLOSED with the new count                                      | `two-shifts`   | P0  | NEW     |
-| SH-13 | Backup warning after close           | Make `userData/backups` unwritable, close a shift            | Warning notice appears, shift remains CLOSED; permissions restored in cleanup   | `with-trip`    | P1  | NEW     |
-| SH-14 | List content and navigation          | Open the list, click a row action                            | Shows ID, date, driver, vehicle, status, trip count; navigates to `/shifts/:id` | `two-shifts`   | P1  | NEW     |
+| SH-8  | Close blocked without closing sheet  | Try to close a shift without a closing-sheet attachment       | Exact guidance is visible; shift stays OPEN                                     | `open-shift`   | P0  | `shift-lifecycle.spec.cjs` |
+| SH-9  | Close blocked without a trip receipt | Try to close with a trip missing its required attachment     | Exact guidance is visible; shift stays OPEN                                     | `with-trip`    | P0  | `shift-lifecycle.spec.cjs` |
+| SH-10 | Upload a closing sheet in the UI     | Upload a generated JPEG through the close dialog             | Attachment is listed and previewable                                            | `open-shift`   | P1  | `shift-lifecycle.spec.cjs` |
+| SH-11 | Reopen requires a reason             | Reopen a CLOSED shift with empty reason, then with a reason  | Empty rejected; valid reason sets status REOPENED                               | `closed-shift` | P0  | `shift-lifecycle.spec.cjs` |
+| SH-12 | Re-close after reopen                | From a CLOSED seed, reopen, add a trip, close with new count  | Shift returns to CLOSED with the new count                                      | `closed-shift` | P0  | `shift-lifecycle.spec.cjs` |
+| SH-13 | Backup warning after close           | Replace `userData/backups` with a plain file, then close      | Warning notice appears; shift is CLOSED; backup folder is restored in cleanup   | `with-trip`    | P1  | `shift-lifecycle.spec.cjs` |
+| SH-14 | List content and navigation          | Open the list, click a shift row                              | Shows ID, date, driver, vehicle, status, trip count; navigates to `/shifts/:id` | `two-shifts`   | P1  | `shift-lifecycle.spec.cjs` |
 
 ## 4. Shift details (`/shifts/:shiftId`)
 
@@ -129,9 +129,9 @@ Closing a shift or reopening it inside a test goes through the UI. Seeds only bu
 | ATT-3 | Reject non-JPEG                                   | Pick a PNG or PDF                                                                                 | Visible error, nothing stored                                                                       | `with-trip`    | P1  | NEW                     |
 | ATT-4 | Corrupt image                                     | Upload a truncated JPEG                                                                           | Visible error, no crash                                                                             | `with-trip`    | P2  | NEW                     |
 | ATT-5 | Crop, rotate, zoom controls                       | Use each control                                                                                  | Output differs; controls respond                                                                    | `with-trip`    | P2  | NEW                     |
-| ATT-6 | CLOSED trip attachments are read-only             | Open a trip from a CLOSED shift (Shift Details, All Trips details window, trip details)           | Add and delete controls are unavailable; preview still works                                        | `two-shifts`   | P0  | NEW                     |
+| ATT-6 | CLOSED trip attachments are read-only             | Close a shift, then open a trip in Shift Details, All Trips details window, and trip details       | Add and delete controls are unavailable; preview still works                                        | `with-trip`    | P0  | `closed-shift-more.spec.cjs` |
 | ATT-7 | A closing sheet cannot be added to a CLOSED shift | Open the close dialog and its shift select; call addAttachment for a CLOSED shift through the API | CLOSED shifts are not offered in the dialog; the server rejects the call; attachments are unchanged | `two-shifts`   | P0  | closed-shift-locks      |
-| ATT-8 | Server rejects attachment changes on CLOSED shift | Close the shift while the view is open, then try to add                                           | Error notice, nothing stored                                                                        | `with-trip`    | P0  | NEW                     |
+| ATT-8 | Server rejects attachment changes on CLOSED shift | Close the shift while the view is open, then try to add                                           | Error notice, nothing stored                                                                        | `with-trip`    | P0  | `closed-shift-more.spec.cjs` |
 
 ## 7. Settings (`/settings`)
 
@@ -198,8 +198,8 @@ Run SET-1 through SET-6 once per entity (6 parametrized cases): vehicle, driver,
 | ID   | Scenario                          | Steps                                                         | Expected                                               | Seed        | Pri | Cov |
 | ---- | --------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------ | ----------- | --- | --- |
 | RT-1 | Second instance                   | Launch the app twice                                          | Second exits, the first is focused, database untouched | `with-trip` | P1  | S6  |
-| RT-2 | Persistence across restart        | Create data, close the app, relaunch with the same `userData` | All data is present                                    | `with-trip` | P0  | NEW |
-| RT-3 | Closed-shift state across restart | Close a shift, relaunch                                       | It is still CLOSED and still locked in the UI          | `with-trip` | P0  | NEW |
+| RT-2 | Persistence across restart        | Create data, close the app, relaunch with the same `userData` | All data is present                                    | `with-trip` | P0  | `closed-shift-more.spec.cjs` |
+| RT-3 | Closed-shift state across restart | Close a shift, relaunch                                       | It is still CLOSED and still locked in the UI          | `with-trip` | P0  | `closed-shift-more.spec.cjs` |
 
 ---
 

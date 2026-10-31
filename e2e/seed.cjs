@@ -27,6 +27,8 @@ const { createShift } = require('../src/main/use-cases/createShift')
 const { createTrip } = require('../src/main/use-cases/createTrip')
 const { createLedgerEntry } = require('../src/main/use-cases/createLedgerEntry')
 const { createClientPayment } = require('../src/main/use-cases/createClientPayment')
+const { closeShift } = require('../src/main/use-cases/closeShift')
+const { reopenShift } = require('../src/main/use-cases/reopenShift')
 
 function requireCreated(result, entity) {
   if (!result.ok) throw new Error(`Could not seed ${entity}: ${JSON.stringify(result)}`)
@@ -36,6 +38,19 @@ function requireCreated(result, entity) {
 function currentDate() {
   const date = new Date()
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function addSeedAttachment(db, entityType, entityId, kind, filename) {
+  const relativePath = `docs/attachments/${filename}`
+  const attachmentDirectory = path.join(appPath, 'docs', 'attachments')
+  fs.mkdirSync(attachmentDirectory, { recursive: true })
+  fs.writeFileSync(
+    path.join(attachmentDirectory, filename),
+    Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00])
+  )
+  db.prepare(
+    "INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
+  ).run(entityType, entityId, kind, relativePath)
 }
 
 async function seed() {
@@ -113,7 +128,10 @@ async function seed() {
       mode === 'layout' ||
       mode === 'two-shifts' ||
       mode === 'accounts' ||
-      mode === 'golden'
+      mode === 'golden' ||
+      mode === 'closed-shift' ||
+      mode === 'reopened-shift' ||
+      mode === 'references'
     ) {
       data.trip = requireCreated(
         createTrip({
@@ -165,25 +183,54 @@ async function seed() {
           'long-text layout trip'
         )
       }
-      const relativePath = `docs/attachments/e2e-${suffix}.jpg`
-      const attachmentDirectory = path.join(appPath, 'docs', 'attachments')
-      fs.mkdirSync(attachmentDirectory, { recursive: true })
-      fs.writeFileSync(
-        path.join(attachmentDirectory, path.basename(relativePath)),
-        Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00])
-      )
-      db.prepare(
-        "INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
-      ).run('TRIP', data.trip.id, 'CRUSHER_RECEIPT', relativePath)
+      addSeedAttachment(db, 'TRIP', data.trip.id, 'CRUSHER_RECEIPT', `e2e-${suffix}.jpg`)
+      addSeedAttachment(db, 'SHIFT', data.shift.id, 'CLOSING_SHEET', `e2e-close-${suffix}.jpg`)
 
-      const closingPath = `docs/attachments/e2e-close-${suffix}.jpg`
-      fs.writeFileSync(
-        path.join(attachmentDirectory, path.basename(closingPath)),
-        Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00])
-      )
-      db.prepare(
-        "INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
-      ).run('SHIFT', data.shift.id, 'CLOSING_SHEET', closingPath)
+      if (mode === 'closed-shift') {
+        const secondTrip = requireCreated(
+          createTrip({
+            shiftId: data.shift.id,
+            tripDate: currentDate(),
+            crusherCubic: 2,
+            clientCubicReported: 2,
+            fineAmount: 0,
+            fineReason: '',
+            location: '',
+            crusherId: crusher.id,
+            stonePrice: 12,
+            crusherReceiptStatus: 'PROVIDED',
+            crusherReceiptNo: 7002,
+            clientId: client.id,
+            transportPrice: 8,
+            clientPrice: 15,
+            materialTypeId: materialType.id,
+            recipientNameStatus: 'PROVIDED',
+            recipientName: `E2E Second Receiver ${suffix}`,
+            clientReceiptNo: '',
+            notes: ''
+          }),
+          'second closed-shift trip'
+        )
+        addSeedAttachment(db, 'TRIP', secondTrip.id, 'CRUSHER_RECEIPT', `e2e-second-${suffix}.jpg`)
+        db.prepare(
+          "UPDATE Shift SET status = 'CLOSED', end_date = ?, reported_trip_count = 2 WHERE id = ?"
+        ).run(currentDate(), data.shift.id)
+        Object.assign(data, { closedShift: data.shift, closedTrips: [data.trip, secondTrip] })
+      }
+
+      if (mode === 'reopened-shift') {
+        requireCreated(
+          await closeShift(
+            { shiftId: data.shift.id, endDate: currentDate(), reportedTripCount: 1 },
+            new Date()
+          ),
+          'reopened-shift initial close'
+        )
+        requireCreated(
+          reopenShift({ shiftId: data.shift.id, reason: `E2E seed reopen ${suffix}` }),
+          'reopened shift'
+        )
+      }
 
       if (mode === 'layout') {
         requireCreated(
@@ -250,24 +297,14 @@ async function seed() {
       }),
       'closed trip'
     )
-    const attachmentDirectory = path.join(appPath, 'docs', 'attachments')
-    const closedTripPath = `docs/attachments/e2e-closed-${suffix}.jpg`
-    fs.writeFileSync(
-      path.join(attachmentDirectory, path.basename(closedTripPath)),
-      Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00])
+    addSeedAttachment(db, 'TRIP', closedTrip.id, 'CRUSHER_RECEIPT', `e2e-closed-${suffix}.jpg`)
+    addSeedAttachment(
+      db,
+      'SHIFT',
+      closedShift.id,
+      'CLOSING_SHEET',
+      `e2e-closed-close-${suffix}.jpg`
     )
-    db.prepare(
-      "INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
-    ).run('TRIP', closedTrip.id, 'CRUSHER_RECEIPT', closedTripPath)
-
-    const closedClosingPath = `docs/attachments/e2e-closed-close-${suffix}.jpg`
-    fs.writeFileSync(
-      path.join(attachmentDirectory, path.basename(closedClosingPath)),
-      Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x00])
-    )
-    db.prepare(
-      "INSERT INTO Attachment (entity_type, entity_id, kind, photo_path, created_at) VALUES (?, ?, ?, ?, datetime('now'))"
-    ).run('SHIFT', closedShift.id, 'CLOSING_SHEET', closedClosingPath)
 
     let ledger
     if (mode === 'accounts') {

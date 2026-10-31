@@ -83,7 +83,10 @@ async function pickDriverOnAddTrip(page, driverName) {
 }
 
 async function navigate(page, route, labelKey) {
-  await page.getByRole('link', { name: text(labelKey), exact: true }).click()
+  await page
+    .getByRole('navigation', { name: text('app.navigationLabel'), exact: true })
+    .getByRole('link', { name: text(labelKey), exact: true })
+    .click()
   await expect(page.getByRole('heading', { name: text(labelKey) })).toBeVisible()
 }
 
@@ -229,6 +232,110 @@ function allTripsRow(page, driverName) {
   return page.getByRole('row').filter({ hasText: driverName })
 }
 
+function tripRow(page, tripId) {
+  return page.getByRole('row').filter({ hasText: tripId })
+}
+
+async function makeJpeg(page, width, height) {
+  const imageBase64 = await page.evaluate(
+    ({ imageWidth, imageHeight }) => {
+      const canvas = document.createElement('canvas')
+      canvas.width = imageWidth
+      canvas.height = imageHeight
+      const context = canvas.getContext('2d')
+      if (!context) throw new Error('Could not create JPEG fixture canvas')
+      const gradient = context.createLinearGradient(0, 0, imageWidth, imageHeight)
+      gradient.addColorStop(0, '#17324d')
+      gradient.addColorStop(1, '#e58c45')
+      context.fillStyle = gradient
+      context.fillRect(0, 0, imageWidth, imageHeight)
+      context.fillStyle = '#ffffff'
+      context.fillRect(imageWidth / 4, imageHeight / 4, imageWidth / 2, imageHeight / 2)
+      return canvas.toDataURL('image/jpeg', 0.92).replace(/^data:image\/jpeg;base64,/, '')
+    },
+    { imageWidth: width, imageHeight: height }
+  )
+  return Buffer.from(imageBase64, 'base64')
+}
+
+async function makeTruncatedJpeg(page) {
+  const image = await makeJpeg(page, 32, 32)
+  return image.subarray(0, Math.floor(image.length / 2))
+}
+
+function makePng() {
+  return Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=',
+    'base64'
+  )
+}
+
+function makePdf() {
+  return Buffer.from(
+    '%PDF-1.1\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 0/Kids[]>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF'
+  )
+}
+
+function arabicVariants() {
+  // These escaped names isolate Arabic normalization from source-file encoding and other test text.
+  return {
+    matching: {
+      stored: '\u0623\u062d\u0645\u062f',
+      input: '\u0627\u062d\u0645\u062f'
+    },
+    ambiguous: {
+      first: '\u0623\u062d\u0645\u062f',
+      second: '\u0627\u062d\u0645\u062f',
+      input: '\u0627\u062d\u0645\u062f'
+    }
+  }
+}
+
+function readDb(session) {
+  const Database = require('better-sqlite3')
+  return new Database(path.join(session.tempDirectory, 'shift-tracker.db'), { readonly: true })
+}
+
+async function fillGridRow(page, values, rowIndex = 0) {
+  const textFields = {
+    client: 'tripForm.fields.client',
+    crusher: 'tripForm.fields.crusher',
+    materialType: 'tripForm.fields.materialType',
+    location: 'tripForm.fields.location',
+    notes: 'common.columns.notes',
+    crusherReceipt: 'tripForm.fields.crusherReceiptNumber',
+    clientReceiptNo: 'tripForm.fields.clientReceiptNo',
+    recipient: 'tripForm.fields.recipientName',
+    fineReason: 'tripForm.fields.fineReason'
+  }
+  const numberFields = {
+    clientCubic: 'tripForm.fields.clientCubic',
+    crusherCubic: 'tripForm.fields.crusherCubic',
+    stonePrice: 'tripForm.fields.stonePrice',
+    transportPrice: 'tripForm.fields.transportPrice',
+    clientPrice: 'tripForm.fields.clientPrice',
+    fineAmount: 'tripForm.fields.fineAmount'
+  }
+
+  if (values.tripDate !== undefined) {
+    await gridCell(page, 'tripForm.fields.tripDate', rowIndex).fill(values.tripDate)
+  }
+  for (const [field, labelKey] of Object.entries(textFields)) {
+    if (values[field] !== undefined) {
+      const cell = gridCell(page, labelKey, rowIndex)
+      await cell.fill(String(values[field]))
+      if (field === 'client' || field === 'crusher' || field === 'materialType') {
+        await cell.press('Tab')
+      }
+    }
+  }
+  for (const [field, labelKey] of Object.entries(numberFields)) {
+    if (values[field] !== undefined) {
+      await gridCell(page, labelKey, rowIndex).fill(String(values[field]))
+    }
+  }
+}
+
 const testWithApp = test.extend({
   launchApp: async (
     // eslint-disable-next-line no-empty-pattern
@@ -369,6 +476,14 @@ module.exports = {
   callApi,
   relaunchApp,
   allTripsRow,
+  tripRow,
+  makeJpeg,
+  makeTruncatedJpeg,
+  makePng,
+  makePdf,
+  arabicVariants,
+  readDb,
+  fillGridRow,
   routes,
   testWithApp
 }
