@@ -126,6 +126,7 @@ export function AddTripPage(): React.JSX.Element {
               drivers={resources.drivers}
               vehicles={resources.vehicles}
               onSubmit={handleCreateShift}
+              inline
             />
           </CardContent>
         </Card>

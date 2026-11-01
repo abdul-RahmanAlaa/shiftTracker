@@ -112,7 +112,6 @@ testWithApp('SH-4 create-shift validation and blank dialog reset', async ({ laun
   await fillNumber(page, 'createShift.fields.crusherCubic', 2)
   await fillNumber(page, 'createShift.fields.clientCubic', 3)
   await selectToday(page, 'createShift.fields.startDate', 'createShift.placeholders.startDate')
-  await page.keyboard.press('Escape')
   await dialog.getByRole('button', { name: text('common.close'), exact: true }).click()
   await expect(dialog).toBeHidden()
 

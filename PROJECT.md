@@ -193,7 +193,7 @@ Attachment rows store paths relative to user data. JPEG files are stored under `
 - Only a CLOSED shift can be reopened; a non-empty reason is required and recorded in `ShiftReopenLog`. Reopened shifts can be edited and closed again with a newly entered count and the normal close checks.
 - CLOSED shifts are locked for trip, attachment, and ledger changes. Reopening is the correction path.
 - Contractor Account, Driver History, and All Movements use the same ledger dialog and mutation hook. Ledger shift selectors only offer shifts that are not CLOSED; errors for a missing or newly locked entry appear beside the shift selector.
-- Trips require positive finite cubic quantities and positive prices. Optional trip details are nullable in SQLite. Crusher and recipient status values have required matching receipt/name data.
+- Trips require positive finite cubic quantities and positive prices. Optional trip details are nullable in SQLite. Crusher and recipient status values have required matching receipt/name data. Material type is required to save a trip (grid, single-trip form, server); it is optional only as an input for price suggestions.
 - The Add Trip page selects one driver's OPEN shift with latest-request protection and enters trips in an in-memory grid. Core columns are always visible; receipt number, recipient, location, and fine details are optional columns. New rows inherit only the prior row's date and the shift cubic defaults.
 - Unsaved grid rows exist only in renderer memory and are discarded when navigating away.
 - Grid name cells resolve exact matches after whitespace/case normalization and Arabic normalization (alef forms, alef maqsura, ta marbuta, diacritics, and tatweel). Normalized collisions are rejected as ambiguous; unknown text remains unresolved, and the typed cell text is preserved. Number cells accept optional dot decimals and normalized Arabic digits/separators; only money cells accept valid thousands grouping, and money permits at most two decimal places. Cubic cells reject all commas and show a non-blocking amber hint above 150. Date cells accept real `YYYY-MM-DD` and `D/M/YYYY` dates.
@@ -203,8 +203,8 @@ Attachment rows store paths relative to user data. JPEG files are stored under `
 
 | Price     | Trip-history key                      | Default and fallback                                                 |
 | --------- | ------------------------------------- | -------------------------------------------------------------------- |
-| Stone     | Crusher + material type               | Crusher initial price; material type is not required for the default |
-| Client    | Client + material type                | Client initial price; material type is not required for the default  |
+| Stone     | Crusher + material type               | Crusher initial price                                                 |
+| Client    | Client + material type                | Client initial price                                                  |
 | Transport | Client + exact location when supplied | Latest trip for the client when no location match exists             |
 
 Trip history ordering uses the greatest trip date, then the greatest numeric trip ID. Trips with no material type do not match material-keyed prices. Suggestion results carry a source for each price (`LAST_TRIP`, `DEFAULT`, or `null` as applicable); `DEFAULT` source metadata is tracked internally by the grid without a separate UI indicator. Saving valid rows is sequential and guarded against re-entrant submissions; successful rows disappear after saving and failed rows remain with mapped errors.
@@ -250,7 +250,7 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - `npm run test:e2e` builds the app and runs eight Playwright test declarations in `e2e/smoke.spec.cjs`, covering routes and runtime/translation-key health, shift creation, trip-grid behavior, shift closing, statement notes, second-instance handling, and table layout.
 - `npm run test:e2e:full` discovers 115 test declarations across ten E2E spec files, including eight smoke tests. The Settings suite has 51 declarations and no `fixme` tests. The full suite remains pending.
 - The use-case harness contains 183 passing cases, including seven settings cases covering paired opening-balance validation and driver-phone formatting.
-- Last focused E2E runs: Add Trip had 11 passes and 3 fixme tests on each of three consecutive runs (3m25.506s, 3m10.457s, 3m08.961s); Settings 51/51 passed, closed-shift protection 10/10 passed, accounts 10/10 passed. The smoke run had 7 passes and one unrelated S2 failure; see `task-notes.md`.
+- Latest focused E2E validation: Add Trip 14/14 passed (4m52.346s), shift lifecycle 9/9 passed (4m49.778s), and smoke 8/8 passed on three consecutive runs (6m07.940s, 3m15.781s, 4m36.486s). The full E2E suite remains pending.
 - E2E fixtures and app launches use temporary user-data directories; the harness checks the launched app's `userData` path before opening its first window.
 - `npm run review:gate` runs diff check, typecheck, lint, the i18n check, and the use-case harness, then checks added diff lines for selected mechanical rules. `npm run review:gate:e2e` also runs Playwright. The gate does not use AI and writes `last-task.md`; the complete harness result table goes to ignored `scripts/last-harness-output.txt`.
 - Automated checks do not replace user confirmation in Electron. Only checklist items explicitly marked `[x]` were confirmed by the user; unchecked scenarios remain pending.
@@ -260,8 +260,8 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 
 - **OI-002 — Medium, account and statement details:** filtered-table empty-state handling and duplicated client-payment notes need attention. Review `src/renderer/src/components/DataTable.tsx`, `src/renderer/src/pages/accounts/AccountTables.tsx`, and `src/main/repository/statementRepository.ts`.
 - **OI-007 — Low, Add Trip grid manual confirmation:** typing, paste, suggestions, keyboard behavior, server-error retention, driver switching, and laptop fit remain unchecked; scenarios are listed in `docs/manual-checklist.md`.
-- [ ] Manually confirm Add Trip ADD-3, ADD-4, ADD-7 to ADD-14, and ADD-16 in Electron; recheck ADD-1/2 and ADD-11 optional material after BUG-4/BUG-5 are fixed.
-- **OI-008 — Medium, E2E coverage:** expand automated coverage for the remaining 19 NEW and 5 PART cases in `docs/e2e-test-cases.md`, following `docs/e2e-coverage-plan.md`.
+- [ ] Manually confirm the Add Trip inline create-shift form: select a driver with no OPEN shift, confirm the form is inline, create the shift, and confirm the trip grid appears.
+- **OI-008 — Medium, E2E coverage:** expand automated coverage for the remaining 16 NEW and 5 PART cases in `docs/e2e-test-cases.md`, following `docs/e2e-coverage-plan.md`.
 - [ ] Manually verify Settings create, edit, delete, validation, and persistence for vehicles, drivers, contractors, crushers, clients, and material types; automated scenarios are in `e2e/settings.spec.cjs`.
 - [ ] Manually cancel vehicle and driver edits, then open Add and confirm every field is blank (SET-6).
 - [ ] Manually verify client and contractor opening-balance pairs: both blank is valid, zero with a date is valid, and either missing counterpart shows its field error (SET-8).

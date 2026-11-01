@@ -98,10 +98,9 @@ async function createHistoryTrip(page, seedData, values) {
   return result.data
 }
 
-testWithApp.fixme(
+testWithApp(
   'ADD-1 driver without an OPEN shift shows the inline create-shift form',
   async ({ launchApp }) => {
-    // BUG-4: Add Trip renders a modal trigger instead of the documented inline form.
     const app = await launchApp('no-shift')
     const { page, seedData } = app
     await navigate(page, '/', 'addTrip.title')
@@ -115,8 +114,7 @@ testWithApp.fixme(
   }
 )
 
-testWithApp.fixme('ADD-2 create a shift inline from Add Trip', async ({ launchApp }) => {
-  // BUG-4: Add Trip renders a modal trigger instead of the documented inline form.
+testWithApp('ADD-2 create a shift inline from Add Trip', async ({ launchApp }) => {
   const app = await launchApp('no-shift')
   const { page, seedData } = app
   await navigate(page, '/', 'addTrip.title')
@@ -245,15 +243,31 @@ testWithApp(
     await expectNoRawTranslationKeys(page)
     await pickDriverOnAddTrip(page, seedData.driver.name)
 
-    await fillGridRowAt(page, seedData, 0, { client: validClientName, notes: validNote })
+    await fillGridName(page, 'tripForm.fields.client', validClientName)
+    await fillGridName(page, 'tripForm.fields.crusher', seedData.crusher.name)
+    await fillGridName(page, 'tripForm.fields.materialType', seedData.materialType.name)
+    await gridInput(page, 'tripForm.fields.transportPrice').fill('8')
+    await gridInput(page, 'common.columns.notes').fill(validNote)
     const invalidRows = [{ crusher: '' }, { client: '' }, { clientCubic: '' }, { crusherCubic: '' }]
     for (const [invalidIndex, values] of invalidRows.entries()) {
       await page.getByRole('button', { name: text('tripGrid.addRow'), exact: true }).click()
       const rowIndex = invalidIndex + 1
-      await fillGridRowAt(page, seedData, rowIndex, {
-        notes: `E2E ADD-7 invalid ${rowIndex} ${seedData.suffix}`,
-        ...values
-      })
+      const noteField = gridInput(page, 'common.columns.notes', rowIndex)
+      await noteField.fill(`E2E ADD-7 invalid ${rowIndex} ${seedData.suffix}`)
+      if ('clientCubic' in values || 'crusherCubic' in values) {
+        const cubicField =
+          'clientCubic' in values ? 'tripForm.fields.clientCubic' : 'tripForm.fields.crusherCubic'
+        await gridInput(page, cubicField, rowIndex).fill('')
+      }
+      const invalidField =
+        'crusher' in values
+          ? 'tripForm.fields.crusher'
+          : 'client' in values
+            ? 'tripForm.fields.client'
+            : 'clientCubic' in values
+              ? 'tripForm.fields.clientCubic'
+              : 'tripForm.fields.crusherCubic'
+      await expect(gridInput(page, invalidField, rowIndex)).toHaveAttribute('aria-invalid', 'true')
     }
 
     await page.getByRole('button', { name: text('tripGrid.saveAll'), exact: true }).click()
@@ -543,33 +557,61 @@ testWithApp(
   }
 )
 
-testWithApp.fixme('ADD-11 material is optional when saving a trip', async ({ launchApp }) => {
-  // BUG-5: Trip-grid validation currently requires material despite ADD-11 documenting it as optional.
-  const app = await launchApp('with-trip')
-  const { page, seedData } = app
-  await navigate(page, '/', 'addTrip.title')
-  await expectNoRawTranslationKeys(page)
-  await pickDriverOnAddTrip(page, seedData.driver.name)
-  await fillGridRowAt(page, seedData, 0, {
-    materialType: '',
-    notes: `E2E ADD-11 optional ${seedData.suffix}`
-  })
+testWithApp(
+  'ADD-11 material is optional for suggestions but required to save',
+  async ({ launchApp }) => {
+    const app = await launchApp('with-trip')
+    const { page, seedData } = app
+    const clientName = `E2E ADD-11 Client ${seedData.suffix}`
+    const note = `E2E ADD-11 material required ${seedData.suffix}`
+    const client = await callApi(page, 'createClient', { name: clientName, initialPrice: 10 })
+    expect(client.ok).toBe(true)
+    if (!client.ok) throw new Error('Could not create ADD-11 client fixture')
+    await createHistoryTrip(page, seedData, {
+      clientId: client.data.id,
+      location: '',
+      transportPrice: 8
+    })
+    await page.reload()
 
-  await expect(gridInput(page, 'tripForm.fields.materialType')).toHaveAttribute(
-    'aria-invalid',
-    'false'
-  )
-  await page.getByRole('button', { name: text('tripGrid.saveAll'), exact: true }).click()
-  await expect(page.getByRole('status')).toContainText(text('tripGrid.savedNotice', { count: 1 }))
-  await navigate(page, '/all-trips', 'allTrips.title')
-  await expectNoRawTranslationKeys(page)
-  const trips = await callApi(page, 'listTripsByShift', { shiftId: seedData.shift.id })
-  expect(trips.ok).toBe(true)
-  if (!trips.ok) throw new Error('Could not verify optional-material trip save')
-  expect(trips.data.some((trip) => trip.notes === `E2E ADD-11 optional ${seedData.suffix}`)).toBe(
-    true
-  )
-})
+    await navigate(page, '/', 'addTrip.title')
+    await expectNoRawTranslationKeys(page)
+    await pickDriverOnAddTrip(page, seedData.driver.name)
+    await fillGridName(page, 'tripForm.fields.client', clientName)
+    await fillGridName(page, 'tripForm.fields.crusher', seedData.crusher.name)
+
+    await expect(gridInput(page, 'tripForm.fields.stonePrice')).toHaveValue('7')
+    await expect(gridInput(page, 'tripForm.fields.clientPrice')).toHaveValue('10')
+    const material = gridInput(page, 'tripForm.fields.materialType')
+    await expect(material).toHaveValue('')
+    await expect(material).toHaveAttribute('aria-invalid', 'true')
+    const saveButton = page.getByRole('button', { name: text('tripGrid.saveAll'), exact: true })
+    await expect(saveButton).toBeDisabled()
+    let trips = await callApi(page, 'listTripsByShift', { shiftId: seedData.shift.id })
+    expect(trips.ok).toBe(true)
+    if (!trips.ok) throw new Error('Could not verify trip absence before material selection')
+    expect(trips.data.some((trip) => trip.notes === note)).toBe(false)
+
+    await fillGridName(page, 'tripForm.fields.materialType', seedData.materialType.name)
+    await expect(material).toHaveAttribute('aria-invalid', 'false')
+    await expect(gridInput(page, 'tripForm.fields.stonePrice')).toHaveValue('12')
+    await expect(gridInput(page, 'tripForm.fields.clientPrice')).toHaveValue('15')
+    await gridInput(page, 'common.columns.notes').fill(note)
+    await expect(saveButton).toBeEnabled()
+    await saveButton.click()
+    await expect(page.getByRole('status')).toContainText(text('tripGrid.savedNotice', { count: 1 }))
+    await navigate(page, '/all-trips', 'allTrips.title')
+    await expectNoRawTranslationKeys(page)
+    const savedClientRows = page.getByRole('row').filter({ hasText: clientName })
+    await expect(savedClientRows).toHaveCount(2)
+    await page.reload()
+    await expect(page.getByRole('row').filter({ hasText: clientName })).toHaveCount(2)
+    trips = await callApi(page, 'listTripsByShift', { shiftId: seedData.shift.id })
+    expect(trips.ok).toBe(true)
+    if (!trips.ok) throw new Error('Could not verify saved trip after material selection')
+    expect(trips.data.some((trip) => trip.notes === note)).toBe(true)
+  }
+)
 
 testWithApp(
   'ADD-12 Ctrl+D copies only the focused column from the row above',
