@@ -51,22 +51,22 @@ Closing a shift or reopening it inside a test goes through the UI. Seeds only bu
 
 | ID     | Scenario                           | Steps                                                              | Expected                                                                                              | Seed         | Pri | Cov |
 | ------ | ---------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ------------ | --- | --- |
-| ADD-1  | Driver without an OPEN shift       | Pick a driver who has no OPEN shift                                | Inline create-shift form is shown, the grid is not                                                    | `no-shift`   | P1  | NEW |
-| ADD-2  | Create shift inline                | From ADD-1, fill vehicle and date, submit                          | Shift is created, grid becomes available, chip shows the new shift                                    | `no-shift`   | P1  | NEW |
-| ADD-3  | Rapid driver switching             | Switch A → B → A quickly                                           | Only the latest driver's shift and chips remain (no stale result)                                     | `two-shifts` | P1  | NEW |
-| ADD-4  | Clear driver selection             | Select a driver, then clear                                        | Grid and chips disappear, no leftover state                                                           | `with-trip`  | P2  | NEW |
+| ADD-1  | Driver without an OPEN shift       | Pick a driver who has no OPEN shift                                | Inline create-shift form is shown, the grid is not                                                    | `no-shift`   | P1  | `add-trip.spec.cjs` (fixme BUG-4) |
+| ADD-2  | Create shift inline                | From ADD-1, fill vehicle and date, submit                          | Shift is created, grid becomes available, chip shows the new shift                                    | `no-shift`   | P1  | `add-trip.spec.cjs` (fixme BUG-4) |
+| ADD-3  | Rapid driver switching             | Switch A → B → A quickly                                           | Only the latest driver's shift and chips remain (no stale result)                                     | `two-shifts` | P1  | `add-trip.spec.cjs` |
+| ADD-4  | Clear driver selection             | Select a driver, then clear                                        | Grid and chips disappear, no leftover state                                                           | `with-trip`  | P2  | `add-trip.spec.cjs` |
 | ADD-5  | Valid row saves exactly once       | Fill a valid row, double-click Save                                | One trip is created; duplicate-save guard works                                                       | `with-trip`  | P0  | S3  |
 | ADD-6  | Zero price rejected                | Enter price 0                                                      | Field error, nothing saved                                                                            | `with-trip`  | P0  | S3  |
-| ADD-7  | Required fields per row            | Leave crusher, client, or cubic empty and save                     | Error on each empty required cell, other rows unaffected                                              | `with-trip`  | P1  | NEW |
-| ADD-8  | Paste a spreadsheet block          | Paste multi-row TSV with header, quoted cells, empty lines         | Header detected and skipped, values mapped to the right columns, empty lines ignored                  | `with-trip`  | P1  | NEW |
-| ADD-9  | Stone and client price suggestions | Choose crusher and client with a previous trip, then a new pair    | `LAST_TRIP` price for the previous pair, `DEFAULT` initial price for the new pair, keyed per material | `with-trip`  | P1  | NEW |
-| ADD-10 | Transport price suggestion         | Pick client plus location with and without history                 | Location-specific suggestion preferred; falls back to client-only; empty if none                      | `with-trip`  | P1  | NEW |
-| ADD-11 | Missing material behaviour         | Leave material empty, then set it                                  | Suggestion refreshes on change; no error when material is optional                                    | `with-trip`  | P2  | NEW |
-| ADD-12 | Ctrl+D copy down                   | Fill row 1, add row 2, focus a cell, press Ctrl+D                  | Value copied from the row above, only into that column                                                | `with-trip`  | P2  | NEW |
-| ADD-13 | Cubic with comma rejected          | Type `1,5` or `1,000` in a cubic cell                              | Cell flagged as invalid, row not saved                                                                | `with-trip`  | P1  | NEW |
-| ADD-14 | Arabic name variants               | Type normalized and ambiguous variants of a client or crusher name | Normalized match resolves; ambiguous match is flagged rather than guessed                             | `with-trip`  | P1  | NEW |
+| ADD-7  | Required fields per row            | Leave crusher, client, or cubic empty and save                     | Error on each empty required cell, other rows unaffected                                              | `with-trip`  | P1  | `add-trip.spec.cjs` |
+| ADD-8  | Paste a spreadsheet block          | Paste multi-row TSV with header, quoted cells, empty lines, trailing newline | Header detected and skipped, values mapped to the right columns, empty lines ignored                  | `with-trip`  | P1  | `add-trip.spec.cjs` |
+| ADD-9  | Stone and client price suggestions | Choose crusher and client with a previous trip, then a new pair    | `LAST_TRIP` price for the previous pair, `DEFAULT` initial price for the new pair, keyed per material | `with-trip`  | P1  | `add-trip.spec.cjs` |
+| ADD-10 | Transport price suggestion         | Pick client plus location with and without history                 | Location-specific suggestion preferred; falls back to client-only; empty if none                      | `with-trip`  | P1  | `add-trip.spec.cjs` |
+| ADD-11 | Missing material behaviour         | Leave material empty, then set it                                  | Suggestion refreshes on change; no error when material is optional                                    | `with-trip`  | P2  | `add-trip.spec.cjs` (PART; fixme BUG-5) |
+| ADD-12 | Ctrl+D copy down                   | Fill row 1, add row 2, focus a cell, press Ctrl+D                  | Value copied from the row above, only into that column                                                | `with-trip`  | P2  | `add-trip.spec.cjs` |
+| ADD-13 | Cubic with comma rejected          | Type `1,5` or `1,000` in a cubic cell                              | Cell flagged as invalid, row not saved                                                                | `with-trip`  | P1  | `add-trip.spec.cjs` |
+| ADD-14 | Arabic name variants               | Type normalized and ambiguous variants of a client or crusher name | Normalized match resolves; ambiguous match is flagged rather than guessed                             | `with-trip`  | P1  | `add-trip.spec.cjs` |
 | ADD-15 | Partial server failure             | Save 2 rows where one duplicates a receipt number                  | One saved and removed, the failed row stays with its error                                            | `with-trip`  | P0  | S7  |
-| ADD-16 | Saved rows are visible elsewhere   | Save a trip, then open All Trips and Shift Details                 | Trip appears in both with the same values                                                             | `with-trip`  | P1  | NEW |
+| ADD-16 | Saved rows are visible elsewhere   | Save a trip, then open All Trips and Shift Details                 | Trip appears in both with the same values                                                             | `with-trip`  | P1  | `add-trip.spec.cjs` |
 
 ## 3. Shifts (`/shifts`)
 
@@ -221,7 +221,7 @@ Run SET-1 through SET-6 once per entity (6 parametrized cases): vehicle, driver,
 | Runtime       | 3                                       |
 | **Total**     | **101**                                 |
 
-The current specs cover 69 cases fully or partly (64 covered and 5 partial); 32 cases have no E2E coverage yet. Build the `P0` cases first.
+The current specs map 82 cases fully or partly (77 covered or marked `fixme`, and 5 partial); 19 cases have no E2E coverage yet. Cases marked `fixme` assert documented behavior blocked by application bugs. Build the `P0` cases first.
 
 ## Suggested build order
 

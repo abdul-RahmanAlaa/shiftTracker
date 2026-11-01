@@ -119,6 +119,7 @@
 | `playwright.config.ts`                          | Playwright Electron test configuration                         |
 | `e2e/seed.cjs`                                  | Isolated E2E fixture seeding through Electron as Node          |
 | `e2e/smoke.spec.cjs`                            | Eight end-to-end smoke flows                                   |
+| `e2e/add-trip.spec.cjs`                         | Add Trip driver, grid, suggestions, and persistence flows       |
 | `e2e/settings.spec.cjs`                         | Settings CRUD and validation flows for six entity types       |
 | `scripts/verify/settings.cjs`                   | Main-process settings validation and phone-format cases       |
 
@@ -247,9 +248,9 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - `npm run db:inspect -- <database-path>` opens a database read-only and reports its version, integrity, table row counts, and first/last Shift and Trip IDs. It never writes to the inspected database.
 - `node scripts/benchmark-large-table.cjs` seeds an isolated temporary database with 8,000 trips across 50 shifts and measures All Trips in Electron through Playwright; it is a one-off measurement, not a gate test.
 - `npm run test:e2e` builds the app and runs eight Playwright test declarations in `e2e/smoke.spec.cjs`, covering routes and runtime/translation-key health, shift creation, trip-grid behavior, shift closing, statement notes, second-instance handling, and table layout.
-- `npm run test:e2e:full` discovers 101 test declarations across nine E2E spec files, including eight smoke tests. The Settings suite has 51 declarations and no `fixme` tests. The full suite remains pending.
+- `npm run test:e2e:full` discovers 115 test declarations across ten E2E spec files, including eight smoke tests. The Settings suite has 51 declarations and no `fixme` tests. The full suite remains pending.
 - The use-case harness contains 183 passing cases, including seven settings cases covering paired opening-balance validation and driver-phone formatting.
-- Last focused E2E runs: Settings 51/51 passed, closed-shift protection 10/10 passed, accounts 10/10 passed. The smoke run had 7 passes and one unrelated S2 failure; see `task-notes.md`.
+- Last focused E2E runs: Add Trip had 11 passes and 3 fixme tests on each of three consecutive runs (3m25.506s, 3m10.457s, 3m08.961s); Settings 51/51 passed, closed-shift protection 10/10 passed, accounts 10/10 passed. The smoke run had 7 passes and one unrelated S2 failure; see `task-notes.md`.
 - E2E fixtures and app launches use temporary user-data directories; the harness checks the launched app's `userData` path before opening its first window.
 - `npm run review:gate` runs diff check, typecheck, lint, the i18n check, and the use-case harness, then checks added diff lines for selected mechanical rules. `npm run review:gate:e2e` also runs Playwright. The gate does not use AI and writes `last-task.md`; the complete harness result table goes to ignored `scripts/last-harness-output.txt`.
 - Automated checks do not replace user confirmation in Electron. Only checklist items explicitly marked `[x]` were confirmed by the user; unchecked scenarios remain pending.
@@ -259,7 +260,8 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 
 - **OI-002 — Medium, account and statement details:** filtered-table empty-state handling and duplicated client-payment notes need attention. Review `src/renderer/src/components/DataTable.tsx`, `src/renderer/src/pages/accounts/AccountTables.tsx`, and `src/main/repository/statementRepository.ts`.
 - **OI-007 — Low, Add Trip grid manual confirmation:** typing, paste, suggestions, keyboard behavior, server-error retention, driver switching, and laptop fit remain unchecked; scenarios are listed in `docs/manual-checklist.md`.
-- **OI-008 — Medium, E2E coverage:** expand automated coverage for the remaining 32 NEW and 5 PART cases in `docs/e2e-test-cases.md`, following `docs/e2e-coverage-plan.md`.
+- [ ] Manually confirm Add Trip ADD-3, ADD-4, ADD-7 to ADD-14, and ADD-16 in Electron; recheck ADD-1/2 and ADD-11 optional material after BUG-4/BUG-5 are fixed.
+- **OI-008 — Medium, E2E coverage:** expand automated coverage for the remaining 19 NEW and 5 PART cases in `docs/e2e-test-cases.md`, following `docs/e2e-coverage-plan.md`.
 - [ ] Manually verify Settings create, edit, delete, validation, and persistence for vehicles, drivers, contractors, crushers, clients, and material types; automated scenarios are in `e2e/settings.spec.cjs`.
 - [ ] Manually cancel vehicle and driver edits, then open Add and confirm every field is blank (SET-6).
 - [ ] Manually verify client and contractor opening-balance pairs: both blank is valid, zero with a date is valid, and either missing counterpart shows its field error (SET-8).
