@@ -84,7 +84,7 @@ testWithApp(
 
     const driverField = formItem(dialog, 'createShift.fields.driver')
     await expect(driverField.locator('p.text-destructive')).toBeVisible()
-    await page.keyboard.press('Escape')
+    await dialog.getByRole('button', { name: text('common.close'), exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(page.getByRole('row').filter({ hasText: seedData.shift.id })).toContainText(
       text('shiftStatus.open')

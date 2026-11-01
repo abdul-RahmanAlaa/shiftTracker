@@ -2,12 +2,14 @@
 
 Concrete test cases (IDs, steps, expected results, seed modes) live in docs/e2e-test-cases.md. This plan defines tiers and coverage; that file defines the cases.
 
+Current case coverage: 94 covered, 3 blocked, 1 partial, and 5 NEW out of 103 documented cases.
+
 ## Tiers
 
 | Tier  | Command                   | Scope                                                                                                                                                                     | Target                                                      |
 | ----- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | Smoke | `npm run test:e2e`       | 8 test declarations in `smoke.spec.cjs` (`S1`–`S7` and `F4`): build, route health, shift creation/close, grid entry/partial failure, statement sign note, second-instance behavior, and layout. | 8 tests |
-| Full  | `npm run test:e2e:full`  | 19 test declarations across all three specs: the smoke tests plus closed-shift protection and attachment-lock cases.                                                                                         | 19 tests total (11 full-only) |
+| Full  | `npm run test:e2e:full`  | 135 tests across thirteen E2E spec files: the smoke tests plus focused workflow, CRUD, and closed-shift protection coverage.                                                                                  | 135 tests total (127 full-only) |
 
 The smoke tier should remain a fast regression path. Keep each full test independent with unique ASCII-only entity names and values. Reuse a baseline seed per `describe`, but create unique data for each test; run tests in parallel unless they share a mutable app/database, in which case serialize only that group. Resolve all visible text through `ar.json` keys in the test helper; do not embed Arabic literals. Use isolated temporary `userData` directories and remove them after each suite.
 
