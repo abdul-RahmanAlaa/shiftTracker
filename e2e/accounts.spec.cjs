@@ -18,7 +18,10 @@ async function section(page, key) {
   await page.getByRole('button', { name: text(key), exact: true }).click()
 }
 
-async function selectEntity(page, name) {
+async function selectEntity(page, name, listMethod) {
+  const result = await callApi(page, listMethod)
+  expect(result.ok).toBe(true)
+  expect(result.data.some((entity) => entity.name === name)).toBe(true)
   await page.getByRole('combobox').first().click()
   await page.getByRole('option', { name, exact: true }).click()
   await expect(page.getByText(name, { exact: true })).toBeVisible()
@@ -39,24 +42,9 @@ async function openMovementDialog(page) {
   return page.getByRole('dialog')
 }
 
-async function selectLedgerDate(page) {
-  const date = today()
-  const dateField = formItem(page, 'ledgerEntryForm.fields.date')
-  await dateField
-    .getByRole('button', { name: text('ledgerEntryForm.placeholders.date'), exact: true })
-    .click()
-  await page.locator('select.rdp-years_dropdown').selectOption(date.slice(0, 4))
-  await page
-    .locator('select.rdp-months_dropdown')
-    .selectOption(String(Number(date.slice(5, 7)) - 1))
-  const day = page.locator(`[data-day="${date}"] button`)
-  await expect(day).toBeVisible()
-  await day.click()
-}
-
 async function addLedgerEntry(page, values) {
   const dialog = await openMovementDialog(page)
-  await selectLedgerDate(page)
+  await selectToday(page, 'ledgerEntryForm.fields.date', 'ledgerEntryForm.placeholders.date')
   await selectOption(
     page,
     'ledgerEntryForm.fields.movementType',
@@ -77,19 +65,19 @@ async function addLedgerEntry(page, values) {
 
 async function selectClientOnAccounts(page, clientName) {
   await section(page, 'accountsPage.sections.client')
-  await selectEntity(page, clientName)
+  await selectEntity(page, clientName, 'listClients')
 }
 
 async function reloadContractorAccount(page, contractorName) {
   await page.reload()
   await section(page, 'accountsPage.sections.contractor')
-  await selectEntity(page, contractorName)
+  await selectEntity(page, contractorName, 'listContractors')
 }
 
 async function reloadDriverHistory(page, driverName) {
   await page.reload()
   await section(page, 'accountsPage.sections.driver')
-  await selectEntity(page, driverName)
+  await selectEntity(page, driverName, 'listDrivers')
 }
 
 testWithApp(
@@ -99,7 +87,7 @@ testWithApp(
     const { page, seedData } = app
     await navigate(page, '/accounts', 'accountsPage.title')
     await expectNoRawTranslationKeys(page)
-    await selectEntity(page, seedData.contractor.name)
+    await selectEntity(page, seedData.contractor.name, 'listContractors')
 
     // Two trips contribute 2 x (1 x 8 transport + 1 x 12 material); 350 in seeded entries leaves -310.
     const movements = [
@@ -125,7 +113,7 @@ testWithApp(
     const { page, seedData } = app
     await navigate(page, '/accounts', 'accountsPage.title')
     await expectNoRawTranslationKeys(page)
-    await selectEntity(page, seedData.contractor.name)
+    await selectEntity(page, seedData.contractor.name, 'listContractors')
     const freeNote = `E2E free movement ${seedData.suffix}`
     const openNote = `E2E open movement ${seedData.suffix}`
     const freeRow = page.getByRole('row').filter({ hasText: freeNote })
@@ -162,7 +150,7 @@ testWithApp(
     await navigate(page, '/accounts', 'accountsPage.title')
     await expectNoRawTranslationKeys(page)
     await section(page, 'accountsPage.sections.driver')
-    await selectEntity(page, seedData.driver.name)
+    await selectEntity(page, seedData.driver.name, 'listDrivers')
 
     const movements = [
       { type: 'custody', amount: 11, note: `E2E ACC-3 advance ${seedData.suffix}` },
@@ -210,7 +198,7 @@ testWithApp(
     const { page, seedData } = app
     await navigate(page, '/accounts', 'accountsPage.title')
     await expectNoRawTranslationKeys(page)
-    await selectEntity(page, seedData.contractor.name)
+    await selectEntity(page, seedData.contractor.name, 'listContractors')
     const note = `E2E ACC-4 open shift ${seedData.suffix}`
     await addLedgerEntry(page, {
       type: 'custody',
@@ -238,7 +226,7 @@ testWithApp(
     await navigate(page, '/accounts', 'accountsPage.title')
     await expectNoRawTranslationKeys(page)
 
-    await selectEntity(page, seedData.contractor.name)
+    await selectEntity(page, seedData.contractor.name, 'listContractors')
     let row = page.getByRole('row').filter({ hasText: note })
     await expect(row.getByRole('button', { name: text('common.edit'), exact: true })).toBeDisabled()
     await expect(
@@ -252,7 +240,7 @@ testWithApp(
     ).toHaveAttribute('title', text('common.lockedShift'))
 
     await section(page, 'accountsPage.sections.driver')
-    await selectEntity(page, seedData.secondDriver.name)
+    await selectEntity(page, seedData.secondDriver.name, 'listDrivers')
     row = page.getByRole('row').filter({ hasText: note })
     await expect(row.getByRole('button', { name: text('common.edit'), exact: true })).toBeDisabled()
     await expect(
@@ -483,13 +471,13 @@ testWithApp(
     await navigate(page, '/accounts', 'accountsPage.title')
     await expectNoRawTranslationKeys(page)
 
-    await selectEntity(page, seedData.contractor.name)
+    await selectEntity(page, seedData.contractor.name, 'listContractors')
     await expect(
       page.getByRole('row').filter({ hasText: `E2E free movement ${seedData.suffix}` })
     ).toBeVisible()
 
     await section(page, 'accountsPage.sections.driver')
-    await selectEntity(page, seedData.driver.name)
+    await selectEntity(page, seedData.driver.name, 'listDrivers')
     await expect(
       page.getByRole('row').filter({ hasText: `E2E open movement ${seedData.suffix}` })
     ).toBeVisible()

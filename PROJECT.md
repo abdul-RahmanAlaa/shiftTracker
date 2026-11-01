@@ -119,6 +119,7 @@
 | `playwright.config.ts`                          | Playwright Electron test configuration                         |
 | `e2e/seed.cjs`                                  | Isolated E2E fixture seeding through Electron as Node          |
 | `e2e/smoke.spec.cjs`                            | Seven end-to-end smoke flows                                   |
+| `e2e/settings.spec.cjs`                         | Settings CRUD and validation flows for six entity types       |
 
 ## 4. Data model
 
@@ -245,7 +246,7 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - `npm run db:inspect -- <database-path>` opens a database read-only and reports its version, integrity, table row counts, and first/last Shift and Trip IDs. It never writes to the inspected database.
 - `node scripts/benchmark-large-table.cjs` seeds an isolated temporary database with 8,000 trips across 50 shifts and measures All Trips in Electron through Playwright; it is a one-off measurement, not a gate test.
 - `npm run test:e2e` builds the app and runs eight Playwright test declarations in `e2e/smoke.spec.cjs`, covering routes and runtime/translation-key health, shift creation, trip-grid behavior, shift closing, statement notes, second-instance handling, and table layout.
-- `npm run test:e2e:full` runs 19 test declarations across the three E2E specs: the eight smoke tests plus closed-shift protection and attachment-lock cases.
+- `npm run test:e2e:full` discovers 101 test declarations across nine E2E spec files, including eight smoke tests; seven Settings declarations are marked `fixme` for application validation/reset defects. The full suite remains pending.
 - E2E fixtures and app launches use temporary user-data directories; the harness checks the launched app's `userData` path before opening its first window.
 - `npm run review:gate` runs diff check, typecheck, lint, the i18n check, and the use-case harness, then checks added diff lines for selected mechanical rules. `npm run review:gate:e2e` also runs Playwright. The gate does not use AI and writes `last-task.md`; the complete harness result table goes to ignored `scripts/last-harness-output.txt`.
 - Automated checks do not replace user confirmation in Electron. Only checklist items explicitly marked `[x]` were confirmed by the user; unchecked scenarios remain pending.
@@ -255,7 +256,8 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 
 - **OI-002 — Medium, account and statement details:** filtered-table empty-state handling and duplicated client-payment notes need attention. Review `src/renderer/src/components/DataTable.tsx`, `src/renderer/src/pages/accounts/AccountTables.tsx`, and `src/main/repository/statementRepository.ts`.
 - **OI-007 — Low, Add Trip grid manual confirmation:** typing, paste, suggestions, keyboard behavior, server-error retention, driver switching, and laptop fit remain unchecked; scenarios are listed in `docs/manual-checklist.md`.
-- **OI-008 — Medium, E2E coverage:** expand automated coverage for unimplemented cases in `docs/e2e-test-cases.md`, following `docs/e2e-coverage-plan.md`.
+- **OI-008 — Medium, E2E coverage:** expand automated coverage for the remaining 32 NEW and 5 PART cases in `docs/e2e-test-cases.md`, following `docs/e2e-coverage-plan.md`.
+- [ ] Manually verify Settings create, edit, delete, validation, and persistence for vehicles, drivers, contractors, crushers, clients, and material types; automated scenarios are in `e2e/settings.spec.cjs`.
 - **OI-010 — Low, table layout manual confirmation:** confirm two-line text wrapping, full-text hover titles, centered headers and cells, laptop fit, and unchanged sorting, filtering, and sums using `docs/manual-checklist.md`.
 - **OI-011 — Low, Windows installer manual confirmation:** build and install the Windows installer, launch Shift Tracker, and confirm the Arabic title, default window size, and one-instance behavior using `docs/manual-checklist.md`.
 - **OI-012 — Low, trip deletion manual confirmation:** delete a trip from Shift Details and All Trips; confirm the success notice and that the deleted trip disappears from the list. In All Trips, confirm Delete is hidden for trips in CLOSED shifts and the locked label is shown.

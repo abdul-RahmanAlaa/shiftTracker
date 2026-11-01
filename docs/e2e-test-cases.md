@@ -139,16 +139,16 @@ Run SET-1 through SET-6 once per entity (6 parametrized cases): vehicle, driver,
 
 | ID     | Scenario                       | Steps                                                                                                                        | Expected                                                          | Seed         | Pri | Cov              |
 | ------ | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- | ------------ | --- | ---------------- |
-| SET-1  | Create                         | Open Add, fill valid values, save                                                                                            | New row appears in the table; persists after reload               | `no-shift`   | P1  | PART S2 (driver) |
-| SET-2  | Edit hydration and save        | Open Edit, change a field, save                                                                                              | Dialog starts with saved values; table updates                    | `no-shift`   | P1  | NEW              |
-| SET-3  | Delete an unreferenced row     | Delete, confirm                                                                                                              | Row removed                                                       | `no-shift`   | P1  | NEW              |
-| SET-4  | Required fields                | Submit empty                                                                                                                 | Error per required field, nothing created                         | `no-shift`   | P1  | NEW              |
-| SET-5  | Duplicate key                  | Create the same name (vehicle: same vehicle number)                                                                          | Duplicate error                                                   | `no-shift`   | P1  | NEW              |
-| SET-6  | Blank Add dialog after Edit    | Open Edit, cancel, open Add                                                                                                  | Add dialog is blank, not carrying the edited row                  | `no-shift`   | P2  | NEW              |
-| SET-7  | Blocked delete shows a notice  | Delete a referenced row (driver or vehicle with a shift; contractor with a vehicle; crusher, client or material with a trip) | Notice `ipcErrors.deleteFailed`; row is still listed after reload | `references` | P0  | NEW              |
-| SET-8  | Opening balance needs its date | Client or contractor: balance without date, then date without balance                                                        | Validation error in each case                                     | `no-shift`   | P1  | NEW              |
-| SET-9  | Numeric field limits           | Negative or non-numeric initial price, default cubic, phone                                                                  | Rejected with a field error                                       | `no-shift`   | P2  | NEW              |
-| SET-10 | Vehicle needs a contractor     | Add a vehicle with no contractor                                                                                             | Required error on contractor                                      | `no-shift`   | P1  | NEW              |
+| SET-1  | Create                         | Open Add, fill valid values, save                                                                                            | New row appears in the table; persists after reload               | `no-shift`   | P1  | `settings.spec.cjs` |
+| SET-2  | Edit hydration and save        | Open Edit, change a field, save                                                                                              | Dialog starts with saved values; table updates                    | `no-shift`   | P1  | `settings.spec.cjs` |
+| SET-3  | Delete an unreferenced row     | Delete, confirm                                                                                                              | Row removed                                                       | `no-shift`   | P1  | `settings.spec.cjs` |
+| SET-4  | Required fields                | Submit empty                                                                                                                 | Error per required field, nothing created                         | `no-shift`   | P1  | `settings.spec.cjs` |
+| SET-5  | Duplicate key                  | Create the same name (vehicle: same vehicle number)                                                                          | Duplicate error                                                   | `no-shift`   | P1  | `settings.spec.cjs` |
+| SET-6  | Blank Add dialog after Edit    | Open Edit, cancel, open Add                                                                                                  | Add dialog is blank, not carrying the edited row                  | `no-shift`   | P2  | `settings.spec.cjs` |
+| SET-7  | Blocked delete shows a notice  | Delete a referenced row (driver or vehicle with a shift; contractor with a vehicle; crusher, client or material with a trip) | Notice `ipcErrors.deleteFailed`; row is still listed after reload | `references` | P0  | `settings.spec.cjs` |
+| SET-8  | Opening balance needs its date | Client or contractor: balance without date, then date without balance                                                        | Validation error in each case                                     | `no-shift`   | P1  | `settings.spec.cjs` |
+| SET-9  | Numeric field limits           | Negative or non-numeric initial price, default cubic, phone                                                                  | Rejected with a field error                                       | `no-shift`   | P2  | `settings.spec.cjs` |
+| SET-10 | Vehicle needs a contractor     | Add a vehicle with no contractor                                                                                             | Required error on contractor                                      | `no-shift`   | P1  | `settings.spec.cjs` |
 
 ## 8. Accounts (`/accounts`)
 
@@ -221,7 +221,7 @@ Run SET-1 through SET-6 once per entity (6 parametrized cases): vehicle, driver,
 | Runtime       | 3                                       |
 | **Total**     | **101**                                 |
 
-The current specs cover 60 cases fully or partly (54 covered and 6 partial); 41 cases have no E2E coverage yet. Build the `P0` cases first.
+The current specs cover 69 cases fully or partly (64 covered and 5 partial); 32 cases have no E2E coverage yet. Build the `P0` cases first.
 
 ## Suggested build order
 
