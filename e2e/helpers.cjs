@@ -68,12 +68,6 @@ function gridCell(page, labelKey, rowIndex = 0) {
 async function selectCalendarDate(page) {
   const date = today()
   const day = page.locator(`[data-day="${date}"] button`)
-  if ((await day.count()) === 0) {
-    await page.locator('select.rdp-years_dropdown').selectOption(date.slice(0, 4))
-    await page
-      .locator('select.rdp-months_dropdown')
-      .selectOption(String(Number(date.slice(5, 7)) - 1))
-  }
   await expect(day).toBeVisible()
   await day.click()
 }
@@ -82,6 +76,7 @@ async function selectToday(page, labelKey, placeholderKey) {
   const item = formItem(page, labelKey)
   await item.getByRole('button', { name: text(placeholderKey), exact: true }).click()
   await selectCalendarDate(page)
+  await page.keyboard.press('Escape')
 }
 
 async function selectTodayByPlaceholder(page, placeholderKey) {
