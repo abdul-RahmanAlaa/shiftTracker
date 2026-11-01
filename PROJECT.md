@@ -118,8 +118,9 @@
 | `docs/restore.md`                               | Database and attachment backup restoration steps               |
 | `playwright.config.ts`                          | Playwright Electron test configuration                         |
 | `e2e/seed.cjs`                                  | Isolated E2E fixture seeding through Electron as Node          |
-| `e2e/smoke.spec.cjs`                            | Seven end-to-end smoke flows                                   |
+| `e2e/smoke.spec.cjs`                            | Eight end-to-end smoke flows                                   |
 | `e2e/settings.spec.cjs`                         | Settings CRUD and validation flows for six entity types       |
+| `scripts/verify/settings.cjs`                   | Main-process settings validation and phone-format cases       |
 
 ## 4. Data model
 
@@ -246,7 +247,9 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - `npm run db:inspect -- <database-path>` opens a database read-only and reports its version, integrity, table row counts, and first/last Shift and Trip IDs. It never writes to the inspected database.
 - `node scripts/benchmark-large-table.cjs` seeds an isolated temporary database with 8,000 trips across 50 shifts and measures All Trips in Electron through Playwright; it is a one-off measurement, not a gate test.
 - `npm run test:e2e` builds the app and runs eight Playwright test declarations in `e2e/smoke.spec.cjs`, covering routes and runtime/translation-key health, shift creation, trip-grid behavior, shift closing, statement notes, second-instance handling, and table layout.
-- `npm run test:e2e:full` discovers 101 test declarations across nine E2E spec files, including eight smoke tests; seven Settings declarations are marked `fixme` for application validation/reset defects. The full suite remains pending.
+- `npm run test:e2e:full` discovers 101 test declarations across nine E2E spec files, including eight smoke tests. The Settings suite has 51 declarations and no `fixme` tests. The full suite remains pending.
+- The use-case harness contains 183 passing cases, including seven settings cases covering paired opening-balance validation and driver-phone formatting.
+- Last focused E2E runs: Settings 51/51 passed, closed-shift protection 10/10 passed, accounts 10/10 passed. The smoke run had 7 passes and one unrelated S2 failure; see `task-notes.md`.
 - E2E fixtures and app launches use temporary user-data directories; the harness checks the launched app's `userData` path before opening its first window.
 - `npm run review:gate` runs diff check, typecheck, lint, the i18n check, and the use-case harness, then checks added diff lines for selected mechanical rules. `npm run review:gate:e2e` also runs Playwright. The gate does not use AI and writes `last-task.md`; the complete harness result table goes to ignored `scripts/last-harness-output.txt`.
 - Automated checks do not replace user confirmation in Electron. Only checklist items explicitly marked `[x]` were confirmed by the user; unchecked scenarios remain pending.
@@ -258,6 +261,9 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - **OI-007 — Low, Add Trip grid manual confirmation:** typing, paste, suggestions, keyboard behavior, server-error retention, driver switching, and laptop fit remain unchecked; scenarios are listed in `docs/manual-checklist.md`.
 - **OI-008 — Medium, E2E coverage:** expand automated coverage for the remaining 32 NEW and 5 PART cases in `docs/e2e-test-cases.md`, following `docs/e2e-coverage-plan.md`.
 - [ ] Manually verify Settings create, edit, delete, validation, and persistence for vehicles, drivers, contractors, crushers, clients, and material types; automated scenarios are in `e2e/settings.spec.cjs`.
+- [ ] Manually cancel vehicle and driver edits, then open Add and confirm every field is blank (SET-6).
+- [ ] Manually verify client and contractor opening-balance pairs: both blank is valid, zero with a date is valid, and either missing counterpart shows its field error (SET-8).
+- [ ] Manually verify both driver phone fields accept digits, spaces, hyphens, parentheses, and one leading plus, while rejecting other characters (SET-9).
 - **OI-010 — Low, table layout manual confirmation:** confirm two-line text wrapping, full-text hover titles, centered headers and cells, laptop fit, and unchanged sorting, filtering, and sums using `docs/manual-checklist.md`.
 - **OI-011 — Low, Windows installer manual confirmation:** build and install the Windows installer, launch Shift Tracker, and confirm the Arabic title, default window size, and one-instance behavior using `docs/manual-checklist.md`.
 - **OI-012 — Low, trip deletion manual confirmation:** delete a trip from Shift Details and All Trips; confirm the success notice and that the deleted trip disappears from the list. In All Trips, confirm Delete is hidden for trips in CLOSED shifts and the locked label is shown.

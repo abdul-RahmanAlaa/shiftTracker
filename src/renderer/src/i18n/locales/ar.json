@@ -35,7 +35,9 @@
       "positivePrice": "السعر لازم يكون رقم موجب",
       "amountRequired": "المبلغ مطلوب",
       "amountFiniteNonZero": "المبلغ لازم يكون رقمًا محدودًا وغير صفر",
-      "moneyDecimals": "المبلغ لازم يكون بمنزلتين عشريتين كحد أقصى"
+      "moneyDecimals": "المبلغ لازم يكون بمنزلتين عشريتين كحد أقصى",
+      "openingBalanceDateRequired": "تاريخ الرصيد الافتتاحي مطلوب",
+      "openingBalanceRequired": "الرصيد الافتتاحي مطلوب"
     }
   },
   "floatingWindow": {
@@ -99,7 +101,8 @@
       "name": "اسم السائق"
     },
     "validation": {
-      "nameRequired": "اسم السائق مطلوب"
+      "nameRequired": "اسم السائق مطلوب",
+      "phoneInvalid": "رقم التليفون يقبل أرقامًا ومسافات وشرطات وأقواسًا وعلامة + في البداية فقط"
     }
   },
   "clientsSettings": {

@@ -73,7 +73,10 @@ export function ContractorsSettings(): React.JSX.Element {
           ? {
               name: contractor.name,
               phone: contractor.phone ?? '',
-              openingBalance: String(contractor.openingBalance ?? 0),
+              openingBalance:
+                contractor.openingBalance === 0 && contractor.openingBalanceDate === null
+                  ? ''
+                  : String(contractor.openingBalance),
               openingBalanceDate: contractor.openingBalanceDate ?? ''
             }
           : { name: '', phone: '', openingBalance: '', openingBalanceDate: '' }

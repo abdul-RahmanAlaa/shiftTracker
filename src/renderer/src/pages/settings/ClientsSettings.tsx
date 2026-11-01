@@ -81,7 +81,10 @@ export function ClientsSettings(): React.JSX.Element {
               name: client.name,
               location: client.location ?? '',
               initialPrice: client.initialPrice === null ? '' : String(client.initialPrice),
-              openingBalance: String(client.openingBalance ?? 0),
+              openingBalance:
+                client.openingBalance === 0 && client.openingBalanceDate === null
+                  ? ''
+                  : String(client.openingBalance),
               openingBalanceDate: client.openingBalanceDate ?? ''
             }
           : {

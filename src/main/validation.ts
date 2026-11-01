@@ -8,10 +8,27 @@ export const validationMessages = {
   fineAmountNonNegative: mainMessages.fineAmountNonNegative,
   moneyDecimals: mainMessages.moneyDecimals,
   positivePrice: mainMessages.positivePrice,
+  openingBalanceDateRequired: mainMessages.openingBalanceDateRequired,
+  openingBalanceRequired: mainMessages.openingBalanceRequired,
+  driverPhoneInvalid: mainMessages.driverPhoneInvalid,
   shiftStartDateRequired: mainMessages.shiftStartDateRequired,
   shiftStartDateInvalid: mainMessages.shiftStartDateInvalid,
   shiftEndDateRequired: mainMessages.shiftEndDateRequired,
   shiftEndDateInvalid: mainMessages.shiftEndDateInvalid
+}
+
+export function openingBalancePairErrors(
+  hasBalance: boolean,
+  date: string | undefined
+): { field: 'openingBalance' | 'openingBalanceDate'; message: string }[] {
+  const hasDate = typeof date === 'string' && date.trim().length > 0
+  if (hasBalance && !hasDate) {
+    return [{ field: 'openingBalanceDate', message: validationMessages.openingBalanceDateRequired }]
+  }
+  if (!hasBalance && hasDate) {
+    return [{ field: 'openingBalance', message: validationMessages.openingBalanceRequired }]
+  }
+  return []
 }
 
 export function isRealDate(value: string): boolean {

@@ -1,3 +1,5 @@
+import ar from '../renderer/src/i18n/locales/ar.json'
+
 export const mainMessages = {
   tripDateRequired: 'تاريخ النقلة مطلوب',
   tripDateInvalid: 'تاريخ النقلة غير صحيح',
@@ -8,5 +10,8 @@ export const mainMessages = {
   shiftStartDateInvalid: 'تاريخ البداية غير صحيح',
   shiftEndDateRequired: 'تاريخ النهاية مطلوب',
   shiftEndDateInvalid: 'تاريخ النهاية غير صحيح',
-  accountingMismatch: 'تعذر مطابقة إجمالي كشف الحساب مع رصيد الحساب'
+  accountingMismatch: 'تعذر مطابقة إجمالي كشف الحساب مع رصيد الحساب',
+  openingBalanceDateRequired: ar.common.validation.openingBalanceDateRequired,
+  openingBalanceRequired: ar.common.validation.openingBalanceRequired,
+  driverPhoneInvalid: ar.driversSettings.validation.phoneInvalid
 } as const

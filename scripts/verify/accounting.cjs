@@ -8,7 +8,11 @@ module.exports = {
           openingBalance: 500,
           openingBalanceDate: '2026-02-15'
         })
-        const contractor = createContractor({ name: 'Golden Contractor', openingBalance: 100 })
+        const contractor = createContractor({
+          name: 'Golden Contractor',
+          openingBalance: 100,
+          openingBalanceDate: '2026-02-15'
+        })
         if (!client.ok || !contractor.ok) throw new Error('Golden account setup failed')
     
         const shiftInput = newShiftInput()
@@ -147,11 +151,13 @@ module.exports = {
         const acceptedClient = createClient({
           name: 'Exact Client',
           initialPrice: 5.25,
-          openingBalance: 5.25
+          openingBalance: 5.25,
+          openingBalanceDate: '2026-02-01'
         })
         const acceptedContractor = createContractor({
           name: 'Exact Contractor',
-          openingBalance: 5.25
+          openingBalance: 5.25,
+          openingBalanceDate: '2026-02-01'
         })
         const acceptedCrusher = createCrusher({ name: 'Exact Crusher', initialPrice: 5.25 })
         const accepted = createClientPayment({

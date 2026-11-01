@@ -5,6 +5,7 @@ import {
   deleteDriver as deleteDriverInDb,
   DriverRow
 } from '../repository/driverRepository'
+import { mainMessages } from '../mainMessages'
 import { UseCaseResult, isSqliteError } from '../useCaseUtils'
 
 interface DriverInput {
@@ -13,11 +14,32 @@ interface DriverInput {
   phone2?: string
 }
 
+function validateDriverPhones(
+  input: DriverInput
+): { field: 'phone1' | 'phone2'; message: string }[] {
+  const errors: { field: 'phone1' | 'phone2'; message: string }[] = []
+  if (
+    input.phone1 !== undefined &&
+    (typeof input.phone1 !== 'string' || !/^\+?[0-9 ()-]*$/.test(input.phone1))
+  ) {
+    errors.push({ field: 'phone1', message: mainMessages.driverPhoneInvalid })
+  }
+  if (
+    input.phone2 !== undefined &&
+    (typeof input.phone2 !== 'string' || !/^\+?[0-9 ()-]*$/.test(input.phone2))
+  ) {
+    errors.push({ field: 'phone2', message: mainMessages.driverPhoneInvalid })
+  }
+  return errors
+}
+
 export function createDriver(input: DriverInput): UseCaseResult<DriverRow> {
   const name = input.name?.trim()
   if (!name) {
     return { ok: false, errors: [{ field: 'name', message: 'اسم السائق مطلوب' }] }
   }
+  const phoneErrors = validateDriverPhones(input)
+  if (phoneErrors.length > 0) return { ok: false, errors: phoneErrors }
   const phone1 = input.phone1?.trim() || null
   const phone2 = input.phone2?.trim() || null
 
@@ -41,6 +63,8 @@ export function updateDriver(input: DriverInput & { id: number }): UseCaseResult
   if (!name) {
     return { ok: false, errors: [{ field: 'name', message: 'اسم السائق مطلوب' }] }
   }
+  const phoneErrors = validateDriverPhones(input)
+  if (phoneErrors.length > 0) return { ok: false, errors: phoneErrors }
   const phone1 = input.phone1?.trim() || null
   const phone2 = input.phone2?.trim() || null
 

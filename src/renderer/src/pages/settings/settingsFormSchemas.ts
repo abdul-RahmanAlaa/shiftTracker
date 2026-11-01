@@ -23,28 +23,46 @@ export type Vehicle = {
 }
 export type ContractorOption = { id: number; name: string }
 
-export const clientSchema = z.object({
-  name: z.string().min(1, i18n.t('clientsSettings.validation.nameRequired')),
-  location: z.string().optional(),
-  initialPrice: z
-    .string()
-    .optional()
-    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine((val) => val === undefined || val > 0, i18n.t('common.validation.positivePrice'))
-    .refine(
-      (val) => val === undefined || hasAtMostTwoDecimals(val),
-      i18n.t('common.validation.moneyDecimals')
-    ),
-  openingBalance: z
-    .string()
-    .optional()
-    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine(
-      (val) => val === undefined || hasAtMostTwoDecimals(val),
-      i18n.t('common.validation.moneyDecimals')
-    ),
-  openingBalanceDate: z.string().optional()
-})
+export const clientSchema = z
+  .object({
+    name: z.string().min(1, i18n.t('clientsSettings.validation.nameRequired')),
+    location: z.string().optional(),
+    initialPrice: z
+      .string()
+      .optional()
+      .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
+      .refine((val) => val === undefined || val > 0, i18n.t('common.validation.positivePrice'))
+      .refine(
+        (val) => val === undefined || hasAtMostTwoDecimals(val),
+        i18n.t('common.validation.moneyDecimals')
+      ),
+    openingBalance: z
+      .string()
+      .optional()
+      .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
+      .refine(
+        (val) => val === undefined || hasAtMostTwoDecimals(val),
+        i18n.t('common.validation.moneyDecimals')
+      ),
+    openingBalanceDate: z.string().optional()
+  })
+  .superRefine((values, context) => {
+    const hasBalance = values.openingBalance !== undefined
+    const hasDate = Boolean(values.openingBalanceDate?.trim())
+    if (hasBalance && !hasDate) {
+      context.addIssue({
+        code: 'custom',
+        path: ['openingBalanceDate'],
+        message: i18n.t('common.validation.openingBalanceDateRequired')
+      })
+    } else if (hasDate && !hasBalance) {
+      context.addIssue({
+        code: 'custom',
+        path: ['openingBalance'],
+        message: i18n.t('common.validation.openingBalanceRequired')
+      })
+    }
+  })
 
 export type ClientFormValues = z.infer<typeof clientSchema>
 export type ClientFormInput = z.input<typeof clientSchema>
@@ -57,19 +75,37 @@ export type Client = {
   openingBalanceDate: string | null
 }
 
-export const contractorSchema = z.object({
-  name: z.string().min(1, i18n.t('contractorsSettings.validation.nameRequired')),
-  phone: z.string().optional(),
-  openingBalance: z
-    .string()
-    .optional()
-    .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
-    .refine(
-      (val) => val === undefined || hasAtMostTwoDecimals(val),
-      i18n.t('common.validation.moneyDecimals')
-    ),
-  openingBalanceDate: z.string().optional()
-})
+export const contractorSchema = z
+  .object({
+    name: z.string().min(1, i18n.t('contractorsSettings.validation.nameRequired')),
+    phone: z.string().optional(),
+    openingBalance: z
+      .string()
+      .optional()
+      .transform((val) => (val && val.trim() !== '' ? Number(val) : undefined))
+      .refine(
+        (val) => val === undefined || hasAtMostTwoDecimals(val),
+        i18n.t('common.validation.moneyDecimals')
+      ),
+    openingBalanceDate: z.string().optional()
+  })
+  .superRefine((values, context) => {
+    const hasBalance = values.openingBalance !== undefined
+    const hasDate = Boolean(values.openingBalanceDate?.trim())
+    if (hasBalance && !hasDate) {
+      context.addIssue({
+        code: 'custom',
+        path: ['openingBalanceDate'],
+        message: i18n.t('common.validation.openingBalanceDateRequired')
+      })
+    } else if (hasDate && !hasBalance) {
+      context.addIssue({
+        code: 'custom',
+        path: ['openingBalance'],
+        message: i18n.t('common.validation.openingBalanceRequired')
+      })
+    }
+  })
 
 export type ContractorFormValues = z.infer<typeof contractorSchema>
 export type ContractorFormInput = z.input<typeof contractorSchema>

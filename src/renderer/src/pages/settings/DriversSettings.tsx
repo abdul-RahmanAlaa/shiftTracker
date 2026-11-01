@@ -19,8 +19,20 @@ import { useSettingsCrud } from '@/pages/settings/useSettingsCrud'
 
 const driverSchema = z.object({
   name: z.string().min(1, i18n.t('driversSettings.validation.nameRequired')),
-  phone1: z.string().optional(),
-  phone2: z.string().optional()
+  phone1: z
+    .string()
+    .optional()
+    .refine(
+      (value) => value === undefined || /^\+?[0-9 ()-]*$/.test(value),
+      i18n.t('driversSettings.validation.phoneInvalid')
+    ),
+  phone2: z
+    .string()
+    .optional()
+    .refine(
+      (value) => value === undefined || /^\+?[0-9 ()-]*$/.test(value),
+      i18n.t('driversSettings.validation.phoneInvalid')
+    )
 })
 
 type DriverFormValues = z.infer<typeof driverSchema>
@@ -55,7 +67,7 @@ export function DriversSettings(): React.JSX.Element {
       driverForm.reset(
         driver
           ? { name: driver.name, phone1: driver.phone1 ?? '', phone2: driver.phone2 ?? '' }
-          : undefined
+          : { name: '', phone1: '', phone2: '' }
       )
   })
 

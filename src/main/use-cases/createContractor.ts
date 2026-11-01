@@ -7,7 +7,7 @@ import {
   ContractorStorageRow
 } from '../repository/contractorRepository'
 import { fromMinorUnits, toMinorUnits } from '../accounting'
-import { validationMessages } from '../validation'
+import { openingBalancePairErrors, validationMessages } from '../validation'
 import { UseCaseResult, isSqliteError } from '../useCaseUtils'
 
 interface ContractorInput {
@@ -50,6 +50,11 @@ function contractorRowToPublic(row: ContractorStorageRow): ContractorRow {
 }
 
 export function createContractor(input: ContractorInput): UseCaseResult<ContractorRow> {
+  const pairErrors = openingBalancePairErrors(
+    input.openingBalance !== undefined,
+    input.openingBalanceDate
+  )
+  if (pairErrors.length > 0) return { ok: false, errors: pairErrors }
   if (input.openingBalance !== undefined && toMinorUnits(input.openingBalance) === null) {
     return {
       ok: false,
@@ -93,13 +98,23 @@ export function listContractors(): UseCaseResult<ContractorRow[]> {
 export function updateContractor(
   input: ContractorInput & { id: number }
 ): UseCaseResult<ContractorRow> {
+  const existing = getContractorById(input.id)
+  const hasOpeningBalance =
+    input.openingBalance !== undefined ||
+    (existing !== undefined &&
+      (existing.openingBalanceMinor !== 0 || existing.openingBalanceDate !== null))
+  const openingBalanceDate =
+    input.openingBalanceDate !== undefined
+      ? input.openingBalanceDate
+      : (existing?.openingBalanceDate ?? undefined)
+  const pairErrors = openingBalancePairErrors(hasOpeningBalance, openingBalanceDate)
+  if (pairErrors.length > 0) return { ok: false, errors: pairErrors }
   if (input.openingBalance !== undefined && toMinorUnits(input.openingBalance) === null) {
     return {
       ok: false,
       errors: [{ field: 'openingBalance', message: validationMessages.moneyDecimals }]
     }
   }
-  const existing = getContractorById(input.id)
   const values = normalizeInput({
     name: input.name,
     phone: input.phone !== undefined ? input.phone : (existing?.phone ?? undefined),

@@ -7,7 +7,7 @@ import {
   ClientStorageRow
 } from '../repository/clientRepository'
 import { fromMinorUnits, toMinorUnits } from '../accounting'
-import { validationMessages } from '../validation'
+import { openingBalancePairErrors, validationMessages } from '../validation'
 import { UseCaseResult, isSqliteError } from '../useCaseUtils'
 
 interface ClientRow {
@@ -27,7 +27,11 @@ interface ClientInput {
   openingBalanceDate?: string
 }
 
-function validateClientInput(input: ClientInput): { field: string; message: string }[] {
+function validateClientInput(
+  input: ClientInput,
+  hasOpeningBalance = input.openingBalance !== undefined,
+  openingBalanceDate = input.openingBalanceDate
+): { field: string; message: string }[] {
   const errors: { field: string; message: string }[] = []
   if (!input.name?.trim()) errors.push({ field: 'name', message: 'اسم العميل مطلوب' })
   if (input.initialPrice !== undefined && input.initialPrice <= 0) {
@@ -39,6 +43,7 @@ function validateClientInput(input: ClientInput): { field: string; message: stri
   if (input.openingBalance !== undefined && toMinorUnits(input.openingBalance) === null) {
     errors.push({ field: 'openingBalance', message: validationMessages.moneyDecimals })
   }
+  errors.push(...openingBalancePairErrors(hasOpeningBalance, openingBalanceDate))
   return errors
 }
 
@@ -100,10 +105,18 @@ export function listClients(): UseCaseResult<ClientRow[]> {
 }
 
 export function updateClient(input: ClientInput & { id: number }): UseCaseResult<ClientRow> {
-  const errors = validateClientInput(input)
+  const existing = getClientById(input.id)
+  const hasOpeningBalance =
+    input.openingBalance !== undefined ||
+    (existing !== undefined &&
+      (existing.openingBalanceMinor !== 0 || existing.openingBalanceDate !== null))
+  const effectiveOpeningBalanceDate =
+    input.openingBalanceDate !== undefined
+      ? input.openingBalanceDate
+      : (existing?.openingBalanceDate ?? undefined)
+  const errors = validateClientInput(input, hasOpeningBalance, effectiveOpeningBalanceDate)
   if (errors.length > 0) return { ok: false, errors }
 
-  const existing = getClientById(input.id)
   const name = input.name.trim()
   const initialPriceMinor =
     input.initialPrice === undefined

@@ -70,7 +70,13 @@ export function VehiclesSettings(): React.JSX.Element {
               defaultCubic: vehicle.defaultCubic ?? undefined,
               ownerName: vehicle.ownerName ?? ''
             }
-          : undefined
+          : {
+              vehicleNo: undefined,
+              trailerNo: undefined,
+              contractorId: undefined,
+              defaultCubic: undefined,
+              ownerName: ''
+            }
       )
   })
 

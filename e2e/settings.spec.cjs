@@ -106,7 +106,7 @@ const entityConfigs = [
     seedValues: (seedData) => ({
       name: seedData.contractor.name,
       phone: '',
-      openingBalance: '0',
+      openingBalance: '',
       openingBalanceDate: ''
     }),
     createValues: (seedData) => ({
@@ -163,7 +163,7 @@ const entityConfigs = [
       name: seedData.client.name,
       initialPrice: '12',
       location: '',
-      openingBalance: '0',
+      openingBalance: '',
       openingBalanceDate: ''
     }),
     createValues: (seedData) => ({
@@ -425,12 +425,7 @@ for (const config of entityConfigs) {
     }
   }
 
-  if (config.name === 'vehicle' || config.name === 'driver') {
-    // BUG-1: Opening Add after Edit retains the edited vehicle or driver values.
-    testWithApp.fixme(`SET-6 Add dialog is blank after Edit (${config.name})`, runBlankAddTest)
-  } else {
-    testWithApp(`SET-6 Add dialog is blank after Edit (${config.name})`, runBlankAddTest)
-  }
+  testWithApp(`SET-6 Add dialog is blank after Edit (${config.name})`, runBlankAddTest)
 }
 
 for (const config of entityConfigs) {
@@ -463,14 +458,12 @@ for (const config of entityConfigs) {
 
 for (const entityName of ['client', 'contractor']) {
   const config = entityConfigs.find((candidate) => candidate.name === entityName)
-  const settingsKey = entityName === 'client' ? 'clientsSettings' : 'contractorsSettings'
 
   for (const scenario of [
     { name: 'balance without date', balance: '50', date: '' },
     { name: 'date without balance', balance: '', date: today() }
   ]) {
-    // BUG-2: Client and contractor opening-balance fields are saved without requiring the pair.
-    testWithApp.fixme(
+    testWithApp(
       `SET-8 ${scenario.name} requires both fields (${entityName})`,
       async ({ launchApp }) => {
         const app = await launchApp('no-shift')
@@ -490,9 +483,11 @@ for (const entityName of ['client', 'contractor']) {
           config.fields.find((field) => field.key === 'openingBalanceDate')
         ).fill(scenario.date)
         await submitDialog(page, dialog)
-        const invalidField = scenario.balance ? 'openingBalanceDate' : 'openingBalance'
+        const invalidField = config.fields.find(
+          (field) => field.key === (scenario.balance ? 'openingBalanceDate' : 'openingBalance')
+        )
         await expect(
-          formItem(dialog, `${settingsKey}.fields.${invalidField}`).locator('p.text-destructive')
+          formItem(dialog, invalidField.labelKey).locator('p.text-destructive')
         ).toBeVisible()
       }
     )
@@ -535,8 +530,7 @@ testWithApp('SET-9 rejects a negative default cubic (vehicle)', async ({ launchA
   ).toContainText(text('vehiclesSettings.validation.defaultCubicRequired'))
 })
 
-// BUG-3: Driver phone fields accept alphabetic text without validation.
-testWithApp.fixme('SET-9 rejects a non-numeric phone (driver)', async ({ launchApp }) => {
+testWithApp('SET-9 rejects a non-numeric phone (driver)', async ({ launchApp }) => {
   const app = await launchApp('no-shift')
   const { page, seedData } = app
   const config = entityConfigs.find((candidate) => candidate.name === 'driver')

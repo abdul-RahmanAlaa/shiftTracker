@@ -23,8 +23,9 @@ import {
   listTripLocations
 } from '../../src/main/repository/tripRepository'
 import { listTripsByShift } from '../../src/main/use-cases/listTripData'
-import { createClient } from '../../src/main/use-cases/createClient'
-import { createContractor } from '../../src/main/use-cases/createContractor'
+import { createClient, updateClient } from '../../src/main/use-cases/createClient'
+import { createContractor, updateContractor } from '../../src/main/use-cases/createContractor'
+import { createDriver, updateDriver } from '../../src/main/use-cases/createDriver'
 import { createCrusher } from '../../src/main/use-cases/createCrusher'
 import { createMaterialType } from '../../src/main/use-cases/createMaterialType'
 import { getClientAccount, getContractorAccount } from '../../src/main/use-cases/getAccounts'
@@ -50,6 +51,7 @@ import tripsSuite from './trips.cjs'
 import shiftReopenSuite from './shift-reopen.cjs'
 import accountingSuite from './accounting.cjs'
 import accountConsistencySuite from './accounting-accounts.cjs'
+import settingsSuite from './settings.cjs'
 import statementsSuite from './statements.cjs'
 
 const outcomes = []
@@ -234,7 +236,7 @@ try {
     shiftId: closedShiftId, contractorId, notes: 'attempt'
   })
 
-    const testContext = { db, runCase, runAsyncCase, result, clientId, contractorId, crusherId, materialTypeId, driverId, openShiftId, closedShiftId, closedLedgerId, openLedgerId, paymentId, reopenedCountShiftId, closedFields, newShiftInput, createOwnShift, tripInput, rejectedTripCreate, rejectedTripUpdate, rejectedShiftCreate, addClosingSheet, createLedger, updateLedger, getTripById, tripRowsSnapshot, shiftRowsSnapshot, shiftRowSnapshot, hasFieldErrors, hasExactFieldError, hasExactFieldErrorMessage, createShift, closeShift, reopenShift, createTrip, updateTrip, createLedgerEntry, updateLedgerEntry, deleteLedgerEntry, createClientPayment, updateClientPayment, createClient, createContractor, createCrusher, createMaterialType, getClientAccount, getContractorAccount, getClientStatement, getContractorStatement, nextFixtureSequence: () => fixtureSequence++, listTripLocations, listTripsByShift, fs, path }
+    const testContext = { db, runCase, runAsyncCase, result, clientId, contractorId, crusherId, materialTypeId, driverId, openShiftId, closedShiftId, closedLedgerId, openLedgerId, paymentId, reopenedCountShiftId, closedFields, newShiftInput, createOwnShift, tripInput, rejectedTripCreate, rejectedTripUpdate, rejectedShiftCreate, addClosingSheet, createLedger, updateLedger, getTripById, tripRowsSnapshot, shiftRowsSnapshot, shiftRowSnapshot, hasFieldErrors, hasExactFieldError, hasExactFieldErrorMessage, createShift, closeShift, reopenShift, createTrip, updateTrip, createLedgerEntry, updateLedgerEntry, deleteLedgerEntry, createClientPayment, updateClientPayment, createClient, updateClient, createContractor, updateContractor, createDriver, updateDriver, createCrusher, createMaterialType, getClientAccount, getContractorAccount, getClientStatement, getContractorStatement, nextFixtureSequence: () => fixtureSequence++, listTripLocations, listTripsByShift, fs, path }
   ledgerSuite.runClosedShiftCases(testContext)
   shiftsSuite.runOpenCloseCases(testContext)
 await Promise.all(pendingCases)
@@ -245,6 +247,7 @@ await Promise.all(pendingCases)
   ledgerSuite.runEntryValidationCases(testContext)
   accountingSuite.runCoreAccountingCases(testContext)
   accountConsistencySuite.runAccountConsistencyCases(testContext)
+  settingsSuite.runSettingsValidationCases(testContext)
 await runAsyncCase('E1 IPC wrapper passes through success and failure results unchanged', 'both result objects retain identity', async () => {
     const success = { ok: true, data: { id: 1 } }
     const failure = { ok: false, errors: [{ field: 'name', message: 'invalid' }] }
