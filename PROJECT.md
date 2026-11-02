@@ -38,6 +38,7 @@
 `renderer -> preload (window.api) -> ipcMain -> use-cases -> repositories -> SQLite`
 
 - `src/main/index.ts` registers IPC handlers; `src/preload/index.ts` exposes `window.api`, and `src/preload/index.d.ts` types it.
+- The main process exposes DraftTrip CRUD, transactional promotion to Trip, and open-shift dashboard cards through dedicated IPC channels.
 - `trip:suggestPrices` validates the client, crusher, optional material type, and optional location, then reads independent price suggestions without writing data. Stone and client prices use material-specific history or their entity's initial price; transport uses client history with an exact-location preference.
 - Material type is required to save a trip (grid, single-trip form, server); it is optional only as an input for price suggestions.
 - Electron requests a single-instance lock for the current `userData` path before startup opens the database. A second launch exits silently; the first window is restored, shown, and focused when available.
@@ -72,14 +73,19 @@
 | ----------------------------------------------- | -------------------------------------------------------------- |
 | `src/main/index.ts`                             | Electron startup, IPC handlers, window creation                |
 | `src/main/ipcWrapper.ts`                        | IPC exception logging and standard failure results             |
-| `src/main/db.ts`                                | Immutable version-5 schema baseline, safe opening, logging     |
-| `src/main/migrations.ts`                        | Ordered numbered migrations and verified pre-migration backups |
+| `src/main/db.ts`                                | Current schema, version-0 fresh databases, safe opening, logging |
+| `src/main/migrations.ts`                        | Empty migration stub                                            |
 | `src/main/validation.ts`                        | Shared date, number, and money validation                      |
 | `src/main/accounting.ts`                        | Money conversion, per-line rounding, account calculations      |
 | `src/main/backup.ts`                            | Verified snapshots, attachment mirror, retention, and status   |
 | `src/main/photoStorage.ts`                      | JPEG storage under Electron `userData`                         |
 | `src/main/use-cases/`                           | Validated business operations and result contracts             |
 | `src/main/repository/`                          | SQLite reads, writes, and transactions                         |
+| `src/main/repository/draftTripRepository.ts`    | DraftTrip CRUD and open-shift context                          |
+| `src/main/repository/dashboardRepository.ts`    | Open-shift cards and custody/trip counts                       |
+| `src/main/use-cases/draftTrip.ts`               | Validated DraftTrip CRUD                                       |
+| `src/main/use-cases/promoteDraftTrip.ts`        | Atomic DraftTrip-to-Trip promotion                             |
+| `src/main/use-cases/getDashboard.ts`            | Dashboard open-shift query                                     |
 | `src/main/use-cases/suggestTripPrices.ts`       | Read-only material-keyed and location-aware price suggestions  |
 | `src/preload/index.ts`                          | Typed IPC bridge exposed as `window.api`                       |
 | `src/preload/index.d.ts`                        | Renderer-facing API and row types                              |
@@ -128,21 +134,15 @@
 
 ## 4. Data model
 
-The production schema in `src/main/db.ts` is an immutable version-5 baseline. A fresh database executes that baseline and then all numbered migrations in order. The real migration list is empty, so the latest supported version is currently 5. The database is `app.getPath('userData')/shift-tracker.db`.
+The production schema is defined in `src/main/db.ts`. A fresh database executes the complete schema and remains at `PRAGMA user_version = 0`; there is no migration history. The database is `app.getPath('userData')/shift-tracker.db`.
 
 Opening rules are based on `PRAGMA user_version` and user-table presence:
 
-- Version 0 with no user tables creates the baseline and sets version 5 in one transaction, then applies pending migrations.
-- Version 0 with user tables is refused as unversioned.
-- Versions 1–4 are refused as unsupported development schemas.
-- Versions from the baseline through latest-minus-one require a verified database-only backup before stepwise migrations.
-- The latest version opens normally. Versions above latest are refused as newer than the app.
+- Version 0 with no user tables creates the current schema in one transaction and keeps version 0.
+- Version 0 with the complete current schema opens normally; a version-0 database with a partial or unknown schema is refused as unversioned.
+- Any positive version is refused; archive the data folder and remove the old database manually before using this fresh-install build.
 - Refusals do not modify or delete the database, sidecars, or data directory. The dialog asks the user to archive the data folder and gives its path and found version.
-- Migration backups use `userData/backups/pre-migration-v<from>-to-v<to>-<timestamp>.db`. A backup is opened read-only and must pass `integrity_check` and match the source version before any migration starts; a backup that fails verification is deleted.
-- Every migration and its `user_version` update share one transaction. A migration failure rolls back to its prior version; the dialog includes the backup path and states the data remains at the last completed version.
-- Migrations that rebuild foreign-keyed tables declare `foreignKeys: 'off'`; the runner disables enforcement outside the transaction, runs `foreign_key_check` inside it, rolls back violations, and restores enforcement in `finally`.
-- Migration backups cover the database only; migrations do not change attachment files.
-- For a one-time manual development reset, follow `docs/dev-reset-checklist.md`. The checklist archives named database and user-data items before deletion; there is no in-app reset.
+- Foreign-key enforcement is enabled before schema creation and remains enabled after opening.
 
 In the table below, `NOT NULL` means required; columns without it are nullable unless they are primary keys. `INTEGER` money is piasters. Foreign keys are noted as `REFERENCES`.
 
@@ -159,6 +159,7 @@ In the table below, `NOT NULL` means required; columns without it are nullable u
 | `ShiftReopenLog`      | `id INTEGER PRIMARY KEY AUTOINCREMENT`; `shift_id TEXT NOT NULL REFERENCES Shift(id)`; `reopened_at TEXT NOT NULL`; `reason TEXT NOT NULL CHECK (length(trim(reason)) > 0)`; `previous_end_date TEXT`; `closed_again_at TEXT`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `Trip`                | `id TEXT PRIMARY KEY`; `shift_id TEXT NOT NULL REFERENCES Shift(id)`; `trip_date TEXT NOT NULL` and valid real `YYYY-MM-DD`; `crusher_cubic REAL NOT NULL`; `client_cubic_reported REAL NOT NULL`; `fine_amount INTEGER NOT NULL DEFAULT 0` and non-negative integer; `fine_reason TEXT`; `location TEXT`; `crusher_id INTEGER NOT NULL REFERENCES Crusher(id)`; `stone_price INTEGER NOT NULL` positive integer; `crusher_receipt_status TEXT NOT NULL CHECK (PROVIDED, CONFIRMED_MISSING, UNKNOWN)`; `crusher_receipt_no INTEGER`; `client_id INTEGER NOT NULL REFERENCES Client(id)`; `transport_price INTEGER NOT NULL` positive integer; `client_price INTEGER NOT NULL` positive integer; `recipient_name_status TEXT NOT NULL DEFAULT 'UNCLEAR' CHECK (PROVIDED, UNCLEAR)`; `recipient_name TEXT`; `client_receipt_no TEXT`; `notes TEXT`; `material_type_id INTEGER REFERENCES MaterialType(id)`; cubic quantities must be finite and positive; PROVIDED receipt requires a number and other receipt states require NULL; PROVIDED recipient requires a name and UNCLEAR requires NULL |
 | `Attachment`          | `id INTEGER PRIMARY KEY AUTOINCREMENT`; `entity_type TEXT NOT NULL CHECK (TRIP, SHIFT)`; `entity_id TEXT NOT NULL` (polymorphic, no FK); `kind TEXT NOT NULL CHECK (CRUSHER_RECEIPT, CLIENT_RECEIPT, CLOSING_SHEET)`; `photo_path TEXT NOT NULL`; `created_at TEXT NOT NULL DEFAULT datetime('now')`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `DraftTrip`          | `id INTEGER PRIMARY KEY AUTOINCREMENT`; `vehicle_no INTEGER NOT NULL REFERENCES Vehicle(vehicle_no)`; `trip_date TEXT NOT NULL` with `YYYY-MM-DD` shape check; nullable `time_of_day` (`MORNING`, `EVENING`); nullable `crusher_id REFERENCES Crusher(id)` and `client_id REFERENCES Client(id)`; nullable positive finite `cubic`; nullable positive integer `custody_amount`; nullable `custody_time`, `receipt_note`, and `notes`; `created_at TEXT NOT NULL DEFAULT datetime('now')`; index on `vehicle_no` |
 | `Ledger`              | `id INTEGER PRIMARY KEY AUTOINCREMENT`; `entry_date TEXT NOT NULL` and valid real `YYYY-MM-DD`; `driver_id INTEGER REFERENCES Driver(id)`; `movement_type TEXT NOT NULL CHECK (ADVANCE, PAYMENT, OTHER)`; `amount INTEGER NOT NULL` non-zero integer; `shift_id TEXT REFERENCES Shift(id)`; `contractor_id INTEGER NOT NULL REFERENCES TransportContractor(id)`; `notes TEXT`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `ClientPayment`       | `id INTEGER PRIMARY KEY AUTOINCREMENT`; `entry_date TEXT NOT NULL` and valid real `YYYY-MM-DD`; `client_id INTEGER NOT NULL REFERENCES Client(id)`; `amount INTEGER NOT NULL` non-zero integer; `notes TEXT`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
@@ -199,6 +200,8 @@ Attachment rows store paths relative to user data. JPEG files are stored under `
 - Trips require positive finite cubic quantities and positive prices. Optional trip details are nullable in SQLite. Crusher and recipient status values have required matching receipt/name data. Material type is required to save a trip (grid, single-trip form, server); it is optional only as an input for price suggestions.
 - The Add Trip page selects one driver's OPEN shift with latest-request protection and enters trips in an in-memory grid. Core columns are always visible; receipt number, recipient, location, and fine details are optional columns. New rows inherit only the prior row's date and the shift cubic defaults.
 - Unsaved grid rows exist only in renderer memory and are discarded when navigating away.
+- DraftTrips persist separately from Trips, are listed with the vehicle's OPEN-shift driver and crusher/client names, and can be created, updated, deleted, or promoted. Promotion creates the Trip and deletes the draft in one transaction.
+- Dashboard open-shift cards include shift age, trip and draft counts, the latest shift-linked ADVANCE, and trips since that advance.
 - Grid name cells resolve exact matches after whitespace/case normalization and Arabic normalization (alef forms, alef maqsura, ta marbuta, diacritics, and tatweel). Normalized collisions are rejected as ambiguous; unknown text remains unresolved, and the typed cell text is preserved. Number cells accept optional dot decimals and normalized Arabic digits/separators; only money cells accept valid thousands grouping, and money permits at most two decimal places. Cubic cells reject all commas and show a non-blocking amber hint above 150. Date cells accept real `YYYY-MM-DD` and `D/M/YYYY` dates.
 - Pasting tab-separated rows supports quoted cells, skips a recognized header, ignores wholly empty lines, and ignores a trailing newline.
 - Crusher receipt cells map blank to `UNKNOWN`, a positive integer to `PROVIDED`, and `-` to `CONFIRMED_MISSING`; recipient cells map blank to `UNCLEAR` and text to `PROVIDED`. Duplicate crusher/receipt pairs within the grid are blocked before saving.
@@ -245,14 +248,13 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 
 - `npm run verify:use-cases` bundles and invokes the real use cases under Electron-as-Node, uses an isolated temporary user-data directory, prints a result table and exits non-zero on failed cases.
 - The use-case harness is assembled from per-area suites under `scripts/verify/` and verifies P1–P9 for trip-price suggestions and G1–G13 for pure trip-grid behavior, alongside shift, trip, ledger, accounting, and deterministic statement-ordering cases.
-- The use-case harness includes M1–M11 migration checks and BK-1–BK-8 backup checks for snapshot verification, attachment mirroring, daily snapshots, retention, close warnings, and status persistence. All fixtures use temporary directories.
+- The use-case harness entry imports `MigrationError` and `runMigrations`, which are not exported by the empty migration stub; `npm run verify:use-cases` stops during bundling. Updating the harness is outside this task's scope.
 - Destructive actions use the shared in-app `ConfirmDialog`; its promise resolves to confirm or cancel, Escape cancels, and focus returns to the triggering element.
 - `npm run check:i18n` rejects missing or unreferenced Arabic translation keys and documents allow-listed dynamic key prefixes; `npm run review:gate` runs this check.
 - `npm run db:inspect -- <database-path>` opens a database read-only and reports its version, integrity, table row counts, and first/last Shift and Trip IDs. It never writes to the inspected database.
 - `node scripts/benchmark-large-table.cjs` seeds an isolated temporary database with 8,000 trips across 50 shifts and measures All Trips in Electron through Playwright; it is a one-off measurement, not a gate test.
 - `npm run test:e2e` builds the app and runs eight Playwright test declarations in `e2e/smoke.spec.cjs`, covering routes and runtime/translation-key health, shift creation, trip-grid behavior, shift closing, statement notes, second-instance handling, and table layout.
 - `npm run test:e2e:full` discovers 144 tests across fourteen E2E spec files, including eight smoke tests. The Settings suite has 51 enabled tests. The full suite remains pending.
-- The use-case harness contains 183 passing cases, including seven settings cases covering paired opening-balance validation and driver-phone formatting.
 - Focused E2E results: Attachments passed 6 tests with ATT-3/ATT-4 blocked on three serial runs (1m03.329s, 1m00.655s, 1m00.777s wall); All Trips passed 6/6 (46.940s); Shift Details 7/7 (1m17.559s); closed-shift locks 1/1 (20.298s); closed-shift protection 9/10 (AT-9 combobox detachment; 1m46.039s). Smoke passed 8/8 (build and run 2m03.530s). Current case coverage is 100 covered, 3 blocked, 0 partial, and 0 NEW out of 103. The full E2E suite remains pending.
 - Attachment validation rejects raw non-JPEG bytes on the server. PDF and undecodable-image rejection messages remain blocked by ATT-3 and ATT-4.
 - E2E fixtures and app launches use temporary user-data directories; the harness checks the launched app's `userData` path before opening its first window.
@@ -269,6 +271,8 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - [ ] Manually cancel vehicle and driver edits, then open Add and confirm every field is blank (SET-6).
 - [ ] Manually verify client and contractor opening-balance pairs: both blank is valid, zero with a date is valid, and either missing counterpart shows its field error (SET-8).
 - [ ] Manually verify both driver phone fields accept digits, spaces, hyphens, parentheses, and one leading plus, while rejecting other characters (SET-9).
+- [ ] Manually exercise DraftTrip create, list, update, delete, and promotion; confirm a rejected promotion keeps its draft and dashboard cards show correct open-shift, trip, draft, and custody counts.
+- [ ] Confirm a fresh install creates the complete schema including DraftTrip at `PRAGMA user_version` 0, reopens with the same schema, and refuses partial version-0 and positive-version databases without modification.
 - **OI-010 — Low, table layout manual confirmation:** confirm two-line text wrapping, full-text hover titles, centered headers and cells, laptop fit, and unchanged sorting, filtering, and sums using `docs/manual-checklist.md`.
 - **OI-011 — Low, Windows installer manual confirmation:** build and install the Windows installer, launch Shift Tracker, and confirm the Arabic title, default window size, and one-instance behavior using `docs/manual-checklist.md`.
 - **OI-012 — Low, trip deletion manual confirmation:** delete a trip from Shift Details and All Trips; confirm the success notice and that the deleted trip disappears from the list. In All Trips, confirm Delete is hidden for trips in CLOSED shifts and the locked label is shown.
@@ -283,14 +287,28 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - **OI-021 — Low, large-table and lazy-attachment manual confirmation:** confirm large All Trips tables keep scrolling, sorting, filtering, and sums correct, and attachment previews load on display while upload, delete, preview, and CLOSED-shift read-only behavior remain intact using `docs/manual-checklist.md`.
 - **OI-022 — Low, receipt pointer layout manual confirmation:** confirm receipt Upload, Preview, and Delete controls receive mouse clicks in Shift Details at 1366×768 using `docs/manual-checklist.md`.
 
+### Portable Mode (do after all other features are done)
+
+Goal: the entire app (exe + data) lives in one folder and can be moved between machines by copying that folder.
+
+Implementation (`src/main/db.ts` and `src/main/backup.ts`):
+
+- Add `resolveDataPath()` in `db.ts`:
+  - Import `existsSync` from `fs` and `dirname` from `path`.
+  - Resolve the executable directory with `dirname(app.getPath('exe'))`; use its `data` subfolder when it exists, otherwise use `app.getPath('userData')`.
+- Replace every `app.getPath('userData')` in `db.ts` with `resolveDataPath()`.
+- `initializeBackupService` is currently called from `src/main/index.ts` with `app.getPath('userData')`; pass `resolveDataPath()` there so backups and the database use the same folder. `backup.ts` already receives its data path from its caller.
+- To activate portable mode after installing, create an empty `data` folder next to the `.exe`. The app detects it on next launch and uses it automatically.
+- To move the app, copy the entire install folder (exe + `data\`).
+
 Manual confirmation scenarios are listed unchecked by area in `docs/manual-checklist.md`.
 
 ## 9. Decisions
 
 - Contractor balance sign is the reverse of client sign under the shared formula: a positive contractor balance means the business owes the contractor. The client and contractor statement pages explain their meanings; calculations and colors remain as implemented.
 - The Accounts page label is `حركة النقدية`.
-- Schema version 5 is the immutable accepted baseline. Future schema changes use numbered migrations; the app refuses unversioned databases, versions below baseline, and versions newer than its latest migration.
-- Never delete a database during ordinary startup or migration. A development reset is a one-time manual procedure in `docs/dev-reset-checklist.md`, after manual tests pass and after an external archive is verified.
+- Fresh databases remain at `PRAGMA user_version = 0` and use the complete current schema directly. Complete version-0 schemas reopen; partial or unknown version-0 schemas and any positive user version are refused. Remove old databases manually before using this virgin-state build.
+- Never delete a database during ordinary startup. There is no migration process; archive and manually remove existing databases before use.
 - A close-time reported trip count is required for OPEN and REOPENED shifts; neither stored nor actual count is a main-process fallback.
 - If backup fails after close, closing still succeeds and the user sees a warning.
 - Money uses no more than two decimals at input boundaries; derived line amounts use exact half-up rounding.

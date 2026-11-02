@@ -1,9 +1,8 @@
 import Database from 'better-sqlite3'
 import { app, dialog } from 'electron'
 import { join } from 'path'
-import { MigrationError, migrations, runMigrations } from './migrations'
 
-export const CURRENT_VERSION = 5
+export const CURRENT_VERSION = 0
 
 export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS TripIdCounter (
@@ -173,6 +172,27 @@ CREATE TABLE IF NOT EXISTS Attachment (
 
 CREATE INDEX IF NOT EXISTS idx_attachment_entity ON Attachment (entity_type, entity_id);
 
+CREATE TABLE IF NOT EXISTS DraftTrip (
+  id               INTEGER PRIMARY KEY AUTOINCREMENT,
+  vehicle_no       INTEGER NOT NULL REFERENCES Vehicle(vehicle_no),
+  trip_date        TEXT NOT NULL CHECK (
+    length(trip_date) = 10 AND
+    trip_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+  ),
+  time_of_day      TEXT CHECK (time_of_day IN ('MORNING','EVENING')),
+  crusher_id       INTEGER REFERENCES Crusher(id),
+  client_id        INTEGER REFERENCES Client(id),
+  cubic            REAL CHECK (cubic IS NULL OR (cubic > 0 AND cubic < 1e308)),
+  custody_amount   INTEGER CHECK (custody_amount IS NULL OR custody_amount > 0),
+  custody_time     TEXT,
+  receipt_note     TEXT,
+  notes            TEXT,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_draft_trip_vehicle
+  ON DraftTrip (vehicle_no);
+
 CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_crusher_receipt
 ON Trip (crusher_id, crusher_receipt_no)
 WHERE crusher_receipt_no IS NOT NULL;
@@ -243,13 +263,8 @@ let db: Database.Database
 const DATABASE_MESSAGES = {
   title: 'خطأ في قاعدة البيانات',
   openFailed: 'تعذر فتح قاعدة البيانات.',
-  unavailable: 'غير متاح',
   archiveRequired:
-    'إصدار قاعدة البيانات غير مدعوم. أرشف مجلد البيانات بالكامل قبل أي محاولة أخرى.\n\nالمسار: {path}\nالإصدار الموجود: {version}\nالإصدار المدعوم حتى: {latest}',
-  migrationFailed:
-    'تعذر تحديث قاعدة البيانات. بقيت البيانات عند آخر إصدار مكتمل.\n\nالمسار: {path}\nالإصدار الموجود: {version}\nالنسخة الاحتياطية: {backupPath}\nالتفاصيل: {details}',
-  backupFailed:
-    'تعذر إنشاء نسخة احتياطية موثوقة قبل تحديث قاعدة البيانات؛ لم يبدأ التحديث.\n\nالمسار: {path}\nالإصدار الموجود: {version}\nمسار النسخة الاحتياطية: {backupPath}\nالتفاصيل: {details}'
+    'إصدار قاعدة البيانات غير مدعوم. أرشف مجلد البيانات بالكامل قبل أي محاولة أخرى.\n\nالمسار: {path}\nالإصدار الموجود: {version}\nالإصدار المدعوم حتى: {latest}'
 }
 
 function userTables(database: Database.Database): string[] {
@@ -263,6 +278,35 @@ function userTables(database: Database.Database): string[] {
   return rows.map((row) => row.name)
 }
 
+interface SchemaObject {
+  type: string
+  name: string
+  tbl_name: string
+  sql: string | null
+}
+
+function schemaObjects(database: Database.Database): SchemaObject[] {
+  return database
+    .prepare(
+      `SELECT type, name, tbl_name, sql FROM sqlite_master
+       WHERE name NOT LIKE 'sqlite_%'
+       ORDER BY type, name`
+    )
+    .all() as SchemaObject[]
+}
+
+function hasCurrentSchema(database: Database.Database): boolean {
+  const expectedDatabase = new Database(':memory:')
+  try {
+    expectedDatabase.exec(SCHEMA)
+    return (
+      JSON.stringify(schemaObjects(database)) === JSON.stringify(schemaObjects(expectedDatabase))
+    )
+  } finally {
+    expectedDatabase.close()
+  }
+}
+
 function formatMessage(
   template: string,
   values: Record<string, string | number | undefined>
@@ -273,34 +317,38 @@ function formatMessage(
 export function initDatabase(): Database.Database {
   const userDataPath = app.getPath('userData')
   const dbPath = join(userDataPath, 'shift-tracker.db')
-  const latestVersion = migrations.at(-1)?.version ?? CURRENT_VERSION
 
   try {
     db = new Database(dbPath)
+    db.pragma('foreign_keys = ON')
     const currentVersion = db.pragma('user_version', { simple: true }) as number
 
-    if (currentVersion === 0) {
-      const existingTables = userTables(db)
-      if (existingTables.length > 0) {
-        throw new MigrationError(
-          'UNVERSIONED_DATABASE',
-          `Unversioned database contains user tables: ${existingTables.join(', ')}`,
-          currentVersion
-        )
-      }
-      db.pragma('foreign_keys = ON')
-      db.transaction(() => {
-        db.exec(SCHEMA)
-        db.pragma(`user_version = ${CURRENT_VERSION}`)
-      })()
-    } else {
-      db.pragma('foreign_keys = ON')
+    if (currentVersion > 0) {
+      dialog.showErrorBox(
+        DATABASE_MESSAGES.title,
+        formatMessage(DATABASE_MESSAGES.archiveRequired, {
+          path: userDataPath,
+          version: currentVersion,
+          latest: 0
+        })
+      )
+      app.quit()
+      throw new Error('old versioned database — quitting')
     }
 
-    runMigrations(db, migrations, {
-      baselineVersion: CURRENT_VERSION,
-      backupDirectory: join(userDataPath, 'backups')
-    })
+    const existingTables = userTables(db)
+    if (existingTables.length > 0 && !hasCurrentSchema(db)) {
+      dialog.showErrorBox(DATABASE_MESSAGES.title, DATABASE_MESSAGES.openFailed)
+      app.quit()
+      throw new Error('unversioned database with existing tables — quitting')
+    }
+
+    if (existingTables.length === 0) {
+      db.transaction(() => {
+        db.exec(SCHEMA)
+      })()
+    }
+
     db.pragma('journal_mode = WAL')
     db.pragma('foreign_keys = ON')
 
@@ -310,38 +358,6 @@ export function initDatabase(): Database.Database {
   } catch (err) {
     console.error('[db] initDatabase failed:', err)
     if (db?.open) db.close()
-
-    if (err instanceof MigrationError) {
-      const message =
-        err.code === 'UNVERSIONED_DATABASE' ||
-        err.code === 'UNSUPPORTED_OLD_VERSION' ||
-        err.code === 'NEWER_DATABASE_VERSION'
-          ? formatMessage(DATABASE_MESSAGES.archiveRequired, {
-              path: userDataPath,
-              version: err.version,
-              latest: latestVersion
-            })
-          : err.code === 'BACKUP_FAILED'
-            ? formatMessage(DATABASE_MESSAGES.backupFailed, {
-                path: userDataPath,
-                version: err.version,
-                backupPath: err.backupPath,
-                details: err.cause instanceof Error ? err.cause.message : err.message
-              })
-            : formatMessage(DATABASE_MESSAGES.migrationFailed, {
-                path: userDataPath,
-                version: err.version,
-                backupPath: err.backupPath ?? DATABASE_MESSAGES.unavailable,
-                details: err.cause instanceof Error ? err.cause.message : err.message
-              })
-      dialog.showErrorBox(DATABASE_MESSAGES.title, message)
-    } else {
-      dialog.showErrorBox(
-        DATABASE_MESSAGES.title,
-        `${DATABASE_MESSAGES.openFailed}\n\n${err instanceof Error ? err.message : String(err)}`
-      )
-    }
-    app.quit()
     throw err
   }
 }

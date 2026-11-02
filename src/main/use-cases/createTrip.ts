@@ -111,6 +111,10 @@ const tripSchema = z
     }
   })
 
+export const createTripInputSchema = tripSchema.extend({
+  shiftId: z.string()
+})
+
 function normalizeTripIssue(issue: z.ZodIssue): { field: string; message: string } {
   const field = String(issue.path[0] ?? 'root')
   if (field === 'tripDate') return { field, message: issue.message }
@@ -133,9 +137,18 @@ export interface CreateTripInput extends TripFieldsInput {
 }
 
 export function createTrip(input: CreateTripInput): UseCaseResult<{ id: string }> {
+  return createTripInTransaction(input)
+}
+
+export function createTripInTransaction(input: CreateTripInput): UseCaseResult<{ id: string }> {
   const errors: { field: string; message: string }[] = []
 
-  if (!input.shiftId?.trim()) errors.push({ field: 'shiftId', message: 'الوردية مطلوبة' })
+  if (typeof input !== 'object' || input === null) {
+    return { ok: false, errors: [{ field: 'shiftId', message: 'الوردية مطلوبة' }] }
+  }
+  if (typeof input.shiftId !== 'string' || !input.shiftId.trim()) {
+    errors.push({ field: 'shiftId', message: 'الوردية مطلوبة' })
+  }
   errors.push(...validateTripFields(input))
 
   if (errors.length > 0) return { ok: false, errors }

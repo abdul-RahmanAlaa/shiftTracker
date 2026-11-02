@@ -54,6 +54,14 @@ import {
 } from './use-cases/createMaterialType'
 import { getClientStatement, getContractorStatement } from './use-cases/getStatement'
 import { getSuggestedTripPrices } from './use-cases/suggestTripPrices'
+import {
+  createDraftTrip,
+  deleteDraftTrip,
+  listDraftTrips,
+  updateDraftTrip
+} from './use-cases/draftTrip'
+import { promoteDraftTrip } from './use-cases/promoteDraftTrip'
+import { getDashboard } from './use-cases/getDashboard'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -181,6 +189,12 @@ app.whenReady().then(() => {
   registerIpcHandler('vehicle:update', (_event, input) => updateVehicle(input))
   registerIpcHandler('vehicle:delete', (_event, input) => deleteVehicle(input))
   registerIpcHandler('trip:create', (_event, input) => createTrip(input))
+  registerIpcHandler('draft-trip:create', (_event, input) => createDraftTrip(input))
+  registerIpcHandler('draft-trip:update', (_event, input) => updateDraftTrip(input))
+  registerIpcHandler('draft-trip:delete', (_event, input) => deleteDraftTrip(input))
+  registerIpcHandler('draft-trip:list', () => listDraftTrips())
+  registerIpcHandler('draft-trip:promote', (_event, input) => promoteDraftTrip(input))
+  registerIpcHandler('dashboard:get', () => getDashboard())
   registerIpcHandler('trip:suggestPrices', (_event, input) => getSuggestedTripPrices(input))
   registerIpcHandler('trip:listByShift', (_event, input) => listTripsByShift(input.shiftId))
   registerIpcHandler('trip:listLocations', () => listTripLocations())

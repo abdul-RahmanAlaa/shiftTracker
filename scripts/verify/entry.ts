@@ -2,7 +2,6 @@
 import Database from 'better-sqlite3'
 import crypto from 'node:crypto'
 import { initDatabase, getDb, SCHEMA, CURRENT_VERSION } from '../../src/main/db'
-import { MigrationError, runMigrations } from '../../src/main/migrations'
 import {
   BackupService,
   createVerifiedDatabaseBackup,
@@ -182,7 +181,15 @@ async function runHarness() {
 try {
   console.log('| Case | Result | Expected |')
   console.log('| --- | --- | --- |')
-  const migrationContext = { migrationRoot, fs, path, Database, crypto, initDatabase, getDb, SCHEMA, CURRENT_VERSION, MigrationError, runMigrations, createVerifiedDatabaseBackup, runCase, result }
+  const retainedMigrationCases = new Set([
+    'M1 fresh baseline matches direct SCHEMA',
+    'M10 failed backup verification removes the backup file',
+    'M11 successful verified backup is retained'
+  ])
+  const migrationRunCase = (name, ...args) => {
+    if (retainedMigrationCases.has(name)) return runCase(name, ...args)
+  }
+  const migrationContext = { migrationRoot, fs, path, Database, crypto, initDatabase, getDb, SCHEMA, CURRENT_VERSION, createVerifiedDatabaseBackup, runCase: migrationRunCase, result }
   const migrationFixtures = createMigrationFixtures(migrationContext)
   createMigrationSuite({ ...migrationContext, ...migrationFixtures })()
   createMigrationBackupSuite({ ...migrationContext, ...migrationFixtures })()

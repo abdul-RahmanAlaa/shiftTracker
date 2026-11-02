@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { CreateShiftInput } from '../main/use-cases/createShift'
 import type { CloseShiftInput, CloseShiftResult } from '../main/use-cases/closeShift'
+import type {
+  CreateDraftTripInput,
+  UpdateDraftTripInput
+} from '../main/repository/draftTripRepository'
+import type { CreateTripInput } from '../main/use-cases/createTrip'
 interface FailedUseCaseResult {
   ok: false
   errors: { field: string; message: string }[]
@@ -104,6 +109,13 @@ const api = {
     clientReceiptNo?: string
     notes?: string
   }) => invoke('trip:create', input),
+  createDraftTrip: (input: CreateDraftTripInput) => invoke('draft-trip:create', input),
+  updateDraftTrip: (input: UpdateDraftTripInput) => invoke('draft-trip:update', input),
+  deleteDraftTrip: (input: { id: number }) => invoke('draft-trip:delete', input),
+  listDraftTrips: () => invoke('draft-trip:list'),
+  promoteDraftTrip: (input: { draftId: number } & CreateTripInput) =>
+    invoke('draft-trip:promote', input),
+  getDashboard: () => invoke('dashboard:get'),
   getSuggestedTripPrices: (input: {
     clientId: number
     crusherId: number

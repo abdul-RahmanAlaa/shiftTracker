@@ -1,4 +1,13 @@
-export {}
+import type {
+  CreateDraftTripInput,
+  DraftTripListRow,
+  UpdateDraftTripInput
+} from '../main/repository/draftTripRepository'
+import type { OpenShiftCard } from '../main/repository/dashboardRepository'
+import type { CreateTripInput } from '../main/use-cases/createTrip'
+
+export type { DraftTripListRow } from '../main/repository/draftTripRepository'
+export type { OpenShiftCard } from '../main/repository/dashboardRepository'
 
 interface UseCaseResult<T> {
   ok: true
@@ -123,28 +132,6 @@ interface ContractorAccount {
   openingBalance: number
   balance: number
   entries: LedgerRow[]
-}
-
-interface CreateTripInput {
-  shiftId: string
-  tripDate: string
-  crusherCubic: number
-  clientCubicReported: number
-  fineAmount?: number
-  fineReason?: string
-  location?: string
-  crusherId: number
-  stonePrice: number
-  crusherReceiptStatus: 'PROVIDED' | 'CONFIRMED_MISSING' | 'UNKNOWN'
-  crusherReceiptNo?: number
-  clientId: number
-  transportPrice: number
-  clientPrice: number
-  materialTypeId: number
-  recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
-  recipientName?: string
-  clientReceiptNo?: string
-  notes?: string
 }
 
 interface SuggestedTripPrices {
@@ -385,6 +372,20 @@ interface Api {
   createTrip: (
     input: CreateTripInput
   ) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
+  createDraftTrip: (
+    input: CreateDraftTripInput
+  ) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  updateDraftTrip: (
+    input: UpdateDraftTripInput
+  ) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  deleteDraftTrip: (input: {
+    id: number
+  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  listDraftTrips: () => Promise<UseCaseResult<DraftTripListRow[]> | FailedUseCaseResult>
+  promoteDraftTrip: (
+    input: { draftId: number } & CreateTripInput
+  ) => Promise<UseCaseResult<{ tripId: string }> | FailedUseCaseResult>
+  getDashboard: () => Promise<UseCaseResult<{ openShifts: OpenShiftCard[] }> | FailedUseCaseResult>
   getSuggestedTripPrices: (input: {
     clientId: number
     crusherId: number
