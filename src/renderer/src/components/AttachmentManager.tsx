@@ -426,7 +426,7 @@ export function AttachmentManager({
       />
       {isLoading && <p className="text-sm text-muted-foreground">{t('common.loading')}</p>}
       {entityType === 'TRIP' ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4">
           {tripKinds.map((kind) => {
             const kindAttachments = attachments.filter((attachment) => attachment.kind === kind)
             const label = kindLabel(kind)

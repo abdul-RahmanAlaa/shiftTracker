@@ -135,7 +135,7 @@ SD-3 asserts the edited row values and persisted use-case data. The Shift Detail
 | ATT-7 | A closing sheet cannot be added to a CLOSED shift | Open the close dialog and its shift select; call addAttachment for a CLOSED shift through the API | CLOSED shifts are not offered in the dialog; the server rejects the call; attachments are unchanged | `two-shifts`   | P0  | closed-shift-locks      |
 | ATT-8 | Server rejects attachment changes on CLOSED shift | Close the shift while the view is open, then try to add                                           | Error notice, nothing stored                                                                        | `with-trip`    | P0  | `closed-shift-more.spec.cjs` |
 | ATT-9 | PNG upload is converted to JPEG                   | Upload a generated PNG, crop, and save                                                             | Cropper opens; stored file begins with the JPEG signature; server rejects raw PNG/PDF bytes           | `with-trip`    | P1  | `attachments.spec.cjs` |
-| ATT-10 | Receipt delete pointer interaction                | Click Delete at 1366×768 or 1600×900                                                               | Client receipt section intercepts the crusher Delete button at both sizes                              | `with-trip`    | P1  | BLOCKED BUG-9 (Medium)  |
+| ATT-10 | Receipt delete pointer interaction                | Click Delete at 1366×768; check receipt button hit targets at 1366×768 and 1024×640                | Mouse clicks reach the intended receipt controls with both receipts attached                           | `with-trip`    | P1  | `attachments.spec.cjs` |
 
 ## 7. Settings (`/settings`)
 
@@ -225,7 +225,7 @@ Run SET-1 through SET-6 once per entity (6 parametrized cases): vehicle, driver,
 | Runtime       | 3                                       |
 | **Total**     | **103**                                 |
 
-The specs cover 99 cases, with 4 blocked and none partial or NEW, out of 103 documented cases. The blocked cases are NAV-2 (BUG-10), ATT-3 (BUG-7), ATT-4 (BUG-8), and ATT-10 (BUG-9). Build the `P0` cases first.
+The specs cover 100 cases, with 3 blocked and none partial or NEW, out of 103 documented cases. The blocked cases are NAV-2 (BUG-10), ATT-3 (BUG-7), and ATT-4 (BUG-8). Build the `P0` cases first.
 
 ## Suggested build order
 

@@ -133,9 +133,8 @@ testWithApp(
 
     await waitForThumbnail(section, label)
     const deleteButton = section.getByRole('button', { name: text('common.delete'), exact: true })
-    await deleteButton.focus()
     const dialogPromise = nextDialog(page, 'accept')
-    await deleteButton.press('Enter')
+    await deleteButton.click()
     expect(await dialogPromise).toBe(text('receiptPhoto.confirmDelete', { label }))
     await expect(deleteButton).toHaveCount(0)
     await expect(
@@ -247,8 +246,7 @@ testWithApp.fixme(
   }
 )
 
-// BUG-9: At 1366x768 the receipt section overlays the delete button and blocks pointer clicks.
-testWithApp.fixme('ATT-10 receipt delete button is reachable by pointer', async ({ launchApp }) => {
+testWithApp('ATT-10 receipt delete button is reachable by pointer', async ({ launchApp }) => {
   const app = await launchApp('with-trip')
   const { page, seedData } = app
   const label = text('receiptPhoto.labels.crusherReceipt')
@@ -261,6 +259,74 @@ testWithApp.fixme('ATT-10 receipt delete button is reachable by pointer', async 
   expect(await dialogPromise).toBe(text('receiptPhoto.confirmDelete', { label }))
   await expect(deleteButton).toHaveCount(0)
 })
+
+testWithApp(
+  'ATT-10 receipt controls receive pointer hits at supported window sizes',
+  async ({ launchApp }) => {
+    const app = await launchApp('with-trip')
+    const { page, seedData } = app
+    const clientReceipt = await callApi(page, 'addAttachment', {
+      entityType: 'TRIP',
+      entityId: seedData.trip.id,
+      kind: 'CLIENT_RECEIPT',
+      imageBase64: (await makeJpeg(page, 320, 180)).toString('base64')
+    })
+    expect(clientReceipt.ok).toBe(true)
+    if (!clientReceipt.ok) throw new Error('Could not seed the client receipt for layout coverage')
+
+    const row = await openShiftTrip(page, seedData)
+    const labels = [
+      text('receiptPhoto.labels.crusherReceipt'),
+      text('receiptPhoto.labels.clientReceipt')
+    ]
+    const sections = labels.map((label) => attachmentSection(row, label))
+    for (let index = 0; index < sections.length; index += 1) {
+      await waitForThumbnail(sections[index], labels[index])
+    }
+
+    for (const viewport of [
+      { width: 1366, height: 768 },
+      { width: 1024, height: 640 }
+    ]) {
+      await page.setViewportSize(viewport)
+      for (let index = 0; index < sections.length; index += 1) {
+        const label = labels[index]
+        const section = sections[index]
+        const buttons = [
+          section.getByRole('button', {
+            name: text('receiptPhoto.preview', { label }),
+            exact: true
+          }),
+          section.getByRole('button', { name: text('common.delete'), exact: true })
+        ]
+        for (const button of buttons) {
+          await button.evaluate((element) => element.scrollIntoView({ block: 'end' }))
+          await button.evaluate((element) => {
+            const tableContainer = element.closest('[data-slot="table-container"]')
+            const tableHeader = element
+              .closest('[data-slot="table"]')
+              ?.querySelector('[data-slot="table-header"]')
+            if (!tableContainer || !tableHeader) return
+
+            const bounds = element.getBoundingClientRect()
+            const headerBottom = tableHeader.getBoundingClientRect().bottom
+            const centerY = bounds.top + bounds.height / 2
+            if (centerY < headerBottom) tableContainer.scrollTop -= headerBottom - centerY + 1
+          })
+          const receivesPointer = await button.evaluate((element) => {
+            const bounds = element.getBoundingClientRect()
+            const hitTarget = document.elementFromPoint(
+              bounds.left + bounds.width / 2,
+              bounds.top + bounds.height / 2
+            )
+            return hitTarget === element || (hitTarget !== null && element.contains(hitTarget))
+          })
+          expect(receivesPointer, `${label} button should receive a center pointer hit`).toBe(true)
+        }
+      }
+    }
+  }
+)
 
 testWithApp('ATT-9 PNG is cropped as an image and saved as JPEG', async ({ launchApp }) => {
   const app = await launchApp('with-trip')
