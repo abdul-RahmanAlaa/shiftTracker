@@ -2,7 +2,6 @@ import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-rout
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BookOpen, Calculator, ClipboardList, List, Settings, Truck } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { FloatingWindowsProvider } from '@/components/FloatingWindowsProvider'
 import { ConfirmProvider } from '@/components/ConfirmDialog'
 import { cn } from '@/lib/utils'
@@ -36,21 +35,20 @@ function AppLayout(): React.JSX.Element {
         </div>
         <nav className="app-navbar-nav" aria-label={t('app.navigationLabel')}>
           {navigationItems.map(({ to, label, icon: Icon }) => (
-            <Button key={to} asChild variant="ghost" className="w-auto justify-start gap-2">
-              <NavLink
-                to={to}
-                end={to === '/'}
-                className={({ isActive }) =>
-                  cn(
-                    'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground',
-                    isActive && 'bg-secondary text-secondary-foreground'
-                  )
-                }
-              >
-                <Icon className="h-4 w-4" />
-                <span>{t(label)}</span>
-              </NavLink>
-            </Button>
+            <NavLink
+              key={to}
+              to={to}
+              end={to === '/'}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground',
+                  isActive && 'bg-secondary text-secondary-foreground'
+                )
+              }
+            >
+              <Icon className="h-4 w-4" />
+              <span>{t(label)}</span>
+            </NavLink>
           ))}
         </nav>
       </header>

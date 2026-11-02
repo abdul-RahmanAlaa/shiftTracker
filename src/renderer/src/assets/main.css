@@ -119,7 +119,7 @@ code {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  padding: 32px;
+  padding: 16px;
 }
 
 .settings-layout {
@@ -145,6 +145,7 @@ code {
   min-height: 0;
   flex: 1;
   overflow-y: auto;
+  margin-bottom: 32px;
 }
 
 @media (max-width: 900px) {
