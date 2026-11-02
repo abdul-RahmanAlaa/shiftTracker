@@ -78,6 +78,7 @@ All scenarios remain unchecked until confirmed by the user.
 - [ ] Inspect `ShiftReopenLog` and confirm its latest `closed_again_at` timestamp.
 - [ ] Confirm every receipt and recipient status value is labeled correctly in trip details.
 - [ ] In Shift Details at 1366×768, click with the mouse each receipt section's Upload button while empty; after both receipts are attached, click each Preview and Delete button with the mouse.
+- [ ] Scrollbars look consistent in dark and light theme: Settings tables, All Trips, dialogs, select lists; hover and drag the thumb; no arrow buttons; table headers stay aligned.
 
 ## Accounting, statements, and data
 

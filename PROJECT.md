@@ -47,6 +47,7 @@
 - `src/main/ipcWrapper.ts` converts thrown or rejected IPC handlers into the standard `_form` error result and logs the original error. Preload invocation rejections use the same failure result.
 - The renderer shell fills the window; the navigation bar stays visible while table pages scroll inside their table viewport. Navigation links expose `aria-current` for the active route, but the active visual highlight is not applied.
 - `DataTable` provides internal scrolling with a sticky header. Headers and cells are centered. Text columns wrap, break long words, clamp to two lines, and expose their full displayed text in a hover title; columns without metadata use this behavior.
+- Scrollbars are styled globally in `src/renderer/src/assets/main.css` using theme foreground tokens.
 - Tables with more than 200 filtered rows virtualize mounted rows. Sorting and distinct-value filtering still cover all loaded rows, while selection and sums cover all filtered selected rows, not only mounted rows.
 - Numeric, identifier, date, and action columns set `meta: { nowrap: true }` to stay on one line with tabular numerals.
 - `AttachmentManager` fetches an image data URI only when its thumbnail enters view. A shared three-request limit bounds attachment-photo IPC reads, and stale component requests cannot update replaced views.
