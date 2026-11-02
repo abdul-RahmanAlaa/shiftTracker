@@ -7,7 +7,6 @@ out
 scripts/.verify-closed-shift-use-cases.bundle.cjs
 test-results
 playwright-report
-status-report.md
 last-task.md
 task-notes.md
 scripts/last-harness-output.txt
