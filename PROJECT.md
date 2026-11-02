@@ -39,12 +39,13 @@
 
 - `src/main/index.ts` registers IPC handlers; `src/preload/index.ts` exposes `window.api`, and `src/preload/index.d.ts` types it.
 - `trip:suggestPrices` validates the client, crusher, optional material type, and optional location, then reads independent price suggestions without writing data. Stone and client prices use material-specific history or their entity's initial price; transport uses client history with an exact-location preference.
+- Material type is required to save a trip (grid, single-trip form, server); it is optional only as an input for price suggestions.
 - Electron requests a single-instance lock for the current `userData` path before startup opens the database. A second launch exits silently; the first window is restored, shown, and focused when available.
 - The renderer window uses context isolation and sandboxing without Node integration. Popup requests are denied, and main-frame navigation and redirects are limited to the renderer entry URL.
 - The window opens at 1366×768 with a 1024×640 minimum, stays hidden until `ready-to-show`, and uses the existing installer app ID `com.electron.app` as its Windows App User Model ID.
 - The HTML document declares Arabic RTL metadata and receives its title from the Arabic app subtitle at build time. Windows/NSIS is the configured installer target; `appId` remains `com.electron.app`.
 - `src/main/ipcWrapper.ts` converts thrown or rejected IPC handlers into the standard `_form` error result and logs the original error. Preload invocation rejections use the same failure result.
-- The renderer shell fills the window; the navigation bar stays visible while table pages scroll inside their table viewport.
+- The renderer shell fills the window; the navigation bar stays visible while table pages scroll inside their table viewport. Navigation links expose `aria-current` for the active route, but the active visual highlight is not applied.
 - `DataTable` provides internal scrolling with a sticky header. Headers and cells are centered. Text columns wrap, break long words, clamp to two lines, and expose their full displayed text in a hover title; columns without metadata use this behavior.
 - Tables with more than 200 filtered rows virtualize mounted rows. Sorting and distinct-value filtering still cover all loaded rows, while selection and sums cover all filtered selected rows, not only mounted rows.
 - Numeric, identifier, date, and action columns set `meta: { nowrap: true }` to stay on one line with tabular numerals.
@@ -236,7 +237,7 @@ Trip history ordering uses the greatest trip date, then the greatest numeric tri
 | `/statements`      | `StatementsPage` — client and contractor statements                                                                  |
 | `/settings`        | `SettingsPage` — vehicles, drivers, contractors, crushers, clients, material types                                   |
 
-The wildcard route redirects to `/`. Every page has a visible title; the active top-navigation link is highlighted and marked with `aria-current="page"`. Shared renderer components include `DataTable` (centered cells, text wrapping, nowrap column metadata, an internal scroll viewport, and a sticky header), `TripEntryGrid`, `AttachmentManager`, `CreateShiftForm`, `LedgerEntryForm`, `LedgerEntryDialog`, `TripDetailsContent`, `LedgerEntryDetailsContent`, `ShiftBreadcrumb`, `SubmitButton`, and the floating-window provider/components.
+The wildcard route redirects to `/`. Every page has a visible title; the active top-navigation link is marked with `aria-current="page"`, but its visual highlight is not applied. Shared renderer components include `DataTable` (centered cells, text wrapping, nowrap column metadata, an internal scroll viewport, and a sticky header), `TripEntryGrid`, `AttachmentManager`, `CreateShiftForm`, `LedgerEntryForm`, `LedgerEntryDialog`, `TripDetailsContent`, `LedgerEntryDetailsContent`, `ShiftBreadcrumb`, `SubmitButton`, and the floating-window provider/components.
 
 ## 7. Verification
 
@@ -248,10 +249,10 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - `npm run db:inspect -- <database-path>` opens a database read-only and reports its version, integrity, table row counts, and first/last Shift and Trip IDs. It never writes to the inspected database.
 - `node scripts/benchmark-large-table.cjs` seeds an isolated temporary database with 8,000 trips across 50 shifts and measures All Trips in Electron through Playwright; it is a one-off measurement, not a gate test.
 - `npm run test:e2e` builds the app and runs eight Playwright test declarations in `e2e/smoke.spec.cjs`, covering routes and runtime/translation-key health, shift creation, trip-grid behavior, shift closing, statement notes, second-instance handling, and table layout.
-- `npm run test:e2e:full` discovers 135 tests across thirteen E2E spec files, including eight smoke tests. The Settings suite has 51 tests and no `fixme` tests. The full suite remains pending.
+- `npm run test:e2e:full` discovers 143 tests across fourteen E2E spec files, including eight smoke tests. The Settings suite has 51 enabled tests. The full suite remains pending.
 - The use-case harness contains 183 passing cases, including seven settings cases covering paired opening-balance validation and driver-phone formatting.
-- Latest focused E2E validation: Add Trip 14/14 passed on three runs (4m44.757s, 4m32.692s, 4m12.587s); Shift Details 7/7 passed on three runs (2m39.835s, 2m45.601s, 2m25.081s); All Trips 6/6 passed on three runs (2m25.230s, 2m11.982s, 1m44.410s); Attachments 4 passed with ATT-3, ATT-4, and ATT-10 blocked on three runs (2m45.803s, 2m01.476s, 1m42.251s). Smoke passed 8/8 in 3m24.909s. The full E2E suite remains pending.
-- Batch 6 findings: BUG-6 is a test/doc mismatch because Shift Details has row selection but no configured sum column; BUG-7 is the missing PDF upload error; BUG-8 is the missing error for undecodable JPEGs; BUG-9 is the delete-button pointer interception by its receipt section.
+- Focused E2E results: Add Trip 14/14 passed on three runs (4m44.757s, 4m32.692s, 4m12.587s); Shift Details 7/7 passed on three runs (2m39.835s, 2m45.601s, 2m25.081s); All Trips 6/6 passed on three runs (2m25.230s, 2m11.982s, 1m44.410s); shell-shared passed 7 tests with one blocked test on three runs (2m35.720s, 1m52.723s, 1m39.714s); Attachments passed 4 tests with three blocked tests in one run (2m36.057s wall); Accounts passed 10/10 (4m46.324s wall). Smoke passed 8/8 (Playwright 2.3m; app build about 56s; total 3m33.185s). Current case coverage is 99 covered, 4 blocked, 0 partial, and 0 NEW out of 103. The full E2E suite remains pending.
+- Attachment validation rejects raw non-JPEG bytes on the server. PDF and undecodable-image rejection messages are not visible; at 1366×768 and 1600×900 the client-receipt section intercepts pointer clicks on the crusher-receipt Delete button.
 - E2E fixtures and app launches use temporary user-data directories; the harness checks the launched app's `userData` path before opening its first window.
 - `npm run review:gate` runs diff check, typecheck, lint, the i18n check, and the use-case harness, then checks added diff lines for selected mechanical rules. `npm run review:gate:e2e` also runs Playwright. The gate does not use AI and writes `last-task.md`; the complete harness result table goes to ignored `scripts/last-harness-output.txt`.
 - Automated checks do not replace user confirmation in Electron. Only checklist items explicitly marked `[x]` were confirmed by the user; unchecked scenarios remain pending.
@@ -262,7 +263,6 @@ The wildcard route redirects to `/`. Every page has a visible title; the active 
 - **OI-002 — Medium, account and statement details:** filtered-table empty-state handling and duplicated client-payment notes need attention. Review `src/renderer/src/components/DataTable.tsx`, `src/renderer/src/pages/accounts/AccountTables.tsx`, and `src/main/repository/statementRepository.ts`.
 - **OI-007 — Low, Add Trip grid manual confirmation:** typing, paste, suggestions, keyboard behavior, server-error retention, driver switching, and laptop fit remain unchecked; scenarios are listed in `docs/manual-checklist.md`.
 - [ ] Manually confirm the Add Trip inline create-shift form: select a driver with no OPEN shift, confirm the form is inline, create the shift, and confirm the trip grid appears.
-- **OI-008 — Medium, E2E coverage:** expand automated coverage for the remaining 5 NEW and 1 PART cases in `docs/e2e-test-cases.md`, following `docs/e2e-coverage-plan.md`.
 - [ ] Manually verify Settings create, edit, delete, validation, and persistence for vehicles, drivers, contractors, crushers, clients, and material types; automated scenarios are in `e2e/settings.spec.cjs`.
 - [ ] Manually cancel vehicle and driver edits, then open Add and confirm every field is blank (SET-6).
 - [ ] Manually verify client and contractor opening-balance pairs: both blank is valid, zero with a date is valid, and either missing counterpart shows its field error (SET-8).

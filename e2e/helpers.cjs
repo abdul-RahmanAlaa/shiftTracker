@@ -353,7 +353,7 @@ const testWithApp = test.extend({
   ) => {
     let session
     let allocatedDirectory
-    const launch = async (mode) => {
+    const launch = async (mode, options = {}) => {
       const tempDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'shift-tracker-e2e-'))
       allocatedDirectory = tempDirectory
       const suffix = `${process.pid}${Date.now()}`
@@ -399,6 +399,7 @@ const testWithApp = test.extend({
         throw new Error(`Seed result missing:\n${seedRun.stdout}`)
       }
       const seedData = JSON.parse(seedLine.slice('E2E_SEED_RESULT='.length))
+      if (options.beforeLaunch) await options.beforeLaunch(tempDirectory)
       const application = await electron.launch({
         executablePath: electronPath,
         args: ['--user-data-dir=' + tempDirectory, root],

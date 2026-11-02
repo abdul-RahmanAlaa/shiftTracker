@@ -43,9 +43,9 @@ Closing a shift or reopening it inside a test goes through the UI. Seeds only bu
 | ID    | Scenario                           | Steps                                                            | Expected                                                                       | Seed        | Pri | Cov |
 | ----- | ---------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------- | --- | --- |
 | NAV-1 | All six routes render              | Visit every nav item                                             | Correct page title each time, no console errors, no raw translation keys       | `with-trip` | P1  | S1  |
-| NAV-2 | Active item highlight              | Click each nav item                                              | Only the clicked item has the active state                                     | `no-shift`  | P2  | NEW |
-| NAV-3 | Unknown route falls back           | Go to `#/does-not-exist`                                         | Redirects to Add Trip and shows its title                                      | `no-shift`  | P2  | NEW |
-| NAV-4 | Backup status indicator on startup | Launch with the backup folder healthy, then with `lastError` set | No warning when healthy; warning shown when `getBackupStatus` reports an error | `no-shift`  | P1  | NEW |
+| NAV-2 | Active item highlight              | Click each nav item                                              | Only the clicked link has `aria-current="page"` and receives the active visual highlight | `no-shift` | P2 | BLOCKED BUG-10 (Low) |
+| NAV-3 | Unknown route falls back           | Go to `#/does-not-exist`                                         | Redirects to Add Trip and shows its title                                      | `no-shift`  | P2  | `shell-shared.spec.cjs` |
+| NAV-4 | Backup status indicator on startup | Launch with a healthy backup path, then with `userData/backups` as a file | No warning when healthy; warning shown when the daily snapshot fails | `no-shift` | P1 | `shell-shared.spec.cjs` |
 
 ## 2. Add Trip (`/`)
 
@@ -128,14 +128,14 @@ SD-3 asserts the edited row values and persisted use-case data. The Shift Detail
 | ----- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | -------------- | --- | ----------------------- |
 | ATT-1 | Upload, crop, save a JPEG                         | Upload a generated JPEG, crop, save                                                               | Thumbnail listed, preview opens                                                                     | `with-trip`    | P1  | `attachments.spec.cjs` |
 | ATT-2 | Delete an attachment                              | Delete it, confirm                                                                                | Removed from the list, file system, and database                                                    | `with-trip`    | P1  | `attachments.spec.cjs` |
-| ATT-3 | Reject a non-image PDF                            | Choose a PDF in the attachment input                                                              | Visible error; no attachment is stored                                                              | `with-trip`    | P1  | BLOCKED BUG-7           |
-| ATT-4 | Corrupt image decoding                            | Upload a truncated JPEG and a JPEG header followed by random bytes                                 | Both fail browser decoding; visible error, no crash, and nothing stored                                  | `with-trip`    | P2  | BLOCKED BUG-8           |
+| ATT-3 | Reject a non-image PDF                            | Choose a PDF in the attachment input                                                              | PDF is not stored; the missing visible rejection message is a Low-severity UI gap                     | `with-trip`    | P1  | BLOCKED BUG-7 (Low)     |
+| ATT-4 | Corrupt image decoding                            | Upload an undecodable JPEG fixture                                                                | No crash or stored attachment; the missing visible rejection message is a Low-severity UI gap          | `with-trip`    | P2  | BLOCKED BUG-8 (Low)     |
 | ATT-5 | Crop, rotate, zoom controls                       | Use each control                                                                                  | Output differs; controls respond                                                                    | `with-trip`    | P2  | `attachments.spec.cjs` |
 | ATT-6 | CLOSED trip attachments are read-only             | Close a shift, then open a trip in Shift Details, All Trips details window, and trip details       | Add and delete controls are unavailable; preview still works                                        | `with-trip`    | P0  | `closed-shift-more.spec.cjs` |
 | ATT-7 | A closing sheet cannot be added to a CLOSED shift | Open the close dialog and its shift select; call addAttachment for a CLOSED shift through the API | CLOSED shifts are not offered in the dialog; the server rejects the call; attachments are unchanged | `two-shifts`   | P0  | closed-shift-locks      |
 | ATT-8 | Server rejects attachment changes on CLOSED shift | Close the shift while the view is open, then try to add                                           | Error notice, nothing stored                                                                        | `with-trip`    | P0  | `closed-shift-more.spec.cjs` |
 | ATT-9 | PNG upload is converted to JPEG                   | Upload a generated PNG, crop, and save                                                             | Cropper opens; stored file begins with the JPEG signature; server rejects raw PNG/PDF bytes           | `with-trip`    | P1  | `attachments.spec.cjs` |
-| ATT-10 | Receipt delete pointer interaction                | Click Delete at the default window size                                                            | Confirmation opens and the receipt is deleted                                                         | `with-trip`    | P1  | BLOCKED BUG-9           |
+| ATT-10 | Receipt delete pointer interaction                | Click Delete at 1366×768 or 1600×900                                                               | Client receipt section intercepts the crusher Delete button at both sizes                              | `with-trip`    | P1  | BLOCKED BUG-9 (Medium)  |
 
 ## 7. Settings (`/settings`)
 
@@ -193,9 +193,9 @@ Run SET-1 through SET-6 once per entity (6 parametrized cases): vehicle, driver,
 | ID    | Scenario                     | Steps                                                | Expected                                                                                                | Seed        | Pri | Cov     |
 | ----- | ---------------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------- | --- | ------- |
 | SHR-1 | DataTable layout at 1366×768 | Open every table with long names and notes           | No horizontal overflow, headers and cells centered, wrapped cells have titles, text clamps at two lines | `layout`    | P2  | F4      |
-| SHR-2 | Floating window lifecycle    | Open, move, resize, minimize, restore, close         | Each action works; closing removes it                                                                   | `with-trip` | P2  | PART S3 |
-| SHR-3 | Notices                      | Trigger a success and an error notice                | Shown, dismiss button closes, auto-dismiss after the timer                                              | `with-trip` | P1  | NEW     |
-| SHR-4 | Forms keep clean state       | Open and cancel Create Shift, Trip, and Ledger forms | Each form is blank when reopened                                                                        | `with-trip` | P2  | NEW     |
+| SHR-2 | Floating window lifecycle    | Open, move, resize, minimize, restore, close         | Each action works; closing removes it                                                                   | `with-trip` | P2  | `shell-shared.spec.cjs` |
+| SHR-3 | Notices                      | Trigger a success and an error notice                | Shown, dismiss button closes, success auto-dismisses after 3 seconds                                    | `with-trip` | P1  | `shell-shared.spec.cjs` |
+| SHR-4 | Forms keep clean state       | Open and cancel Create Shift, Trip, and Ledger forms | Each form reopens in its blank/default state                                                            | `with-trip` | P2  | `shell-shared.spec.cjs` |
 
 ## 12. Runtime
 
@@ -225,7 +225,7 @@ Run SET-1 through SET-6 once per entity (6 parametrized cases): vehicle, driver,
 | Runtime       | 3                                       |
 | **Total**     | **103**                                 |
 
-The current specs map 98 cases fully or partly (94 covered, 3 blocked, and 1 partial); 5 cases have no E2E coverage yet. The blocked cases are ATT-3 (BUG-7), ATT-4 (BUG-8), and ATT-10 (BUG-9). Build the `P0` cases first.
+The specs cover 99 cases, with 4 blocked and none partial or NEW, out of 103 documented cases. The blocked cases are NAV-2 (BUG-10), ATT-3 (BUG-7), ATT-4 (BUG-8), and ATT-10 (BUG-9). Build the `P0` cases first.
 
 ## Suggested build order
 

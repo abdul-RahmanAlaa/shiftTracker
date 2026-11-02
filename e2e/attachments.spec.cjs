@@ -267,15 +267,52 @@ testWithApp('ATT-9 PNG is cropped as an image and saved as JPEG', async ({ launc
   const { page, seedData } = app
   const label = text('receiptPhoto.labels.clientReceipt')
   const row = await openShiftTrip(page, seedData)
+  const payload = {
+    entityType: 'TRIP',
+    entityId: seedData.trip.id,
+    kind: 'CLIENT_RECEIPT'
+  }
+  const validJpeg = await makeJpeg(page, 320, 180)
+  const positiveControl = await callApi(page, 'addAttachment', {
+    ...payload,
+    imageBase64: validJpeg.toString('base64')
+  })
+  expect(positiveControl.ok).toBe(true)
+  if (!positiveControl.ok) throw new Error('Valid JPEG control attachment was rejected')
 
+  const controlList = await callApi(page, 'listEntityAttachments', {
+    entityType: 'TRIP',
+    entityId: seedData.trip.id
+  })
+  expect(controlList.ok).toBe(true)
+  if (!controlList.ok) throw new Error('Could not inspect valid JPEG control attachment')
+  const controlAttachment = controlList.data.find((item) => item.kind === 'CLIENT_RECEIPT')
+  expect(controlAttachment).toBeTruthy()
+  if (!controlAttachment) throw new Error('Valid JPEG control attachment was not listed')
+  const controlDelete = await callApi(page, 'removeAttachment', { id: controlAttachment.id })
+  expect(controlDelete.ok).toBe(true)
+  if (!controlDelete.ok) throw new Error('Could not remove valid JPEG control attachment')
+
+  let contentValidationError
   for (const bytes of [makePng(), makePdf()]) {
     const result = await callApi(page, 'addAttachment', {
-      entityType: 'TRIP',
-      entityId: seedData.trip.id,
-      kind: 'CLIENT_RECEIPT',
+      ...payload,
       imageBase64: bytes.toString('base64')
     })
     expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('Non-JPEG bytes unexpectedly passed attachment validation')
+    expect(result.errors).toContainEqual({
+      field: 'imageBase64',
+      message: expect.stringContaining('JPEG')
+    })
+    contentValidationError ??= result.errors.find((error) => error.field === 'imageBase64')
+    expect(result.errors.find((error) => error.field === 'imageBase64')?.message).toBe(
+      contentValidationError?.message
+    )
+    expect(
+      result.errors.some((error) => error.field === 'imageBase64' && error.message.includes('JPEG'))
+    ).toBe(true)
+
     const listed = await callApi(page, 'listEntityAttachments', {
       entityType: 'TRIP',
       entityId: seedData.trip.id

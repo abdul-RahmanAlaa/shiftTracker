@@ -125,4 +125,5 @@ All scenarios remain unchecked until confirmed by the user.
 - [ ] Close a shift and confirm a verified post-close database snapshot and any missing attachment mirror files appear under `userData/backups`.
 - [ ] Start the app on a new local date and confirm a daily snapshot is created without delaying the window.
 - [ ] Make the backups folder unwritable, restart the app, and confirm a non-blocking backup warning appears.
+- [ ] In the Windows file picker, choose “All files,” select a PDF, and observe the app’s response.
 - [ ] Restore a database snapshot and missing attachments by following `docs/restore.md`.
