@@ -627,7 +627,7 @@ function ReferenceValue({
   return (
     <div className="min-w-0">
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-1 break-words">{value ?? t('common.emDash')}</dd>
+      <dd className="mt-1 wrap-break-word">{value ?? t('common.emDash')}</dd>
     </div>
   )
 }
