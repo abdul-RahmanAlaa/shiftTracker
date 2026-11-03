@@ -37,6 +37,16 @@ export function AllTripsPage(): React.JSX.Element {
 
   const columns: ColumnDef<AllTripsRow, unknown>[] = [
     { accessorKey: 'tripDate', header: t('common.columns.date'), meta: { nowrap: true } },
+    {
+      id: 'timeOfDay',
+      accessorFn: (trip) =>
+        trip.timeOfDay === 'MORNING'
+          ? t('dashboard.morning')
+          : trip.timeOfDay === 'EVENING'
+            ? t('dashboard.evening')
+            : t('common.emDash'),
+      header: t('tripForm.fields.timeOfDay')
+    },
     { accessorKey: 'driverName', header: t('ledgerEntryForm.fields.driver') },
     {
       accessorKey: 'vehicleNo',

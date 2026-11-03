@@ -5,9 +5,11 @@ import type {
 } from '../main/repository/draftTripRepository'
 import type { OpenShiftCard } from '../main/repository/dashboardRepository'
 import type { CreateTripInput } from '../main/use-cases/createTrip'
+import type { PromoteCustodyInput } from '../main/use-cases/promoteDraftTrip'
 
 export type { DraftTripListRow } from '../main/repository/draftTripRepository'
 export type { OpenShiftCard } from '../main/repository/dashboardRepository'
+export type { PromoteCustodyInput } from '../main/use-cases/promoteDraftTrip'
 
 interface UseCaseResult<T> {
   ok: true
@@ -28,6 +30,42 @@ interface AttachmentRow {
   photoPath: string
   createdAt: string
 }
+
+interface LedgerAttachmentRow extends Omit<AttachmentRow, 'entityType' | 'kind'> {
+  entityType: 'LEDGER'
+  kind: 'TRANSFER_RECEIPT'
+}
+
+type CreateTripApiInput = Omit<CreateTripInput, 'timeOfDay'> | CreateTripInput
+type UpdateTripApiInput = Omit<CreateTripInput, 'shiftId'> & { id: string }
+type CompatibleUpdateTripApiInput = Omit<UpdateTripApiInput, 'timeOfDay'> | UpdateTripApiInput
+
+type CreateLedgerEntryInput = {
+  entryDate: string
+  entryTime?: string | null
+  driverId?: number
+  movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
+  amount: number
+  shiftId?: string
+  contractorId?: number
+  notes?: string
+}
+type CompatibleCreateLedgerEntryInput =
+  Omit<CreateLedgerEntryInput, 'entryTime'> | CreateLedgerEntryInput
+
+type UpdateLedgerEntryInput = {
+  id: number
+  entryDate: string
+  entryTime?: string | null
+  driverId: number | null
+  movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
+  amount: number
+  shiftId: string | null
+  contractorId: number | null
+  notes: string | null
+}
+type CompatibleUpdateLedgerEntryInput =
+  Omit<UpdateLedgerEntryInput, 'entryTime'> | UpdateLedgerEntryInput
 
 interface MaterialTypeRow {
   id: number
@@ -57,6 +95,7 @@ interface TripRow {
   id: string
   shiftId: string
   tripDate: string
+  timeOfDay: 'MORNING' | 'EVENING' | null
   crusherCubic: number
   clientCubicReported: number
   fineAmount: number
@@ -83,6 +122,7 @@ interface TripWithContextRow {
   driverName: string
   vehicleNo: number
   tripDate: string
+  timeOfDay: 'MORNING' | 'EVENING' | null
   location: string | null
   crusherName: string
   crusherCubic: number
@@ -117,6 +157,7 @@ interface ShiftFullRow {
 interface LedgerRow {
   id: number
   entryDate: string
+  entryTime: string | null
   driverId: number | null
   movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
   amount: number
@@ -370,7 +411,7 @@ interface Api {
     vehicleNo: number
   }) => Promise<UseCaseResult<{ vehicleNo: number }> | FailedUseCaseResult>
   createTrip: (
-    input: CreateTripInput
+    input: CreateTripApiInput
   ) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
   createDraftTrip: (
     input: CreateDraftTripInput
@@ -383,8 +424,8 @@ interface Api {
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
   listDraftTrips: () => Promise<UseCaseResult<DraftTripListRow[]> | FailedUseCaseResult>
   promoteDraftTrip: (
-    input: { draftId: number } & CreateTripInput
-  ) => Promise<UseCaseResult<{ tripId: string }> | FailedUseCaseResult>
+    input: { draftId: number; custody?: PromoteCustodyInput | null } & CreateTripInput
+  ) => Promise<UseCaseResult<{ tripId: string; ledgerId: number | null }> | FailedUseCaseResult>
   getDashboard: () => Promise<UseCaseResult<{ openShifts: OpenShiftCard[] }> | FailedUseCaseResult>
   getSuggestedTripPrices: (input: {
     clientId: number
@@ -417,25 +458,12 @@ interface Api {
       >
     | FailedUseCaseResult
   >
-  createLedgerEntry: (input: {
-    entryDate: string
-    driverId?: number
-    movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
-    amount: number
-    shiftId?: string
-    contractorId?: number
-    notes?: string
-  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
-  updateLedgerEntry: (input: {
-    id: number
-    entryDate: string
-    driverId: number | null
-    movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
-    amount: number
-    shiftId: string | null
-    contractorId: number | null
-    notes: string | null
-  }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  createLedgerEntry: (
+    input: CompatibleCreateLedgerEntryInput
+  ) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
+  updateLedgerEntry: (
+    input: CompatibleUpdateLedgerEntryInput
+  ) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
   deleteLedgerEntry: (input: {
     id: number
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
@@ -447,43 +475,38 @@ interface Api {
     driverId: number
   }) => Promise<UseCaseResult<LedgerRow[]> | FailedUseCaseResult>
   listShifts: () => Promise<UseCaseResult<ShiftListRow[]> | FailedUseCaseResult>
-  updateTrip: (input: {
-    id: string
-    tripDate: string
-    crusherCubic: number
-    clientCubicReported: number
-    fineAmount?: number
-    fineReason?: string
-    location?: string
-    crusherId: number
-    stonePrice: number
-    crusherReceiptStatus: 'PROVIDED' | 'CONFIRMED_MISSING' | 'UNKNOWN'
-    crusherReceiptNo?: number
-    clientId: number
-    transportPrice: number
-    clientPrice: number
-    materialTypeId: number
-    recipientNameStatus?: 'PROVIDED' | 'UNCLEAR'
-    recipientName?: string
-    clientReceiptNo?: string
-    notes?: string
-  }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
+  updateTrip: (
+    input: CompatibleUpdateTripApiInput
+  ) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
   deleteTrip: (input: {
     id: string
   }) => Promise<UseCaseResult<{ id: string }> | FailedUseCaseResult>
-  addAttachment: (input: {
-    entityType: 'TRIP' | 'SHIFT'
-    entityId: string
-    kind: 'CRUSHER_RECEIPT' | 'CLIENT_RECEIPT' | 'CLOSING_SHEET'
-    imageBase64: string
-  }) => Promise<UseCaseResult<{ id: number; path: string }> | FailedUseCaseResult>
+  addAttachment: (
+    input:
+      | {
+          entityType: 'TRIP' | 'SHIFT'
+          entityId: string
+          kind: 'CRUSHER_RECEIPT' | 'CLIENT_RECEIPT' | 'CLOSING_SHEET'
+          imageBase64: string
+        }
+      | {
+          entityType: 'LEDGER'
+          entityId: string
+          kind: 'TRANSFER_RECEIPT'
+          imageBase64: string
+        }
+  ) => Promise<UseCaseResult<{ id: number; path: string }> | FailedUseCaseResult>
   removeAttachment: (input: {
     id: number
   }) => Promise<UseCaseResult<{ id: number }> | FailedUseCaseResult>
-  listEntityAttachments: (input: {
+  listEntityAttachments(input: {
+    entityType: 'LEDGER'
+    entityId: string
+  }): Promise<UseCaseResult<LedgerAttachmentRow[]> | FailedUseCaseResult>
+  listEntityAttachments(input: {
     entityType: 'TRIP' | 'SHIFT'
     entityId: string
-  }) => Promise<UseCaseResult<AttachmentRow[]> | FailedUseCaseResult>
+  }): Promise<UseCaseResult<AttachmentRow[]> | FailedUseCaseResult>
   getAttachmentPhoto: (input: {
     attachmentId: number
   }) => Promise<UseCaseResult<{ dataUri: string | null }> | FailedUseCaseResult>

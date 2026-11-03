@@ -12,6 +12,10 @@ import { getContractorById } from '../repository/contractorRepository'
 import { driverExists } from '../repository/driverRepository'
 import { getShiftById } from '../repository/shiftRepository'
 import { UseCaseResult, isSqliteError } from '../useCaseUtils'
+import { getDb } from '../db'
+import { deleteAttachment, listAttachments } from '../repository/attachmentRepository'
+import { deleteAttachmentPhotoFile } from '../photoStorage'
+import { mainMessages } from '../mainMessages'
 
 function isRealDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
@@ -30,6 +34,9 @@ const positiveIdSchema = z
 const dateSchema = z
   .string({ error: 'التاريخ مطلوب' })
   .refine(isRealDate, 'أدخل تاريخًا صحيحًا بصيغة YYYY-MM-DD')
+const entryTimeSchema = z
+  .string()
+  .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, mainMessages.entryTimeInvalid)
 const movementTypeSchema = z.enum(['ADVANCE', 'PAYMENT', 'OTHER'], {
   error: 'نوع الحركة مطلوب'
 })
@@ -44,6 +51,7 @@ const nullableNotesSchema = z.string().nullable()
 
 const createLedgerInputSchema = z.object({
   entryDate: dateSchema,
+  entryTime: entryTimeSchema.nullable().optional(),
   driverId: nullableDriverIdSchema.optional(),
   movementType: movementTypeSchema,
   amount: amountSchema,
@@ -58,6 +66,13 @@ const updateLedgerInputSchema = createLedgerInputSchema.extend({
   shiftId: nullableShiftIdSchema,
   contractorId: nullableContractorIdSchema,
   notes: nullableNotesSchema
+})
+
+export const ledgerCustodySchema = createLedgerInputSchema.pick({
+  entryDate: true,
+  entryTime: true,
+  amount: true,
+  notes: true
 })
 
 export type CreateLedgerInput = z.infer<typeof createLedgerInputSchema>
@@ -102,6 +117,12 @@ function ledgerWriteFailure(
 }
 
 export function createLedgerEntry(input: CreateLedgerInput): UseCaseResult<{ id: number }> {
+  return createLedgerEntryInTransaction(input)
+}
+
+export function createLedgerEntryInTransaction(
+  input: CreateLedgerInput
+): UseCaseResult<{ id: number }> {
   const parsed = createLedgerInputSchema.safeParse(input)
   if (!parsed.success) return { ok: false, errors: validationErrors(parsed.error) }
   const values = parsed.data
@@ -135,6 +156,7 @@ export function createLedgerEntry(input: CreateLedgerInput): UseCaseResult<{ id:
   try {
     const id = insertLedger({
       entryDate: values.entryDate,
+      entryTime: values.entryTime ?? null,
       driverId: values.driverId ?? null,
       movementType: values.movementType,
       amountMinor,
@@ -206,6 +228,7 @@ export function updateLedgerEntry(input: UpdateLedgerEntryInput): UseCaseResult<
     updateLedger({
       id: values.id,
       entryDate: values.entryDate,
+      entryTime: values.entryTime === undefined ? existingEntry.entryTime : values.entryTime,
       driverId: values.driverId,
       movementType: values.movementType,
       amountMinor,
@@ -248,6 +271,22 @@ export function deleteLedgerEntry(input: { id: number }): UseCaseResult<{ id: nu
     }
   }
 
-  deleteLedgerById(input.id)
+  const attachments = listAttachments('LEDGER', String(input.id))
+  getDb().transaction(() => {
+    deleteLedgerById(input.id)
+    for (const attachment of attachments) deleteAttachment(attachment.id)
+  })()
+
+  for (const attachment of attachments) {
+    try {
+      deleteAttachmentPhotoFile(attachment.photoPath)
+    } catch (error: unknown) {
+      console.error(
+        '[deleteLedgerEntry] Failed to delete attachment file, orphan may remain:',
+        error
+      )
+    }
+  }
+
   return { ok: true, data: { id: input.id } }
 }

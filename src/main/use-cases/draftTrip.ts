@@ -16,42 +16,55 @@ import {
   validationMessages
 } from '../validation'
 import { UseCaseResult, isSqliteError } from '../useCaseUtils'
+import { mainMessages } from '../mainMessages'
 
 const draftDateSchema = dateStringSchema(
   validationMessages.tripDateRequired,
   validationMessages.tripDateInvalid
 )
-const cubicSchema = positiveNumberSchema('CUBIC_MUST_BE_POSITIVE').lt(1e308, 'CUBIC_INVALID')
-const custodyAmountSchema = positiveIntegerSchema('CUSTODY_AMOUNT_MUST_BE_POSITIVE')
+const custodyDateSchema = dateStringSchema(
+  mainMessages.custodyDateInvalid,
+  mainMessages.custodyDateInvalid
+)
+const custodyTimeSchema = z
+  .string()
+  .regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, mainMessages.custodyTimeInvalid)
+const cubicSchema = positiveNumberSchema(mainMessages.cubicMustBePositive).lt(
+  1e308,
+  mainMessages.cubicInvalid
+)
+const custodyAmountSchema = positiveIntegerSchema(mainMessages.custodyAmountMustBePositive)
 
 const createDraftTripSchema = z.object({
-  vehicleNo: positiveIntegerSchema('VEHICLE_NO_MUST_BE_POSITIVE'),
+  vehicleNo: positiveIntegerSchema(mainMessages.vehicleNoMustBePositive),
   tripDate: draftDateSchema,
-  timeOfDay: z.enum(['MORNING', 'EVENING'], { error: 'TIME_OF_DAY_INVALID' }).optional(),
-  crusherId: positiveIntegerSchema('CRUSHER_ID_INVALID').optional(),
-  clientId: positiveIntegerSchema('CLIENT_ID_INVALID').optional(),
+  timeOfDay: z.enum(['MORNING', 'EVENING'], { error: mainMessages.timeOfDayInvalid }).optional(),
+  crusherId: positiveIntegerSchema(mainMessages.crusherIdInvalid).optional(),
+  clientId: positiveIntegerSchema(mainMessages.clientIdInvalid).optional(),
   cubic: cubicSchema.optional(),
   custodyAmount: custodyAmountSchema.optional(),
-  custodyTime: z.string().optional(),
+  custodyDate: custodyDateSchema.optional(),
+  custodyTime: custodyTimeSchema.optional(),
   receiptNote: z.string().optional(),
   notes: z.string().optional()
 })
 
 const updateDraftTripSchema = z.object({
-  id: positiveIntegerSchema('ID_MUST_BE_POSITIVE'),
+  id: positiveIntegerSchema(mainMessages.idMustBePositive),
   tripDate: draftDateSchema,
-  timeOfDay: z.enum(['MORNING', 'EVENING']).nullable(),
-  crusherId: positiveIntegerSchema('CRUSHER_ID_INVALID').nullable(),
-  clientId: positiveIntegerSchema('CLIENT_ID_INVALID').nullable(),
+  timeOfDay: z.enum(['MORNING', 'EVENING'], { error: mainMessages.timeOfDayInvalid }).nullable(),
+  crusherId: positiveIntegerSchema(mainMessages.crusherIdInvalid).nullable(),
+  clientId: positiveIntegerSchema(mainMessages.clientIdInvalid).nullable(),
   cubic: cubicSchema.nullable(),
   custodyAmount: custodyAmountSchema.nullable(),
-  custodyTime: z.string().nullable(),
+  custodyDate: custodyDateSchema.nullable().optional(),
+  custodyTime: custodyTimeSchema.nullable(),
   receiptNote: z.string().nullable(),
   notes: z.string().nullable()
 })
 
 const deleteDraftTripSchema = z.object({
-  id: positiveIntegerSchema('ID_MUST_BE_POSITIVE')
+  id: positiveIntegerSchema(mainMessages.idMustBePositive)
 })
 
 function validationErrors(error: z.ZodError): { field: string; message: string }[] {
@@ -89,12 +102,12 @@ export function createDraftTrip(input: CreateDraftTripInput): UseCaseResult<{ id
             : 'root'
       const message =
         field === 'vehicleNo'
-          ? 'VEHICLE_NOT_FOUND'
+          ? mainMessages.vehicleNotFound
           : field === 'crusherId'
-            ? 'CRUSHER_NOT_FOUND'
+            ? mainMessages.crusherNotFound
             : field === 'clientId'
-              ? 'CLIENT_NOT_FOUND'
-              : 'DRAFT_TRIP_SAVE_FAILED'
+              ? mainMessages.clientNotFound
+              : mainMessages.draftTripSaveFailed
       return { ok: false, errors: [{ field, message }] }
     }
     throw error
@@ -109,7 +122,7 @@ export function updateDraftTrip(input: UpdateDraftTripInput): UseCaseResult<{ id
   try {
     const row = updateDraftTripInDb(db, parsed.data)
     if (!row) {
-      return { ok: false, errors: [{ field: 'id', message: 'DRAFT_TRIP_NOT_FOUND' }] }
+      return { ok: false, errors: [{ field: 'id', message: mainMessages.draftTripNotFound }] }
     }
     return { ok: true, data: { id: row.id } }
   } catch (error: unknown) {
@@ -123,10 +136,10 @@ export function updateDraftTrip(input: UpdateDraftTripInput): UseCaseResult<{ id
       const field = !crusherExists ? 'crusherId' : !clientExists ? 'clientId' : 'root'
       const message =
         field === 'crusherId'
-          ? 'CRUSHER_NOT_FOUND'
+          ? mainMessages.crusherNotFound
           : field === 'clientId'
-            ? 'CLIENT_NOT_FOUND'
-            : 'DRAFT_TRIP_UPDATE_FAILED'
+            ? mainMessages.clientNotFound
+            : mainMessages.draftTripUpdateFailed
       return { ok: false, errors: [{ field, message }] }
     }
     throw error
@@ -137,7 +150,7 @@ export function deleteDraftTrip(input: { id: number }): UseCaseResult<{ id: numb
   const parsed = deleteDraftTripSchema.safeParse(input)
   if (!parsed.success) return { ok: false, errors: validationErrors(parsed.error) }
   if (!deleteDraftTripInDb(getDb(), parsed.data.id)) {
-    return { ok: false, errors: [{ field: 'id', message: 'DRAFT_TRIP_NOT_FOUND' }] }
+    return { ok: false, errors: [{ field: 'id', message: mainMessages.draftTripNotFound }] }
   }
   return { ok: true, data: { id: parsed.data.id } }
 }

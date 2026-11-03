@@ -11,6 +11,7 @@ export interface OpenShiftCard {
   draft_count: number
   last_custody_amount: number | null
   last_custody_date: string | null
+  last_custody_time: string | null
   custody_trips_since: number
 }
 
@@ -27,21 +28,18 @@ export function getOpenShiftCards(db: Database.Database): OpenShiftCard[] {
         Shift.start_date AS shift_start_date,
         (SELECT COUNT(*) FROM Trip WHERE Trip.shift_id = Shift.id) AS trip_count,
         (SELECT COUNT(*) FROM DraftTrip WHERE DraftTrip.vehicle_no = Shift.vehicle_no) AS draft_count,
-        (
-          SELECT amount FROM Ledger
-          WHERE movement_type = 'ADVANCE' AND shift_id = Shift.id
-          ORDER BY entry_date DESC
-          LIMIT 1
-        ) AS last_custody_amount,
-        (
-          SELECT entry_date FROM Ledger
-          WHERE movement_type = 'ADVANCE' AND shift_id = Shift.id
-          ORDER BY entry_date DESC
-          LIMIT 1
-        ) AS last_custody_date
+        custody.amount AS last_custody_amount,
+        custody.entry_date AS last_custody_date,
+        custody.entry_time AS last_custody_time
       FROM Shift
       JOIN Vehicle ON Vehicle.vehicle_no = Shift.vehicle_no
       JOIN Driver ON Driver.id = Shift.driver_id
+      LEFT JOIN Ledger custody ON custody.id = (
+        SELECT id FROM Ledger
+        WHERE movement_type = 'ADVANCE' AND shift_id = Shift.id
+        ORDER BY entry_date DESC, entry_time DESC NULLS LAST, id DESC
+        LIMIT 1
+      )
       WHERE Shift.status = 'OPEN'`
     )
     .all() as OpenShiftCardRow[]

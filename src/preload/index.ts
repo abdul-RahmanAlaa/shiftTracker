@@ -6,6 +6,7 @@ import type {
   UpdateDraftTripInput
 } from '../main/repository/draftTripRepository'
 import type { CreateTripInput } from '../main/use-cases/createTrip'
+import type { PromoteCustodyInput } from '../main/use-cases/promoteDraftTrip'
 interface FailedUseCaseResult {
   ok: false
   errors: { field: string; message: string }[]
@@ -91,6 +92,7 @@ const api = {
   createTrip: (input: {
     shiftId: string
     tripDate: string
+    timeOfDay?: 'MORNING' | 'EVENING' | null
     crusherCubic: number
     clientCubicReported: number
     fineAmount?: number
@@ -113,8 +115,9 @@ const api = {
   updateDraftTrip: (input: UpdateDraftTripInput) => invoke('draft-trip:update', input),
   deleteDraftTrip: (input: { id: number }) => invoke('draft-trip:delete', input),
   listDraftTrips: () => invoke('draft-trip:list'),
-  promoteDraftTrip: (input: { draftId: number } & CreateTripInput) =>
-    invoke('draft-trip:promote', input),
+  promoteDraftTrip: (
+    input: { draftId: number; custody?: PromoteCustodyInput | null } & CreateTripInput
+  ) => invoke('draft-trip:promote', input),
   getDashboard: () => invoke('dashboard:get'),
   getSuggestedTripPrices: (input: {
     clientId: number
@@ -130,6 +133,7 @@ const api = {
   getDriverOpenShift: (input: { driverId: number }) => invoke('shift:getForDriver', input),
   createLedgerEntry: (input: {
     entryDate: string
+    entryTime?: string | null
     driverId?: number
     movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
     amount: number
@@ -140,6 +144,7 @@ const api = {
   updateLedgerEntry: (input: {
     id: number
     entryDate: string
+    entryTime?: string | null
     driverId: number | null
     movementType: 'ADVANCE' | 'PAYMENT' | 'OTHER'
     amount: number
@@ -173,6 +178,7 @@ const api = {
   updateTrip: (input: {
     id: string
     tripDate: string
+    timeOfDay?: 'MORNING' | 'EVENING' | null
     crusherCubic: number
     clientCubicReported: number
     fineAmount?: number
@@ -193,13 +199,13 @@ const api = {
   }) => invoke('trip:update', input),
   deleteTrip: (input: { id: string }) => invoke('trip:delete', input),
   addAttachment: (input: {
-    entityType: 'TRIP' | 'SHIFT'
+    entityType: 'TRIP' | 'SHIFT' | 'LEDGER'
     entityId: string
-    kind: 'CRUSHER_RECEIPT' | 'CLIENT_RECEIPT' | 'CLOSING_SHEET'
+    kind: 'CRUSHER_RECEIPT' | 'CLIENT_RECEIPT' | 'CLOSING_SHEET' | 'TRANSFER_RECEIPT'
     imageBase64: string
   }) => invoke('attachment:add', input),
   removeAttachment: (input: { id: number }) => invoke('attachment:remove', input),
-  listEntityAttachments: (input: { entityType: 'TRIP' | 'SHIFT'; entityId: string }) =>
+  listEntityAttachments: (input: { entityType: 'TRIP' | 'SHIFT' | 'LEDGER'; entityId: string }) =>
     invoke('attachment:list', input),
   getAttachmentPhoto: (input: { attachmentId: number }) => invoke('attachment:getPhoto', input)
 }

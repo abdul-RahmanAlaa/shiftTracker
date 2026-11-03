@@ -53,8 +53,8 @@
     "title": "فتح وردية جديدة",
     "submit": "فتح الوردية",
     "fields": {
-      "driver": "السائق",
       "vehicle": "السيارة",
+      "driver": "السائق",
       "crusherCubic": "تكعيب الكسارة",
       "clientCubic": "تكعيب العميل",
       "startDate": "تاريخ البداية *",
@@ -135,6 +135,7 @@
   "ledgerEntryForm": {
     "fields": {
       "date": "تاريخ الحركة",
+      "time": "وقت الحركة",
       "movementType": "نوع الحركة",
       "driver": "السائق",
       "shift": "الوردية",
@@ -159,7 +160,8 @@
       "dateRequired": "تاريخ الحركة مطلوب",
       "movementTypeRequired": "نوع الحركة مطلوب",
       "amountRequired": "المبلغ مطلوب",
-      "contractorRequired": "مقاول النقل مطلوب"
+      "contractorRequired": "مقاول النقل مطلوب",
+      "timeInvalid": "وقت الحركة لازم يكون بصيغة HH:MM"
     }
   },
   "clientAccount": {
@@ -198,7 +200,8 @@
     "labels": {
       "crusherReceipt": "إيصال الكسارة",
       "clientReceipt": "إيصال العميل",
-      "closingSheet": "مستند تقفيل"
+      "closingSheet": "مستند تقفيل",
+      "transferReceipt": "مستند التحويل"
     },
     "closingDocuments": "مستندات التقفيل",
     "addDocument": "إضافة مستند",
@@ -326,7 +329,8 @@
       "materialType": "نوع الصنف",
       "recipientNameStatus": "اسم المستلم",
       "recipientName": "اسم المستلم",
-      "clientReceiptNumber": "رقم إيصال العميل"
+      "clientReceiptNumber": "رقم إيصال العميل",
+      "timeOfDay": "فترة النقلة"
     },
     "placeholders": {
       "tripDate": "اختر تاريخ النقلة",
@@ -374,6 +378,7 @@
   "ledgerEntryDetails": {
     "movementNumber": "رقم الحركة",
     "date": "التاريخ",
+    "transferDocument": "مستند التحويل",
     "movementType": "نوع الحركة",
     "amount": "المبلغ",
     "contractor": "المقاول",
@@ -439,7 +444,6 @@
     "noOpenShifts": "لا توجد ورديات مفتوحة",
     "vehicle": "السيارة",
     "trailer": "التريلة",
-    "driver": "السائق",
     "daysOpen": "أيام",
     "trips": "نقلة",
     "drafts": "مسودة",
@@ -447,12 +451,26 @@
     "custodyTripsSince": "نقلة من بعدها",
     "noCustody": "لا توجد عهدة",
     "draftTrips": "المسودة",
-    "noDrafts": "لا توجد مسودات",
-    "addDraft": "إضافة مسودة",
-    "editDraft": "تعديل",
+    "columns": {
+      "vehicleNo": "السيارة",
+      "tripDate": "التاريخ",
+      "timeOfDay": "الفترة",
+      "crusherId": "الكسارة",
+      "clientId": "العميل",
+      "cubic": "المتر",
+      "custodyAmount": "العهدة",
+      "receiptNote": "الإيصال"
+    },
     "deleteDraft": "حذف",
+    "details": "تفاصيل",
     "promote": "ترحيل",
     "confirmDeleteDraft": "هل تريد حذف هذه المسودة؟",
+    "rowSaving": "جاري الحفظ",
+    "rowSaved": "تم الحفظ",
+    "rowError": "خطأ",
+    "rowReady": "جاهزة",
+    "searchEntities": "ابحث بالاسم...",
+    "noMatchingEntities": "لا توجد نتائج مطابقة",
     "date": "التاريخ",
     "timeOfDay": "الوقت",
     "morning": "صباحي",
@@ -461,13 +479,19 @@
     "client": "العميل",
     "cubic": "المتر",
     "custody": "العهدة",
+    "custodyDate": "تاريخ العهدة",
     "custodyTime": "وقت العهدة",
+    "custodyNotes": "ملاحظات العهدة",
     "receipt": "الإيصال",
     "notes": "ملاحظات",
-    "vehicleLabel": "رقم السيارة",
     "shiftDays": "أيام الوردية",
     "promoteTitle": "ترحيل المسودة إلى نقلة رسمية",
-    "promoteNoOpenShift": "لا توجد وردية مفتوحة لهذه السيارة"
+    "detailsTitle": "تفاصيل المسودة",
+    "promoteNoOpenShift": "لا توجد وردية مفتوحة لهذه السيارة",
+    "draftReference": "بيانات المسودة",
+    "custodyReview": "مراجعة العهدة",
+    "promoteCustody": "ترحيل العهدة كحركة عهدة",
+    "addCustody": "إضافة عهدة"
   },
   "settingsPage": {
     "title": "بيانات أساسية",

@@ -92,7 +92,12 @@ export function AllMovementsPage(): React.JSX.Element {
 
   const columns: ColumnDef<LedgerRow, unknown>[] = [
     { accessorKey: 'id', header: t('common.columns.id'), meta: { nowrap: true } },
-    { accessorKey: 'entryDate', header: t('common.columns.date'), meta: { nowrap: true } },
+    {
+      id: 'entryDateTime',
+      accessorFn: (entry) => [entry.entryDate, entry.entryTime].filter(Boolean).join(' '),
+      header: t('common.columns.date'),
+      meta: { nowrap: true }
+    },
     {
       id: 'driverName',
       accessorFn: (entry) =>

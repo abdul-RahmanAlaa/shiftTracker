@@ -27,6 +27,7 @@ export type ResourceState = {
 export const tripSchema = z
   .object({
     tripDate: z.string().min(1, i18n.t('tripForm.validation.tripDateRequired')),
+    timeOfDay: z.enum(['MORNING', 'EVENING']).nullable().optional(),
     crusherCubic: z.number().positive(i18n.t('tripForm.validation.crusherCubicRequired')),
     clientCubicReported: z.number().positive(i18n.t('tripForm.validation.clientCubicRequired')),
     fineAmount: z

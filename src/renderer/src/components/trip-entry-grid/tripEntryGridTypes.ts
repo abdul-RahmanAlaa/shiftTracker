@@ -31,7 +31,7 @@ export type TripEntryShift = {
 export type GridColumn = {
   key: TripGridColumn
   label: string
-  kind: 'text' | 'number' | 'money' | 'date' | 'receipt' | 'name'
+  kind: 'text' | 'number' | 'money' | 'date' | 'receipt' | 'name' | 'timeOfDay'
   list?: string
 }
 export type TripGridCellErrors = Partial<Record<TripGridColumn, string>>
@@ -48,6 +48,7 @@ export type TripGridNames = {
 
 export const coreColumns: Omit<GridColumn, 'label'>[] = [
   { key: 'tripDate', kind: 'date' },
+  { key: 'timeOfDay', kind: 'timeOfDay' },
   { key: 'client', kind: 'name', list: 'trip-grid-clients' },
   { key: 'crusher', kind: 'name', list: 'trip-grid-crushers' },
   { key: 'materialType', kind: 'name', list: 'trip-grid-materials' },
@@ -87,6 +88,7 @@ export function createRow(
   return {
     rowId,
     tripDate: previousDate || today(),
+    timeOfDay: '',
     client: '',
     crusher: '',
     materialType: '',
@@ -123,6 +125,7 @@ export function hasHighCubicWarning(row: GridRow, column: TripGridColumn): boole
 export function isEmpty(row: GridRow): boolean {
   return (
     !row.client &&
+    !row.timeOfDay &&
     !row.crusher &&
     !row.materialType &&
     !row.stonePrice &&

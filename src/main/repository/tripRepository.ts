@@ -4,6 +4,7 @@ interface InsertTripInput {
   id: string
   shiftId: string
   tripDate: string
+  timeOfDay: 'MORNING' | 'EVENING' | null
   crusherCubic: number
   clientCubicReported: number
   fineAmountMinor: number
@@ -26,6 +27,7 @@ interface InsertTripInput {
 interface UpdateTripInput {
   id: string
   tripDate: string
+  timeOfDay: 'MORNING' | 'EVENING' | null
   crusherCubic: number
   clientCubicReported: number
   fineAmountMinor: number
@@ -49,6 +51,7 @@ export interface TripRow {
   id: string
   shiftId: string
   tripDate: string
+  timeOfDay: 'MORNING' | 'EVENING' | null
   crusherCubic: number
   clientCubicReported: number
   fineAmountMinor: number
@@ -75,6 +78,7 @@ export interface TripWithContextRow {
   driverName: string
   vehicleNo: number
   tripDate: string
+  timeOfDay: 'MORNING' | 'EVENING' | null
   location: string | null
   crusherName: string
   crusherCubic: number
@@ -203,13 +207,13 @@ export function insertTrip(input: InsertTripInput): void {
   const stmt = db.prepare(`
     INSERT INTO Trip (
       id, shift_id, trip_date, crusher_cubic, client_cubic_reported,
-      fine_amount, fine_reason, location, crusher_id, stone_price,
+      time_of_day, fine_amount, fine_reason, location, crusher_id, stone_price,
       crusher_receipt_status, crusher_receipt_no, client_id, transport_price,
       client_price, recipient_name_status, recipient_name, client_receipt_no, notes,
       material_type_id
     ) VALUES (
       @id, @shiftId, @tripDate, @crusherCubic, @clientCubicReported,
-      @fineAmountMinor, @fineReason, @location, @crusherId, @stonePriceMinor,
+      @timeOfDay, @fineAmountMinor, @fineReason, @location, @crusherId, @stonePriceMinor,
       @crusherReceiptStatus, @crusherReceiptNo, @clientId, @transportPriceMinor,
       @clientPriceMinor, @recipientNameStatus, @recipientName, @clientReceiptNo, @notes,
       @materialTypeId
@@ -220,6 +224,7 @@ export function insertTrip(input: InsertTripInput): void {
 
 const TRIP_COLUMNS = `
   id, shift_id as shiftId, trip_date as tripDate,
+  time_of_day as timeOfDay,
   crusher_cubic as crusherCubic, client_cubic_reported as clientCubicReported,
   fine_amount as fineAmountMinor, fine_reason as fineReason,
   location, crusher_id as crusherId, stone_price as stonePriceMinor,
@@ -258,6 +263,7 @@ export function listAllTrips(): TripWithContextRow[] {
         d.name as driverName,
         s.vehicle_no as vehicleNo,
         t.trip_date as tripDate,
+        t.time_of_day as timeOfDay,
         t.location,
         cr.name as crusherName,
         t.crusher_cubic as crusherCubic,
@@ -298,6 +304,7 @@ export function updateTrip(input: UpdateTripInput): void {
   const stmt = db.prepare(`
     UPDATE Trip SET
       trip_date = @tripDate,
+      time_of_day = @timeOfDay,
       crusher_cubic = @crusherCubic,
       client_cubic_reported = @clientCubicReported,
       fine_amount = @fineAmountMinor,

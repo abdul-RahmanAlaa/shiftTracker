@@ -24,8 +24,8 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { ipcApi, showErrorNotice } from '@/lib/ipcErrors'
 
 const navigationItems = [
-  { to: '/dashboard', label: 'dashboard.title', icon: LayoutDashboard },
-  { to: '/', label: 'addTrip.title', icon: Truck },
+  { to: '/', label: 'dashboard.title', icon: LayoutDashboard },
+  { to: '/add-trip', label: 'addTrip.title', icon: Truck },
   { to: '/shifts', label: 'shifts.title', icon: ClipboardList },
   { to: '/all-trips', label: 'allTrips.title', icon: List },
   { to: '/accounts', label: 'accountsPage.title', icon: Calculator },
@@ -48,7 +48,7 @@ function AppLayout(): React.JSX.Element {
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
+              end={to === '/' || to === '/add-trip'}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground',
@@ -101,8 +101,8 @@ function App(): React.JSX.Element {
           <BackupStatusCheck />
           <Routes>
             <Route element={<AppLayout />}>
-              <Route index element={<AddTripPage />} />
-              <Route path="dashboard" element={<DashboardPage />} />
+              <Route index element={<DashboardPage />} />
+              <Route path="add-trip" element={<AddTripPage />} />
               <Route path="shifts" element={<ShiftsPage />} />
               <Route path="shifts/:shiftId" element={<ShiftDetailPage />} />
               <Route path="all-trips" element={<AllTripsPage />} />

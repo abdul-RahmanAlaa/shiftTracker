@@ -48,7 +48,8 @@ export function listLedgerByContractor(contractorId: number): LedgerRow[] {
   return db
     .prepare(
       `
-      SELECT id, entry_date as entryDate, driver_id as driverId, movement_type as movementType,
+      SELECT id, entry_date as entryDate, entry_time as entryTime,
+             driver_id as driverId, movement_type as movementType,
              amount as amountMinor, shift_id as shiftId, contractor_id as contractorId, notes
       FROM Ledger
       WHERE contractor_id = ?
@@ -63,7 +64,8 @@ export function listLedgerByDriver(driverId: number): LedgerRow[] {
   return db
     .prepare(
       `
-      SELECT id, entry_date as entryDate, driver_id as driverId, movement_type as movementType,
+      SELECT id, entry_date as entryDate, entry_time as entryTime,
+             driver_id as driverId, movement_type as movementType,
              amount as amountMinor, shift_id as shiftId, contractor_id as contractorId, notes
       FROM Ledger
       WHERE driver_id = ?

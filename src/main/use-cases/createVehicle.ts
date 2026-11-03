@@ -84,7 +84,12 @@ export function deleteVehicle(input: {
     if (isSqliteError(err) && err.code === 'SQLITE_CONSTRAINT_FOREIGNKEY') {
       return {
         ok: false,
-        errors: [{ field: 'vehicleNo', message: 'العربية دي مستخدمة في ورديات، مينفعش تتمسح' }]
+        errors: [
+          {
+            field: 'vehicleNo',
+            message: 'العربية دي مستخدمة في ورديات أو مسودات، مينفعش تتمسح'
+          }
+        ]
       }
     }
     throw err

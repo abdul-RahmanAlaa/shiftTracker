@@ -11,6 +11,7 @@ import { listAttachments, deleteAttachment } from '../repository/attachmentRepos
 import { deleteAttachmentPhotoFile } from '../photoStorage'
 import { getDb } from '../db'
 import { toMinorUnits } from '../accounting'
+import { mainMessages } from '../mainMessages'
 import {
   dateStringSchema,
   positiveIntegerSchema,
@@ -23,6 +24,7 @@ import { UseCaseResult, isSqliteError } from '../useCaseUtils'
 
 interface TripFieldsInput {
   tripDate: string
+  timeOfDay?: 'MORNING' | 'EVENING' | null
   crusherCubic: number
   clientCubicReported: number
   fineAmount?: number
@@ -55,7 +57,8 @@ const tripFieldMessages: Record<string, string> = {
   crusherReceiptNo: 'رقم الإيصال مطلوب',
   recipientNameStatus: 'حالة اسم المستلم مطلوبة',
   recipientName: 'اسم المستلم مطلوب',
-  fineAmount: validationMessages.fineAmountNonNegative
+  fineAmount: validationMessages.fineAmountNonNegative,
+  timeOfDay: mainMessages.timeOfDayInvalid
 }
 
 const tripSchema = z
@@ -64,6 +67,10 @@ const tripSchema = z
       validationMessages.tripDateRequired,
       validationMessages.tripDateInvalid
     ),
+    timeOfDay: z
+      .enum(['MORNING', 'EVENING'], { error: mainMessages.timeOfDayInvalid })
+      .nullable()
+      .optional(),
     crusherCubic: positiveNumberSchema('تكعيب الكسارة مطلوب'),
     clientCubicReported: positiveNumberSchema('تكعيب العميل مطلوب'),
     fineAmount: nonNegativeMoneySchema(validationMessages.fineAmountNonNegative).optional(),
@@ -200,6 +207,7 @@ export function createTripInTransaction(input: CreateTripInput): UseCaseResult<{
       id,
       shiftId: input.shiftId,
       tripDate: input.tripDate,
+      timeOfDay: input.timeOfDay ?? null,
       crusherCubic: input.crusherCubic,
       clientCubicReported: input.clientCubicReported,
       fineAmountMinor,
@@ -302,6 +310,7 @@ export function updateTrip(input: UpdateTripInput): UseCaseResult<{ id: string }
     updateTripInDb({
       id: input.id,
       tripDate: input.tripDate,
+      timeOfDay: input.timeOfDay === undefined ? existingTrip.timeOfDay : input.timeOfDay,
       crusherCubic: input.crusherCubic,
       clientCubicReported: input.clientCubicReported,
       fineAmountMinor,

@@ -6,6 +6,7 @@ import { attachmentFileExists } from '../photoStorage'
 import { dateStringSchema, nonNegativeIntegerSchema, validationMessages } from '../validation'
 import { z } from 'zod'
 import { UseCaseResult } from '../useCaseUtils'
+import { mainMessages } from '../mainMessages'
 
 export interface CloseShiftSuccessData {
   id: string
@@ -95,6 +96,27 @@ export async function closeShift(
   }
 
   const reportedTripCount = reportedTripCountResult.data
+
+  const draftCount = (
+    getDb()
+      .prepare(
+        `SELECT COUNT(*) AS count
+         FROM DraftTrip
+         WHERE vehicle_no = (SELECT vehicle_no FROM Shift WHERE id = ?)`
+      )
+      .get(shiftId) as { count: number }
+  ).count
+  if (draftCount > 0) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: 'draftTrips',
+          message: mainMessages.draftsPreventShiftClose.replace('{count}', String(draftCount))
+        }
+      ]
+    }
+  }
 
   const stats = getShiftStats(shiftId)
   if (stats && stats.actual_trip_count !== reportedTripCount) {

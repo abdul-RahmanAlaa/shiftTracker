@@ -16,11 +16,16 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 
-type AttachmentEntityType = 'TRIP' | 'SHIFT'
-type AttachmentRow = Extract<
+type AttachmentEntityType = 'TRIP' | 'SHIFT' | 'LEDGER'
+type TripShiftAttachmentRow = Extract<
   Awaited<ReturnType<typeof ipcApi.listEntityAttachments>>,
   { ok: true }
 >['data'][number]
+type LedgerAttachmentRow = Omit<TripShiftAttachmentRow, 'entityType' | 'kind'> & {
+  entityType: 'LEDGER'
+  kind: 'TRANSFER_RECEIPT'
+}
+type AttachmentRow = TripShiftAttachmentRow | LedgerAttachmentRow
 type AttachmentKind = AttachmentRow['kind']
 type AttachmentPhotoResult = Awaited<ReturnType<typeof ipcApi.getAttachmentPhoto>>
 type ScheduledPhotoResult =
@@ -279,13 +284,18 @@ export function AttachmentManager({
         return t('receiptPhoto.labels.clientReceipt')
       case 'CLOSING_SHEET':
         return t('receiptPhoto.labels.closingSheet')
+      case 'TRANSFER_RECEIPT':
+        return t('receiptPhoto.labels.transferReceipt')
     }
   }
 
   useEffect(() => {
     let cancelled = false
     async function loadAttachments(): Promise<void> {
-      const result = await ipcApi.listEntityAttachments({ entityType, entityId })
+      const result =
+        entityType === 'LEDGER'
+          ? await ipcApi.listEntityAttachments({ entityType, entityId })
+          : await ipcApi.listEntityAttachments({ entityType, entityId })
       if (cancelled) return
       if (!result.ok) {
         setOperationError(result.errors.map((error) => error.message).join(', '))
@@ -349,12 +359,28 @@ export function AttachmentManager({
     try {
       const dataUri = await createCroppedImage(imageToCrop, croppedAreaPixels, rotation)
       const imageBase64 = dataUri.replace(/^data:image\/jpeg;base64,/, '')
-      const result = await ipcApi.addAttachment({
-        entityType,
-        entityId,
-        kind: kindToAdd,
-        imageBase64
-      })
+      const result =
+        entityType === 'LEDGER'
+          ? kindToAdd === 'TRANSFER_RECEIPT'
+            ? await ipcApi.addAttachment({
+                entityType,
+                entityId,
+                kind: kindToAdd,
+                imageBase64
+              })
+            : null
+          : kindToAdd !== 'TRANSFER_RECEIPT'
+            ? await ipcApi.addAttachment({
+                entityType,
+                entityId,
+                kind: kindToAdd,
+                imageBase64
+              })
+            : null
+      if (result === null) {
+        setSaveError(t('receiptPhoto.errors.saveImage'))
+        return
+      }
       if (!result.ok) {
         setSaveError(result.errors.map((error) => error.message).join(', '))
         return
@@ -448,7 +474,7 @@ export function AttachmentManager({
             )
           })}
         </div>
-      ) : (
+      ) : entityType === 'SHIFT' ? (
         <section className="flex flex-col gap-2">
           <h3 className="text-sm font-medium">{t('receiptPhoto.closingDocuments')}</h3>
           {attachments
@@ -465,6 +491,27 @@ export function AttachmentManager({
               {t('receiptPhoto.addDocument')}
             </Button>
           )}
+        </section>
+      ) : (
+        <section className="flex flex-col gap-2">
+          <h3 className="text-sm font-medium">{t('receiptPhoto.labels.transferReceipt')}</h3>
+          {attachments
+            .filter((attachment) => attachment.kind === 'TRANSFER_RECEIPT')
+            .map(renderAttachment)}
+          {!readOnly &&
+            attachments.every((attachment) => attachment.kind !== 'TRANSFER_RECEIPT') && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => openFilePicker('TRANSFER_RECEIPT')}
+              >
+                {t('receiptPhoto.upload', {
+                  label: t('receiptPhoto.labels.transferReceipt')
+                })}
+              </Button>
+            )}
         </section>
       )}
       {operationError && <p className="text-sm text-destructive">{operationError}</p>}

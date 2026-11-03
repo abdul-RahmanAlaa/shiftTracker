@@ -9,6 +9,7 @@ export interface DraftTripRow {
   client_id: number | null
   cubic: number | null
   custody_amount: number | null
+  custody_date: string | null
   custody_time: string | null
   receipt_note: string | null
   notes: string | null
@@ -30,6 +31,7 @@ export interface CreateDraftTripInput {
   clientId?: number
   cubic?: number
   custodyAmount?: number
+  custodyDate?: string
   custodyTime?: string
   receiptNote?: string
   notes?: string
@@ -43,6 +45,7 @@ export interface UpdateDraftTripInput {
   clientId: number | null
   cubic: number | null
   custodyAmount: number | null
+  custodyDate?: string | null
   custodyTime: string | null
   receiptNote: string | null
   notes: string | null
@@ -53,10 +56,10 @@ export function insertDraftTrip(db: Database.Database, input: CreateDraftTripInp
     .prepare(
       `INSERT INTO DraftTrip (
         vehicle_no, trip_date, time_of_day, crusher_id, client_id, cubic,
-        custody_amount, custody_time, receipt_note, notes
+        custody_amount, custody_date, custody_time, receipt_note, notes
       ) VALUES (
         @vehicleNo, @tripDate, @timeOfDay, @crusherId, @clientId, @cubic,
-        @custodyAmount, @custodyTime, @receiptNote, @notes
+        @custodyAmount, @custodyDate, @custodyTime, @receiptNote, @notes
       )`
     )
     .run({
@@ -67,6 +70,7 @@ export function insertDraftTrip(db: Database.Database, input: CreateDraftTripInp
       clientId: input.clientId ?? null,
       cubic: input.cubic ?? null,
       custodyAmount: input.custodyAmount ?? null,
+      custodyDate: input.custodyDate ?? null,
       custodyTime: input.custodyTime ?? null,
       receiptNote: input.receiptNote ?? null,
       notes: input.notes ?? null
@@ -80,6 +84,8 @@ export function updateDraftTrip(
   db: Database.Database,
   input: UpdateDraftTripInput
 ): DraftTripRow | null {
+  const existing = getDraftTripById(db, input.id)
+  if (!existing) return null
   db.prepare(
     `UPDATE DraftTrip SET
       trip_date = @tripDate,
@@ -88,11 +94,15 @@ export function updateDraftTrip(
       client_id = @clientId,
       cubic = @cubic,
       custody_amount = @custodyAmount,
+      custody_date = @custodyDate,
       custody_time = @custodyTime,
       receipt_note = @receiptNote,
       notes = @notes
     WHERE id = @id`
-  ).run(input)
+  ).run({
+    ...input,
+    custodyDate: input.custodyDate === undefined ? existing.custody_date : input.custodyDate
+  })
   return getDraftTripById(db, input.id)
 }
 
@@ -113,6 +123,7 @@ export function getDraftTripById(db: Database.Database, id: number): DraftTripRo
           client_id,
           cubic,
           custody_amount,
+          custody_date,
           custody_time,
           receipt_note,
           notes,
@@ -136,6 +147,7 @@ export function listDraftTrips(db: Database.Database): DraftTripListRow[] {
         DraftTrip.client_id,
         DraftTrip.cubic,
         DraftTrip.custody_amount,
+        DraftTrip.custody_date,
         DraftTrip.custody_time,
         DraftTrip.receipt_note,
         DraftTrip.notes,

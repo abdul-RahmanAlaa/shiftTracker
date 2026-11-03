@@ -1,7 +1,8 @@
 import { getDb } from '../db'
 
-export type AttachmentEntityType = 'TRIP' | 'SHIFT'
-export type AttachmentKind = 'CRUSHER_RECEIPT' | 'CLIENT_RECEIPT' | 'CLOSING_SHEET'
+export type AttachmentEntityType = 'TRIP' | 'SHIFT' | 'LEDGER'
+export type AttachmentKind =
+  'CRUSHER_RECEIPT' | 'CLIENT_RECEIPT' | 'CLOSING_SHEET' | 'TRANSFER_RECEIPT'
 
 export interface AttachmentRow {
   id: number

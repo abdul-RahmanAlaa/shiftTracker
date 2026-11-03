@@ -124,6 +124,7 @@ CREATE TABLE IF NOT EXISTS Trip (
     strftime('%Y-%m-%d', trip_date, '+0 days') IS NOT NULL AND
     strftime('%Y-%m-%d', trip_date, '+0 days') = trip_date
   ),
+  time_of_day             TEXT CHECK (time_of_day IS NULL OR time_of_day IN ('MORNING','EVENING')),
   crusher_cubic           REAL NOT NULL,
   client_cubic_reported   REAL NOT NULL,
   fine_amount             INTEGER NOT NULL DEFAULT 0 CHECK (
@@ -163,9 +164,9 @@ CREATE TABLE IF NOT EXISTS Trip (
 
 CREATE TABLE IF NOT EXISTS Attachment (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  entity_type TEXT NOT NULL CHECK (entity_type IN ('TRIP','SHIFT')),
+  entity_type TEXT NOT NULL CHECK (entity_type IN ('TRIP','SHIFT','LEDGER')),
   entity_id TEXT NOT NULL,
-  kind TEXT NOT NULL CHECK (kind IN ('CRUSHER_RECEIPT','CLIENT_RECEIPT','CLOSING_SHEET')),
+  kind TEXT NOT NULL CHECK (kind IN ('CRUSHER_RECEIPT','CLIENT_RECEIPT','CLOSING_SHEET','TRANSFER_RECEIPT')),
   photo_path TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -184,7 +185,21 @@ CREATE TABLE IF NOT EXISTS DraftTrip (
   client_id        INTEGER REFERENCES Client(id),
   cubic            REAL CHECK (cubic IS NULL OR (cubic > 0 AND cubic < 1e308)),
   custody_amount   INTEGER CHECK (custody_amount IS NULL OR custody_amount > 0),
-  custody_time     TEXT,
+  custody_date     TEXT CHECK (
+    custody_date IS NULL OR (
+      length(custody_date) = 10 AND
+      custody_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
+      strftime('%Y-%m-%d', custody_date, '+0 days') IS NOT NULL AND
+      strftime('%Y-%m-%d', custody_date, '+0 days') = custody_date
+    )
+  ),
+  custody_time     TEXT CHECK (
+    custody_time IS NULL OR (
+      length(custody_time) = 5 AND
+      custody_time GLOB '[0-2][0-9]:[0-5][0-9]' AND
+      substr(custody_time, 1, 2) <= '23'
+    )
+  ),
   receipt_note     TEXT,
   notes            TEXT,
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
@@ -218,6 +233,13 @@ CREATE TABLE IF NOT EXISTS Ledger (
     entry_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' AND
     strftime('%Y-%m-%d', entry_date, '+0 days') IS NOT NULL AND
     strftime('%Y-%m-%d', entry_date, '+0 days') = entry_date
+  ),
+  entry_time     TEXT CHECK (
+    entry_time IS NULL OR (
+      length(entry_time) = 5 AND
+      entry_time GLOB '[0-2][0-9]:[0-5][0-9]' AND
+      substr(entry_time, 1, 2) <= '23'
+    )
   ),
   driver_id      INTEGER REFERENCES Driver(id),
   movement_type  TEXT NOT NULL CHECK (movement_type IN ('ADVANCE','PAYMENT','OTHER')),

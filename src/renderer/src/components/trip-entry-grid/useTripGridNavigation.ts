@@ -22,7 +22,7 @@ export function useTripGridNavigation({
   columns: GridColumn[]
   rowDefaults: TripGridDefaults
   rowIdRef: React.MutableRefObject<number>
-  inputRefs: RefObject<Map<string, HTMLInputElement>>
+  inputRefs: RefObject<Map<string, HTMLElement>>
   pendingFocus: React.MutableRefObject<{ rowIndex: number; column: TripGridColumn } | null>
   names: TripGridNames
   addRow: (previous?: GridRow) => number
@@ -39,11 +39,7 @@ export function useTripGridNavigation({
     rowIndex: number,
     columnIndex: number
   ) => void
-  handleKeyDown: (
-    event: KeyboardEvent<HTMLInputElement>,
-    rowIndex: number,
-    columnIndex: number
-  ) => void
+  handleKeyDown: (event: KeyboardEvent<HTMLElement>, rowIndex: number, columnIndex: number) => void
 } {
   function setPastedValue(row: GridRow, column: TripGridColumn, value: string): GridRow {
     const resolved =
@@ -122,7 +118,7 @@ export function useTripGridNavigation({
   }
 
   function handleKeyDown(
-    event: KeyboardEvent<HTMLInputElement>,
+    event: KeyboardEvent<HTMLElement>,
     rowIndex: number,
     columnIndex: number
   ): void {

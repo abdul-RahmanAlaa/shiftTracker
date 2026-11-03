@@ -29,6 +29,14 @@ import { hasAtMostTwoDecimals } from '@/lib/money'
 
 export const ledgerEntrySchema = z.object({
   entryDate: z.string().min(1, i18n.t('ledgerEntryForm.validation.dateRequired')),
+  entryTime: z
+    .union([
+      z.literal(''),
+      z
+        .string()
+        .regex(/^([01]\d|2[0-3]):[0-5]\d$/, i18n.t('ledgerEntryForm.validation.timeInvalid'))
+    ])
+    .optional(),
   driverId: z.number().int().positive().optional(),
   movementType: z.enum(['ADVANCE', 'PAYMENT', 'OTHER'], {
     message: i18n.t('ledgerEntryForm.validation.movementTypeRequired')
@@ -111,6 +119,19 @@ export function LedgerEntryForm({
                   onChange={field.onChange}
                   placeholder={t('ledgerEntryForm.placeholders.date')}
                 />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="entryTime"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t('ledgerEntryForm.fields.time')}</FormLabel>
+              <FormControl>
+                <Input type="time" value={field.value ?? ''} onChange={field.onChange} />
               </FormControl>
               <FormMessage />
             </FormItem>

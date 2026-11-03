@@ -47,7 +47,7 @@ export function TripEntryGrid({
   const [showExtras, setShowExtras] = useState(false)
   const [selectedRowId, setSelectedRowId] = useState<number>()
   const rowIdRef = useRef(0)
-  const inputRefs = useRef(new Map<string, HTMLInputElement>())
+  const inputRefs = useRef(new Map<string, HTMLElement>())
   const pendingFocus = useRef<{ rowIndex: number; column: TripGridColumn } | null>(null)
   const names: TripGridNames = {
     clients: resources.clients,
@@ -56,6 +56,7 @@ export function TripEntryGrid({
   }
   const labelFor = (column: TripGridColumn): string => {
     if (column === 'notes') return t('common.columns.notes')
+    if (column === 'timeOfDay') return t('tripForm.fields.timeOfDay')
     const key =
       column === 'recipient'
         ? 'recipientName'

@@ -1,5 +1,6 @@
 export type TripGridColumn =
   | 'tripDate'
+  | 'timeOfDay'
   | 'client'
   | 'crusher'
   | 'materialType'
@@ -18,6 +19,7 @@ export type TripGridColumn =
 
 export interface TripGridRow {
   tripDate: string
+  timeOfDay: string
   client: string
   crusher: string
   materialType: string
@@ -53,6 +55,7 @@ export interface ParsedRecipient {
 export interface TripGridPayload {
   shiftId: string
   tripDate: string
+  timeOfDay?: 'MORNING' | 'EVENING' | null
   clientId: number
   crusherId: number
   materialTypeId: number
@@ -268,6 +271,9 @@ export function buildTripPayload(row: TripGridRow, shiftId: string): TripGridBui
   const payload: TripGridPayload = {
     shiftId,
     tripDate: date.ok ? date.value : '',
+    ...(row.timeOfDay === 'MORNING' || row.timeOfDay === 'EVENING'
+      ? { timeOfDay: row.timeOfDay }
+      : {}),
     clientId: row.clientId ?? 0,
     crusherId: row.crusherId ?? 0,
     materialTypeId: row.materialTypeId ?? 0,

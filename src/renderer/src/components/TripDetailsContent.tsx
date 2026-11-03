@@ -17,6 +17,14 @@ export function TripDetailsContent({ trip }: { trip: TripDetailsRow }): React.JS
     [t('tripDetails.fields.tripNumber'), trip.id],
     [t('common.columns.shift'), trip.shiftId],
     [t('common.columns.date'), trip.tripDate],
+    [
+      t('tripForm.fields.timeOfDay'),
+      trip.timeOfDay === 'MORNING'
+        ? t('dashboard.morning')
+        : trip.timeOfDay === 'EVENING'
+          ? t('dashboard.evening')
+          : t('common.emDash')
+    ],
     [t('ledgerEntryForm.fields.driver'), trip.driverName],
     [t('vehiclesSettings.fields.vehicleNo'), trip.vehicleNo],
     [t('tripForm.fields.crusherCubic'), formatQuantity(trip.crusherCubic)],

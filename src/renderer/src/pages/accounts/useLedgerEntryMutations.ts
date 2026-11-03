@@ -68,6 +68,7 @@ export function useLedgerEntryMutations({
     setEditingEntry(entry)
     form.reset({
       entryDate: entry.entryDate,
+      entryTime: entry.entryTime ?? '',
       driverId: entry.driverId ?? undefined,
       movementType: entry.movementType,
       amount: Number(entry.amount),
@@ -91,14 +92,16 @@ export function useLedgerEntryMutations({
       ? await ipcApi.updateLedgerEntry({
           id: editingEntry.id,
           ...values,
+          entryTime: values.entryTime || null,
           driverId: values.driverId ?? null,
           shiftId: values.shiftId ?? null,
           contractorId: values.contractorId ?? null,
           notes: values.notes?.trim() || null
         } satisfies Parameters<typeof ipcApi.updateLedgerEntry>[0])
-      : await ipcApi.createLedgerEntry(
-          values satisfies Parameters<typeof ipcApi.createLedgerEntry>[0]
-        )
+      : await ipcApi.createLedgerEntry({
+          ...values,
+          entryTime: values.entryTime || null
+        } satisfies Parameters<typeof ipcApi.createLedgerEntry>[0])
 
     if (result.ok) {
       setIsDialogOpen(false)

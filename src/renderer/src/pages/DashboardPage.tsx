@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
-import type { ColumnDef } from '@tanstack/react-table'
 import { useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import type { DraftTripListRow, OpenShiftCard } from '../../../preload/index.d'
-import { DataTable } from '@/components/DataTable'
-import { useConfirm } from '@/components/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -18,36 +15,32 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { ipcApi } from '@/lib/ipcErrors'
-import { formatMoney, formatQuantity } from '@/lib/numberFormat'
+import { formatMoney } from '@/lib/numberFormat'
+import { DashboardDraftGrid } from './DashboardDraftGrid'
 import { TripForm } from './TripForm'
 import { tripSchema } from './tripFormSchema'
 import type { ResourceState, TripValues } from './tripFormSchema'
 import { useDashboardPage } from './useDashboardPage'
 
-interface DraftFormValues {
-  vehicleNo: string
+interface DraftDetailsValues {
   tripDate: string
   timeOfDay: '' | 'MORNING' | 'EVENING'
   crusherId: string
   clientId: string
   cubic: string
   custodyAmount: string
+  custodyDate: string
   custodyTime: string
   receiptNote: string
   notes: string
 }
 
-const emptyDraftForm: DraftFormValues = {
-  vehicleNo: '',
-  tripDate: '',
-  timeOfDay: '',
-  crusherId: '',
-  clientId: '',
-  cubic: '',
-  custodyAmount: '',
-  custodyTime: '',
-  receiptNote: '',
-  notes: ''
+interface CustodyReviewValues {
+  enabled: boolean
+  amount: string
+  date: string
+  time: string
+  notes: string
 }
 
 const emptyTripResources: ResourceState = {
@@ -59,57 +52,64 @@ const emptyTripResources: ResourceState = {
   locations: []
 }
 
-function localDateString(): string {
-  const date = new Date()
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function draftFormValues(draft: DraftTripListRow): DraftFormValues {
+function toDraftDetailsValues(draft: DraftTripListRow): DraftDetailsValues {
   return {
-    vehicleNo: String(draft.vehicle_no),
     tripDate: draft.trip_date,
     timeOfDay: draft.time_of_day ?? '',
     crusherId: draft.crusher_id === null ? '' : String(draft.crusher_id),
     clientId: draft.client_id === null ? '' : String(draft.client_id),
     cubic: draft.cubic === null ? '' : String(draft.cubic),
     custodyAmount: draft.custody_amount === null ? '' : String(draft.custody_amount),
+    custodyDate: draft.custody_date ?? draft.trip_date,
     custodyTime: draft.custody_time ?? '',
     receiptNote: draft.receipt_note ?? '',
     notes: draft.notes ?? ''
   }
 }
 
-function optionalNumber(value: string): number | undefined {
-  return value === '' ? undefined : Number(value)
-}
-
 function nullableNumber(value: string): number | null {
-  return value === '' ? null : Number(value)
+  if (value === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : Number.NaN
 }
 
-function selectedTimeOfDay(value: string): DraftFormValues['timeOfDay'] {
-  return value === 'MORNING' || value === 'EVENING' ? value : ''
+function nullableText(value: string): string | null {
+  return value.trim() ? value : null
+}
+
+function timeOfDayLabel(
+  value: DraftTripListRow['time_of_day'],
+  t: (key: 'dashboard.morning' | 'dashboard.evening' | 'common.emDash') => string
+): string {
+  if (value === 'MORNING') return t('dashboard.morning')
+  if (value === 'EVENING') return t('dashboard.evening')
+  return t('common.emDash')
 }
 
 export function DashboardPage(): React.JSX.Element {
   const { t } = useTranslation()
   const { data, loading, refresh } = useDashboardPage()
-  const requestConfirmation = useConfirm()
-  const [draftDialogOpen, setDraftDialogOpen] = useState(false)
-  const [editingDraftId, setEditingDraftId] = useState<number | null>(null)
-  const [draftValues, setDraftValues] = useState<DraftFormValues>(emptyDraftForm)
-  const [savingDraft, setSavingDraft] = useState(false)
+  const [detailsDraft, setDetailsDraft] = useState<DraftTripListRow | null>(null)
+  const [detailsValues, setDetailsValues] = useState<DraftDetailsValues | null>(null)
+  const [detailsError, setDetailsError] = useState<string | null>(null)
+  const [savingDetails, setSavingDetails] = useState(false)
   const [promotingDraft, setPromotingDraft] = useState<DraftTripListRow | null>(null)
+  const [promotionError, setPromotionError] = useState<string | null>(null)
   const [tripResources, setTripResources] = useState<ResourceState>(emptyTripResources)
   const [tripResourcesLoading, setTripResourcesLoading] = useState(true)
+  const [custodyReview, setCustodyReview] = useState<CustodyReviewValues>({
+    enabled: false,
+    amount: '',
+    date: '',
+    time: '',
+    notes: ''
+  })
   const promoteForm = useForm<TripValues>({
     resolver: zodResolver(tripSchema),
     defaultValues: {
       crusherReceiptStatus: 'UNKNOWN',
-      recipientNameStatus: 'UNCLEAR'
+      recipientNameStatus: 'UNCLEAR',
+      timeOfDay: null
     }
   })
   const crusherReceiptStatus = useWatch({
@@ -140,195 +140,101 @@ export function DashboardPage(): React.JSX.Element {
       .finally(() => setTripResourcesLoading(false))
   }, [])
 
-  const columns: ColumnDef<DraftTripListRow, unknown>[] = [
-    { accessorKey: 'trip_date', header: t('dashboard.date'), meta: { nowrap: true } },
-    {
-      accessorKey: 'time_of_day',
-      header: t('dashboard.timeOfDay'),
-      meta: { nowrap: true },
-      cell: ({ row }) => {
-        const timeOfDay = row.original.time_of_day
-        return timeOfDay === null
-          ? t('common.emDash')
-          : t(timeOfDay === 'MORNING' ? 'dashboard.morning' : 'dashboard.evening')
-      }
-    },
-    {
-      accessorKey: 'vehicle_no',
-      header: t('dashboard.vehicle'),
-      meta: { nowrap: true }
-    },
-    {
-      accessorKey: 'driver_name',
-      header: t('dashboard.driver'),
-      cell: ({ row }) => row.original.driver_name ?? t('common.emDash')
-    },
-    {
-      accessorKey: 'crusher_name',
-      header: t('dashboard.crusher'),
-      cell: ({ row }) => row.original.crusher_name ?? t('common.emDash')
-    },
-    {
-      accessorKey: 'client_name',
-      header: t('dashboard.client'),
-      cell: ({ row }) => row.original.client_name ?? t('common.emDash')
-    },
-    {
-      accessorKey: 'cubic',
-      header: t('dashboard.cubic'),
-      meta: { nowrap: true },
-      cell: ({ row }) =>
-        row.original.cubic === null ? t('common.emDash') : formatQuantity(row.original.cubic)
-    },
-    {
-      accessorKey: 'custody_amount',
-      header: t('dashboard.custody'),
-      meta: { nowrap: true },
-      cell: ({ row }) =>
-        row.original.custody_amount === null
-          ? t('common.emDash')
-          : formatMoney(row.original.custody_amount)
-    },
-    {
-      accessorKey: 'receipt_note',
-      header: t('dashboard.receipt'),
-      cell: ({ row }) => row.original.receipt_note ?? t('common.emDash')
-    },
-    {
-      id: 'actions',
-      header: t('common.columns.actions'),
-      meta: { nowrap: true },
-      enableSorting: false,
-      enableColumnFilter: false,
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => openDraftEditor(row.original)}
-          >
-            {t('dashboard.editDraft')}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={tripResourcesLoading}
-            onClick={() => openPromoteDialog(row.original)}
-          >
-            {t('dashboard.promote')}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void handleDeleteDraft(row.original.id)}
-          >
-            {t('dashboard.deleteDraft')}
-          </Button>
-        </div>
-      )
-    }
-  ]
+  function openDraftDetails(draft: DraftTripListRow): void {
+    setDetailsDraft(draft)
+    setDetailsValues(toDraftDetailsValues(draft))
+    setDetailsError(null)
+  }
 
-  function openDraftEditor(draft?: DraftTripListRow): void {
-    setEditingDraftId(draft?.id ?? null)
-    setDraftValues(
-      draft
-        ? draftFormValues(draft)
-        : {
-            ...emptyDraftForm,
-            vehicleNo: data.openShifts[0] ? String(data.openShifts[0].vehicle_no) : '',
-            tripDate: localDateString()
-          }
-    )
-    setDraftDialogOpen(true)
+  async function saveDraftDetails(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault()
+    if (!detailsDraft || !detailsValues) return
+    setSavingDetails(true)
+    setDetailsError(null)
+    const result = await ipcApi.updateDraftTrip({
+      id: detailsDraft.id,
+      tripDate: detailsValues.tripDate,
+      timeOfDay: detailsValues.timeOfDay || null,
+      crusherId: nullableNumber(detailsValues.crusherId),
+      clientId: nullableNumber(detailsValues.clientId),
+      cubic: nullableNumber(detailsValues.cubic),
+      custodyAmount: nullableNumber(detailsValues.custodyAmount),
+      custodyDate: nullableText(detailsValues.custodyDate),
+      custodyTime: nullableText(detailsValues.custodyTime),
+      receiptNote: nullableText(detailsValues.receiptNote),
+      notes: nullableText(detailsValues.notes)
+    })
+    setSavingDetails(false)
+    if (!result.ok) {
+      setDetailsError(result.errors.map((error) => error.message).join(', '))
+      return
+    }
+    setDetailsDraft(null)
+    setDetailsValues(null)
+    refresh()
   }
 
   function openPromoteDialog(draft: DraftTripListRow): void {
     promoteForm.reset({
       tripDate: draft.trip_date,
+      timeOfDay: draft.time_of_day,
       ...(draft.cubic === null
         ? {}
         : { crusherCubic: draft.cubic, clientCubicReported: draft.cubic }),
       ...(draft.crusher_id === null ? {} : { crusherId: draft.crusher_id }),
       ...(draft.client_id === null ? {} : { clientId: draft.client_id }),
+      notes: draft.notes ?? '',
       crusherReceiptStatus: 'UNKNOWN',
       recipientNameStatus: 'UNCLEAR'
     })
+    setCustodyReview({
+      enabled: draft.custody_amount !== null,
+      amount: draft.custody_amount === null ? '' : String(draft.custody_amount),
+      date: draft.custody_date ?? draft.trip_date,
+      time: draft.custody_time ?? '',
+      notes: ''
+    })
+    setPromotionError(null)
     setPromotingDraft(draft)
-  }
-
-  async function handleDraftSubmit(event: React.FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault()
-    setSavingDraft(true)
-    try {
-      if (editingDraftId === null) {
-        const vehicleNo = Number(draftValues.vehicleNo)
-        const result = await ipcApi.createDraftTrip({
-          vehicleNo,
-          tripDate: draftValues.tripDate,
-          ...(draftValues.timeOfDay ? { timeOfDay: draftValues.timeOfDay } : {}),
-          ...(draftValues.crusherId ? { crusherId: Number(draftValues.crusherId) } : {}),
-          ...(draftValues.clientId ? { clientId: Number(draftValues.clientId) } : {}),
-          ...(optionalNumber(draftValues.cubic) === undefined
-            ? {}
-            : { cubic: optionalNumber(draftValues.cubic) }),
-          ...(optionalNumber(draftValues.custodyAmount) === undefined
-            ? {}
-            : { custodyAmount: optionalNumber(draftValues.custodyAmount) }),
-          ...(draftValues.custodyTime ? { custodyTime: draftValues.custodyTime } : {}),
-          ...(draftValues.receiptNote ? { receiptNote: draftValues.receiptNote } : {}),
-          ...(draftValues.notes ? { notes: draftValues.notes } : {})
-        })
-        if (!result.ok) return
-      } else {
-        const result = await ipcApi.updateDraftTrip({
-          id: editingDraftId,
-          tripDate: draftValues.tripDate,
-          timeOfDay: draftValues.timeOfDay || null,
-          crusherId: nullableNumber(draftValues.crusherId),
-          clientId: nullableNumber(draftValues.clientId),
-          cubic: nullableNumber(draftValues.cubic),
-          custodyAmount: nullableNumber(draftValues.custodyAmount),
-          custodyTime: draftValues.custodyTime || null,
-          receiptNote: draftValues.receiptNote || null,
-          notes: draftValues.notes || null
-        })
-        if (!result.ok) return
-      }
-      setDraftDialogOpen(false)
-      refresh()
-    } finally {
-      setSavingDraft(false)
-    }
-  }
-
-  async function handleDeleteDraft(id: number): Promise<void> {
-    if (!(await requestConfirmation({ message: t('dashboard.confirmDeleteDraft') }))) return
-    const result = await ipcApi.deleteDraftTrip({ id })
-    if (result.ok) refresh()
   }
 
   async function handlePromote(values: TripValues): Promise<void> {
     if (!promotingDraft?.shift_id) return
+    setPromotionError(null)
+    const custody = custodyReview.enabled
+      ? {
+          entryDate: custodyReview.date,
+          entryTime: custodyReview.time || null,
+          amount: Number(custodyReview.amount),
+          notes: nullableText(custodyReview.notes)
+        }
+      : null
     const result = await ipcApi.promoteDraftTrip({
       draftId: promotingDraft.id,
       shiftId: promotingDraft.shift_id,
-      ...values
+      ...values,
+      custody
     })
-    if (result.ok) {
-      setPromotingDraft(null)
-      refresh()
+    if (!result.ok) {
+      setPromotionError(result.errors.map((error) => error.message).join(', '))
+      return
     }
+    setPromotingDraft(null)
+    refresh()
   }
 
-  function updateDraftField<Field extends keyof DraftFormValues>(
+  function setDetailsField<Field extends keyof DraftDetailsValues>(
     field: Field,
-    value: DraftFormValues[Field]
+    value: DraftDetailsValues[Field]
   ): void {
-    setDraftValues((current) => ({ ...current, [field]: value }))
+    setDetailsValues((current) => (current ? { ...current, [field]: value } : current))
+  }
+
+  function setCustodyField<Field extends keyof CustodyReviewValues>(
+    field: Field,
+    value: CustodyReviewValues[Field]
+  ): void {
+    setCustodyReview((current) => ({ ...current, [field]: value }))
   }
 
   const availableVehicles = Array.from(
@@ -355,150 +261,189 @@ export function DashboardPage(): React.JSX.Element {
       </section>
 
       <section className="flex min-h-0 flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">{t('dashboard.draftTrips')}</h2>
-          <Button
-            type="button"
-            disabled={availableVehicles.length === 0}
-            onClick={() => openDraftEditor()}
-          >
-            {t('dashboard.addDraft')}
-          </Button>
-        </div>
-        <DataTable
-          columns={columns}
-          data={data.drafts}
+        <h2 className="text-xl font-semibold">{t('dashboard.draftTrips')}</h2>
+        <DashboardDraftGrid
+          drafts={data.drafts}
+          vehicles={availableVehicles}
+          crushers={tripResources.crushers}
+          clients={tripResources.clients}
           loading={loading}
-          getRowId={(row) => String(row.id)}
-          emptyMessage={t('dashboard.noDrafts')}
+          onRefresh={refresh}
+          onDetails={openDraftDetails}
+          onPromote={openPromoteDialog}
         />
       </section>
 
       <Dialog
-        open={draftDialogOpen}
+        open={detailsDraft !== null}
         onOpenChange={(open) => {
-          setDraftDialogOpen(open)
-          if (!open) setEditingDraftId(null)
+          if (!open && !savingDetails) {
+            setDetailsDraft(null)
+            setDetailsValues(null)
+          }
         }}
       >
         <DialogContent
           className="max-h-[90vh] overflow-y-auto sm:max-w-2xl"
-          closeDisabled={savingDraft}
+          closeDisabled={savingDetails}
         >
           <DialogHeader>
-            <DialogTitle>
-              {t(editingDraftId === null ? 'dashboard.addDraft' : 'dashboard.editDraft')}
-            </DialogTitle>
+            <DialogTitle>{t('dashboard.detailsTitle')}</DialogTitle>
           </DialogHeader>
-          <form
-            onSubmit={(event) => void handleDraftSubmit(event)}
-            className="grid gap-4 sm:grid-cols-2"
-          >
-            <DraftField label={t('dashboard.vehicleLabel')}>
-              {editingDraftId === null ? (
+          {detailsDraft && detailsValues && (
+            <form
+              onSubmit={(event) => void saveDraftDetails(event)}
+              className="grid gap-4 sm:grid-cols-2"
+            >
+              <label className="grid gap-1.5 text-sm">
+                {t('dashboard.vehicle')}
+                <Input
+                  value={`${detailsDraft.vehicle_no} · ${detailsDraft.driver_name ?? t('common.emDash')}`}
+                  readOnly
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm">
+                {t('dashboard.date')}
+                <Input
+                  type="date"
+                  required
+                  value={detailsValues.tripDate}
+                  onChange={(event) => setDetailsField('tripDate', event.target.value)}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm">
+                {t('dashboard.timeOfDay')}
                 <Select
-                  value={draftValues.vehicleNo}
-                  onValueChange={(value) => updateDraftField('vehicleNo', value)}
+                  value={detailsValues.timeOfDay || 'none'}
+                  onValueChange={(value) =>
+                    setDetailsField(
+                      'timeOfDay',
+                      value === 'MORNING' || value === 'EVENING' ? value : ''
+                    )
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableVehicles.map((vehicle) => (
-                      <SelectItem key={vehicle.vehicle_no} value={String(vehicle.vehicle_no)}>
-                        {vehicle.vehicle_no} · {vehicle.driver_name}
+                    <SelectItem value="none">{t('common.emDash')}</SelectItem>
+                    <SelectItem value="MORNING">{t('dashboard.morning')}</SelectItem>
+                    <SelectItem value="EVENING">{t('dashboard.evening')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+              <label className="grid gap-1.5 text-sm">
+                {t('dashboard.crusher')}
+                <Select
+                  value={detailsValues.crusherId || 'none'}
+                  onValueChange={(value) =>
+                    setDetailsField('crusherId', value === 'none' ? '' : value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('common.emDash')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t('common.emDash')}</SelectItem>
+                    {tripResources.crushers.map((crusher) => (
+                      <SelectItem key={crusher.id} value={String(crusher.id)}>
+                        {crusher.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              ) : (
-                <Input value={draftValues.vehicleNo} readOnly />
+              </label>
+              <label className="grid gap-1.5 text-sm">
+                {t('dashboard.client')}
+                <Select
+                  value={detailsValues.clientId || 'none'}
+                  onValueChange={(value) =>
+                    setDetailsField('clientId', value === 'none' ? '' : value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={t('common.emDash')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">{t('common.emDash')}</SelectItem>
+                    {tripResources.clients.map((client) => (
+                      <SelectItem key={client.id} value={String(client.id)}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <label className="grid gap-1.5 text-sm">
+                {t('dashboard.cubic')}
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={detailsValues.cubic}
+                  onChange={(event) => setDetailsField('cubic', event.target.value)}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm">
+                {t('dashboard.custody')}
+                <Input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={detailsValues.custodyAmount}
+                  onChange={(event) => setDetailsField('custodyAmount', event.target.value)}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm">
+                {t('dashboard.custodyDate')}
+                <Input
+                  type="date"
+                  value={detailsValues.custodyDate}
+                  onChange={(event) => setDetailsField('custodyDate', event.target.value)}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm">
+                {t('dashboard.custodyTime')}
+                <Input
+                  type="time"
+                  value={detailsValues.custodyTime}
+                  onChange={(event) => setDetailsField('custodyTime', event.target.value)}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm sm:col-span-2">
+                {t('dashboard.receipt')}
+                <Input
+                  value={detailsValues.receiptNote}
+                  onChange={(event) => setDetailsField('receiptNote', event.target.value)}
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm sm:col-span-2">
+                {t('dashboard.notes')}
+                <Input
+                  value={detailsValues.notes}
+                  onChange={(event) => setDetailsField('notes', event.target.value)}
+                />
+              </label>
+              {detailsError && (
+                <p role="alert" className="text-sm text-destructive sm:col-span-2">
+                  {detailsError}
+                </p>
               )}
-            </DraftField>
-            <DraftField label={t('dashboard.date')}>
-              <Input
-                type="date"
-                required
-                value={draftValues.tripDate}
-                onChange={(event) => updateDraftField('tripDate', event.target.value)}
-              />
-            </DraftField>
-            <DraftField label={t('dashboard.timeOfDay')}>
-              <Select
-                value={draftValues.timeOfDay || 'none'}
-                onValueChange={(value) => updateDraftField('timeOfDay', selectedTimeOfDay(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t('common.emDash')}</SelectItem>
-                  <SelectItem value="MORNING">{t('dashboard.morning')}</SelectItem>
-                  <SelectItem value="EVENING">{t('dashboard.evening')}</SelectItem>
-                </SelectContent>
-              </Select>
-            </DraftField>
-            <DraftField label={t('dashboard.crusher')}>
-              <OptionalEntitySelect
-                value={draftValues.crusherId}
-                placeholder={t('common.emDash')}
-                options={tripResources.crushers}
-                onChange={(value) => updateDraftField('crusherId', value)}
-              />
-            </DraftField>
-            <DraftField label={t('dashboard.client')}>
-              <OptionalEntitySelect
-                value={draftValues.clientId}
-                placeholder={t('common.emDash')}
-                options={tripResources.clients}
-                onChange={(value) => updateDraftField('clientId', value)}
-              />
-            </DraftField>
-            <DraftField label={t('dashboard.cubic')}>
-              <Input
-                type="number"
-                min="0.000001"
-                step="any"
-                value={draftValues.cubic}
-                onChange={(event) => updateDraftField('cubic', event.target.value)}
-              />
-            </DraftField>
-            <DraftField label={t('dashboard.custody')}>
-              <Input
-                type="number"
-                min="1"
-                step="1"
-                value={draftValues.custodyAmount}
-                onChange={(event) => updateDraftField('custodyAmount', event.target.value)}
-              />
-            </DraftField>
-            <DraftField label={t('dashboard.custodyTime')}>
-              <Input
-                value={draftValues.custodyTime}
-                onChange={(event) => updateDraftField('custodyTime', event.target.value)}
-              />
-            </DraftField>
-            <DraftField label={t('dashboard.receipt')}>
-              <Input
-                value={draftValues.receiptNote}
-                onChange={(event) => updateDraftField('receiptNote', event.target.value)}
-              />
-            </DraftField>
-            <DraftField label={t('dashboard.notes')} className="sm:col-span-2">
-              <Input
-                value={draftValues.notes}
-                onChange={(event) => updateDraftField('notes', event.target.value)}
-              />
-            </DraftField>
-            <div className="flex justify-end gap-2 sm:col-span-2">
-              <Button type="button" variant="outline" onClick={() => setDraftDialogOpen(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button type="submit" disabled={savingDraft}>
-                {savingDraft ? t('common.loading') : t('common.confirm')}
-              </Button>
-            </div>
-          </form>
+              <div className="flex justify-end gap-2 sm:col-span-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={savingDetails}
+                  onClick={() => setDetailsDraft(null)}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button type="submit" disabled={savingDetails}>
+                  {savingDetails ? t('common.loading') : t('common.confirm')}
+                </Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -524,8 +469,103 @@ export function DashboardPage(): React.JSX.Element {
               )}
               <fieldset
                 disabled={promotingDraft.shift_id === null || tripResourcesLoading}
-                className="min-w-0 border-0 p-0"
+                className="min-w-0 space-y-4 border-0 p-0"
               >
+                <section className="rounded-md border p-3">
+                  <h3 className="mb-2 text-sm font-semibold">{t('dashboard.draftReference')}</h3>
+                  <dl className="grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+                    <ReferenceValue
+                      label={t('dashboard.receipt')}
+                      value={promotingDraft.receipt_note}
+                    />
+                    <ReferenceValue
+                      label={t('dashboard.custody')}
+                      value={
+                        promotingDraft.custody_amount === null
+                          ? null
+                          : formatMoney(promotingDraft.custody_amount)
+                      }
+                    />
+                    <ReferenceValue
+                      label={t('dashboard.custodyDate')}
+                      value={promotingDraft.custody_date ?? promotingDraft.trip_date}
+                    />
+                    <ReferenceValue
+                      label={t('dashboard.custodyTime')}
+                      value={promotingDraft.custody_time}
+                    />
+                    <ReferenceValue
+                      label={t('dashboard.timeOfDay')}
+                      value={timeOfDayLabel(promotingDraft.time_of_day, t)}
+                    />
+                  </dl>
+                </section>
+                <section className="space-y-3 rounded-md border p-3">
+                  <h3 className="text-sm font-semibold">{t('dashboard.custodyReview')}</h3>
+                  {promotingDraft.custody_amount !== null ? (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={custodyReview.enabled}
+                        onChange={(event) => setCustodyField('enabled', event.target.checked)}
+                      />
+                      {t('dashboard.promoteCustody')}
+                    </label>
+                  ) : (
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={custodyReview.enabled}
+                        onChange={(event) => setCustodyField('enabled', event.target.checked)}
+                      />
+                      {t('dashboard.addCustody')}
+                    </label>
+                  )}
+                  {custodyReview.enabled && (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="grid gap-1.5 text-sm">
+                        {t('dashboard.custody')}
+                        <Input
+                          type="number"
+                          min="1"
+                          step="0.01"
+                          required
+                          value={custodyReview.amount}
+                          onChange={(event) => setCustodyField('amount', event.target.value)}
+                        />
+                      </label>
+                      <label className="grid gap-1.5 text-sm">
+                        {t('dashboard.custodyDate')}
+                        <Input
+                          type="date"
+                          required
+                          value={custodyReview.date}
+                          onChange={(event) => setCustodyField('date', event.target.value)}
+                        />
+                      </label>
+                      <label className="grid gap-1.5 text-sm">
+                        {t('dashboard.custodyTime')}
+                        <Input
+                          type="time"
+                          value={custodyReview.time}
+                          onChange={(event) => setCustodyField('time', event.target.value)}
+                        />
+                      </label>
+                      <label className="grid gap-1.5 text-sm">
+                        {t('dashboard.custodyNotes')}
+                        <Input
+                          value={custodyReview.notes}
+                          onChange={(event) => setCustodyField('notes', event.target.value)}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </section>
+                {promotionError && (
+                  <p role="alert" className="text-sm text-destructive">
+                    {promotionError}
+                  </p>
+                )}
                 <TripForm
                   form={promoteForm}
                   resources={tripResources}
@@ -545,7 +585,6 @@ export function DashboardPage(): React.JSX.Element {
 
 function OpenShiftSummaryCard({ shift }: { shift: OpenShiftCard }): React.JSX.Element {
   const { t } = useTranslation()
-
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -567,7 +606,7 @@ function OpenShiftSummaryCard({ shift }: { shift: OpenShiftCard }): React.JSX.El
         <p>
           {shift.last_custody_amount === null
             ? t('dashboard.noCustody')
-            : `${t('dashboard.lastCustody')}: ${formatMoney(shift.last_custody_amount)} · ${shift.last_custody_date ?? t('common.emDash')}`}
+            : `${t('dashboard.lastCustody')}: ${formatMoney(shift.last_custody_amount)} · ${shift.last_custody_date ?? t('common.emDash')} ${shift.last_custody_time ?? ''}`}
         </p>
         <p>
           {shift.custody_trips_since} {t('dashboard.custodyTripsSince')}
@@ -577,47 +616,18 @@ function OpenShiftSummaryCard({ shift }: { shift: OpenShiftCard }): React.JSX.El
   )
 }
 
-function DraftField({
+function ReferenceValue({
   label,
-  className,
-  children
+  value
 }: {
   label: string
-  className?: string
-  children: React.ReactNode
+  value: string | null
 }): React.JSX.Element {
+  const { t } = useTranslation()
   return (
-    <label className={`flex flex-col gap-1.5 text-sm ${className ?? ''}`}>
-      <span>{label}</span>
-      {children}
-    </label>
-  )
-}
-
-function OptionalEntitySelect({
-  value,
-  placeholder,
-  options,
-  onChange
-}: {
-  value: string
-  placeholder: string
-  options: { id: number; name: string }[]
-  onChange: (value: string) => void
-}): React.JSX.Element {
-  return (
-    <Select value={value || 'none'} onValueChange={(next) => onChange(next === 'none' ? '' : next)}>
-      <SelectTrigger>
-        <SelectValue placeholder={placeholder} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="none">{placeholder}</SelectItem>
-        {options.map((option) => (
-          <SelectItem key={option.id} value={String(option.id)}>
-            {option.name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="min-w-0">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 break-words">{value ?? t('common.emDash')}</dd>
+    </div>
   )
 }

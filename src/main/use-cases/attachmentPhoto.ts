@@ -9,12 +9,14 @@ import {
 } from '../repository/attachmentRepository'
 import { getTripById } from '../repository/tripRepository'
 import { getShiftById } from '../repository/shiftRepository'
+import { getLedgerById } from '../repository/ledgerRepository'
 import { saveAttachmentPhoto, deleteAttachmentPhotoFile, readPhotoAsDataUri } from '../photoStorage'
 import { UseCaseResult } from '../useCaseUtils'
 
 const VALID_KINDS_FOR_ENTITY: Record<AttachmentEntityType, AttachmentKind[]> = {
   TRIP: ['CRUSHER_RECEIPT', 'CLIENT_RECEIPT'],
-  SHIFT: ['CLOSING_SHEET']
+  SHIFT: ['CLOSING_SHEET'],
+  LEDGER: ['TRANSFER_RECEIPT']
 }
 
 function getEntityShiftStatus(
@@ -24,6 +26,16 @@ function getEntityShiftStatus(
   if (entityType === 'SHIFT') {
     const shift = getShiftById(entityId)
     return { exists: !!shift, shiftClosed: shift?.status === 'CLOSED' }
+  }
+  if (entityType === 'LEDGER') {
+    const ledgerId = Number(entityId)
+    if (!Number.isSafeInteger(ledgerId) || ledgerId <= 0) {
+      return { exists: false, shiftClosed: false }
+    }
+    const ledger = getLedgerById(ledgerId)
+    if (!ledger) return { exists: false, shiftClosed: false }
+    const shift = ledger.shiftId ? getShiftById(ledger.shiftId) : undefined
+    return { exists: true, shiftClosed: shift?.status === 'CLOSED' }
   }
   const trip = getTripById(entityId)
   if (!trip) return { exists: false, shiftClosed: false }

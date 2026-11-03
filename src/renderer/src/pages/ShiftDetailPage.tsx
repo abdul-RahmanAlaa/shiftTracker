@@ -76,6 +76,16 @@ export function ShiftDetailPage(): React.JSX.Element {
       meta: { nowrap: true }
     },
     {
+      id: 'timeOfDay',
+      accessorFn: (trip) =>
+        trip.timeOfDay === 'MORNING'
+          ? t('dashboard.morning')
+          : trip.timeOfDay === 'EVENING'
+            ? t('dashboard.evening')
+            : t('common.emDash'),
+      header: t('tripForm.fields.timeOfDay')
+    },
+    {
       accessorKey: 'crusherCubic',
       header: t('tripForm.fields.crusherCubic'),
       meta: { nowrap: true },

@@ -24,11 +24,11 @@ export function TripEntryGridTable({
   errorsByRow: Map<number, TripGridCellErrors>
   resources: ResourceState
   saving: boolean
-  setInputRef: (key: string, element: HTMLInputElement | null) => void
+  setInputRef: (key: string, element: HTMLElement | null) => void
   onChange: (rowId: number, column: TripGridColumn, value: string) => void
   onResolveName: (rowId: number, column: TripGridColumn, value: string) => void
   onPaste: (event: ClipboardEvent<HTMLInputElement>, rowIndex: number, columnIndex: number) => void
-  onKeyDown: (event: KeyboardEvent<HTMLInputElement>, rowIndex: number, columnIndex: number) => void
+  onKeyDown: (event: KeyboardEvent<HTMLElement>, rowIndex: number, columnIndex: number) => void
   onFocusRow: (rowId: number) => void
   onDelete: (rowId: number) => void
 }): React.JSX.Element {

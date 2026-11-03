@@ -63,6 +63,33 @@ export function TripForm({
           <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4 md:grid-cols-2">
             <FormField
               control={form.control}
+              name="timeOfDay"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t('tripForm.fields.timeOfDay')}</FormLabel>
+                  <Select
+                    value={field.value ?? 'none'}
+                    onValueChange={(value) =>
+                      field.onChange(value === 'MORNING' || value === 'EVENING' ? value : null)
+                    }
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">{t('common.emDash')}</SelectItem>
+                      <SelectItem value="MORNING">{t('dashboard.morning')}</SelectItem>
+                      <SelectItem value="EVENING">{t('dashboard.evening')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="tripDate"
               render={({ field }) => (
                 <FormItem>

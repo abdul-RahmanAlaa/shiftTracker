@@ -28,6 +28,7 @@ function isTripFormField(field: string): field is keyof TripValues {
 
 const emptyTripValues = {
   tripDate: '',
+  timeOfDay: null,
   crusherCubic: 0,
   clientCubicReported: 0,
   fineAmount: 0,
@@ -199,6 +200,7 @@ export function useShiftDetailPage(shiftId: string): ShiftDetailPageState {
     setEditingTripId(trip.id)
     editTripForm.reset({
       tripDate: trip.tripDate,
+      timeOfDay: trip.timeOfDay,
       crusherCubic: trip.crusherCubic,
       clientCubicReported: trip.clientCubicReported,
       fineAmount: trip.fineAmount,
