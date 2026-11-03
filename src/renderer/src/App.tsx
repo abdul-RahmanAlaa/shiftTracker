@@ -1,7 +1,15 @@
 import { HashRouter, NavLink, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BookOpen, Calculator, ClipboardList, List, Settings, Truck } from 'lucide-react'
+import {
+  BookOpen,
+  Calculator,
+  ClipboardList,
+  LayoutDashboard,
+  List,
+  Settings,
+  Truck
+} from 'lucide-react'
 import { FloatingWindowsProvider } from '@/components/FloatingWindowsProvider'
 import { ConfirmProvider } from '@/components/ConfirmDialog'
 import { cn } from '@/lib/utils'
@@ -12,9 +20,11 @@ import { ShiftsPage } from '@/pages/ShiftsPage'
 import { ShiftDetailPage } from '@/pages/ShiftDetailPage'
 import { AllTripsPage } from '@/pages/AllTripsPage'
 import { StatementsPage } from '@/pages/StatementsPage'
+import { DashboardPage } from '@/pages/DashboardPage'
 import { ipcApi, showErrorNotice } from '@/lib/ipcErrors'
 
 const navigationItems = [
+  { to: '/dashboard', label: 'dashboard.title', icon: LayoutDashboard },
   { to: '/', label: 'addTrip.title', icon: Truck },
   { to: '/shifts', label: 'shifts.title', icon: ClipboardList },
   { to: '/all-trips', label: 'allTrips.title', icon: List },
@@ -92,6 +102,7 @@ function App(): React.JSX.Element {
           <Routes>
             <Route element={<AppLayout />}>
               <Route index element={<AddTripPage />} />
+              <Route path="dashboard" element={<DashboardPage />} />
               <Route path="shifts" element={<ShiftsPage />} />
               <Route path="shifts/:shiftId" element={<ShiftDetailPage />} />
               <Route path="all-trips" element={<AllTripsPage />} />
