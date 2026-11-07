@@ -37,24 +37,14 @@ export function AllTripsPage(): React.JSX.Element {
 
   const columns: ColumnDef<AllTripsRow, unknown>[] = [
     { accessorKey: 'tripDate', header: t('common.columns.date'), meta: { nowrap: true } },
-    {
-      id: 'timeOfDay',
-      accessorFn: (trip) =>
-        trip.timeOfDay === 'MORNING'
-          ? t('dashboard.morning')
-          : trip.timeOfDay === 'EVENING'
-            ? t('dashboard.evening')
-            : t('common.emDash'),
-      header: t('tripForm.fields.timeOfDay')
-    },
     { accessorKey: 'driverName', header: t('ledgerEntryForm.fields.driver') },
     {
       accessorKey: 'vehicleNo',
       header: t('vehiclesSettings.fields.vehicleNo'),
       meta: { nowrap: true }
     },
-    { accessorKey: 'crusherName', header: t('tripForm.fields.crusher') },
     { accessorKey: 'clientName', header: t('tripForm.fields.client') },
+    { accessorKey: 'crusherReceiptNo', header: t('tripForm.fields.crusherReceiptNumber') },
     {
       accessorKey: 'clientCubicReported',
       header: t('tripDetails.fields.clientCubicReported'),
@@ -68,7 +58,7 @@ export function AllTripsPage(): React.JSX.Element {
       enableSorting: false,
       enableColumnFilter: false,
       cell: ({ row }) => (
-        <div className="flex gap-2">
+        <div className="grid gap-2">
           <Button
             type="button"
             variant="outline"

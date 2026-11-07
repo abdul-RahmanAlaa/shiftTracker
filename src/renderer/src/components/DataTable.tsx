@@ -192,21 +192,23 @@ function DataTable<T>({
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
               {enableRowSelection && (
-                <TableHead>
+                <TableHead className="w-px px-2">
                   {loading ? (
                     <Skeleton className="h-4 w-4" aria-hidden="true" />
                   ) : (
-                    <Checkbox
-                      aria-label={t('dataTable.selectAllRows')}
-                      checked={
-                        table.getIsAllRowsSelected()
-                          ? true
-                          : table.getIsSomeRowsSelected()
-                            ? 'indeterminate'
-                            : false
-                      }
-                      onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
-                    />
+                    <div className="w-4">
+                      <Checkbox
+                        aria-label={t('dataTable.selectAllRows')}
+                        checked={
+                          table.getIsAllRowsSelected()
+                            ? true
+                            : table.getIsSomeRowsSelected()
+                              ? 'indeterminate'
+                              : false
+                        }
+                        onCheckedChange={(value) => table.toggleAllRowsSelected(!!value)}
+                      />
+                    </div>
                   )}
                 </TableHead>
               )}
@@ -334,7 +336,7 @@ function DataTable<T>({
             Array.from({ length: 6 }, (_, rowIndex) => (
               <TableRow key={`skeleton-${rowIndex}`} aria-hidden="true">
                 {enableRowSelection && (
-                  <TableCell>
+                  <TableCell className="w-px px-2">
                     <Skeleton className="h-4 w-4" />
                   </TableCell>
                 )}
@@ -381,12 +383,14 @@ function DataTable<T>({
                   }}
                 >
                   {enableRowSelection && (
-                    <TableCell onClick={(event) => event.stopPropagation()}>
-                      <Checkbox
-                        aria-label={t('dataTable.selectRow')}
-                        checked={row.getIsSelected()}
-                        onCheckedChange={(value) => row.toggleSelected(!!value)}
-                      />
+                    <TableCell className="w-px px-2" onClick={(event) => event.stopPropagation()}>
+                      <div className="w-4">
+                        <Checkbox
+                          aria-label={t('dataTable.selectRow')}
+                          checked={row.getIsSelected()}
+                          onCheckedChange={(value) => row.toggleSelected(!!value)}
+                        />
+                      </div>
                     </TableCell>
                   )}
                   {row.getVisibleCells().map((cell) => {
@@ -407,7 +411,7 @@ function DataTable<T>({
                           className={
                             cell.column.columnDef.meta?.nowrap
                               ? 'inline-block max-w-full whitespace-nowrap tabular-nums'
-                              : 'max-w-full overflow-hidden whitespace-normal break-words [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]'
+                              : 'max-w-full overflow-hidden whitespace-normal wrap-break-word [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]'
                           }
                           title={title}
                         >

@@ -4,7 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import { Eye, Plus } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { DataTable } from '@/components/DataTable'
 import { AttachmentManager } from '@/components/AttachmentManager'
 import { ShiftBreadcrumb } from '@/components/ShiftBreadcrumb'
@@ -69,7 +69,7 @@ export function ShiftDetailPage(): React.JSX.Element {
   const isShiftClosed = shift?.status === 'CLOSED'
   const loading = loadedShiftId !== shiftId
   const tripColumns: ColumnDef<TripRow, unknown>[] = [
-    { accessorKey: 'id', header: t('common.columns.id'), meta: { nowrap: true } },
+    // { accessorKey: 'id', header: t('common.columns.id'), meta: { nowrap: true } },
     {
       accessorKey: 'tripDate',
       header: t('tripForm.fields.tripDate'),
@@ -85,12 +85,12 @@ export function ShiftDetailPage(): React.JSX.Element {
             : t('common.emDash'),
       header: t('tripForm.fields.timeOfDay')
     },
-    {
-      accessorKey: 'crusherCubic',
-      header: t('tripForm.fields.crusherCubic'),
-      meta: { nowrap: true },
-      cell: ({ getValue }) => formatQuantity(getValue<number>())
-    },
+    // {
+    //   accessorKey: 'crusherCubic',
+    //   header: t('tripForm.fields.crusherCubic'),
+    //   meta: { nowrap: true },
+    //   cell: ({ getValue }) => formatQuantity(getValue<number>())
+    // },
     {
       accessorKey: 'clientCubicReported',
       header: t('tripForm.fields.clientCubic'),
@@ -161,17 +161,14 @@ export function ShiftDetailPage(): React.JSX.Element {
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
       <ShiftBreadcrumb currentPage={shiftId} />
-      <h1 className="text-2xl font-semibold">{shiftId}</h1>
+      {/* <h1 className="text-2xl font-semibold">{shiftId}</h1> */}
       {!loading && !shift ? (
         <p className="text-sm text-muted-foreground">{t('shifts.shiftNotFound')}</p>
       ) : (
         <>
           {shift && (
             <Card>
-              <CardHeader>
-                <CardTitle>{t('shifts.shiftInfo.number')}</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <CardContent className="grid pt-4 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                   <p className="text-sm text-muted-foreground">
                     {t('ledgerEntryForm.fields.driver')}
@@ -227,7 +224,7 @@ export function ShiftDetailPage(): React.JSX.Element {
           )}
           <Card className="flex min-h-0 flex-1 flex-col">
             <CardHeader className="flex flex-row items-center justify-between gap-3">
-              <CardTitle>{t('shifts.tripsTitle', { id: shift?.id ?? shiftId })}</CardTitle>
+              {/* <CardTitle>{t('shifts.tripsTitle', { id: shift?.id ?? shiftId })}</CardTitle> */}
               {shift?.status === 'REOPENED' && (
                 <Button type="button" variant="outline" onClick={openAddTripDialog}>
                   <Plus className="h-4 w-4" />
